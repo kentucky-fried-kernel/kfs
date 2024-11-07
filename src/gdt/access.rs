@@ -1,4 +1,4 @@
-/// Presence represents the **present bit**, the access byte's leftmost bit
+/// `Presence` represents the **present bit**, the access byte's leftmost bit
 /// (position 7).
 /// If set, the current entry is seen as populated by the CPU.
 #[derive(PartialEq, Clone, Copy)]
@@ -8,8 +8,8 @@ pub enum Presence {
     Valid = 1,
 }
 
-/// DescriptorPrivilege represents the 2 bits (position 6 and 5) specifying the `descriptor privilege
-/// level`.
+/// `DescriptorPrivilege` represents the 2 bits (position 6 and 5) specifying the **descriptor privilege
+/// level**.
 /// The privilege level grows outward: `0` stands for kernel mode, `3` for user mode.
 #[derive(PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -19,6 +19,10 @@ pub enum DescriptorPrivilege {
     Lvl2 = 2,
     Lvl3 = 3,
 }
+
+/// `SegmentType` represents the **descriptor type bit** (position 4). If clear, the descriptor represents
+/// a system segment, (eg. a [Task State Segment](https://wiki.osdev.org/Task_State_Segment)).
+/// If set, it defines a code or data segment.
 #[derive(PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum SegmentType {
@@ -26,6 +30,8 @@ pub enum SegmentType {
     CodeOrData = 1,
 }
 
+/// `ExecutabilityType` represents the **executable bit** (position 3). If clear, the entry
+/// defines a data segment, and if set, a code segment.
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
 pub enum ExecutabilityType {
@@ -33,6 +39,13 @@ pub enum ExecutabilityType {
     Code = 1,
 }
 
+/// `Direction` represents the **direction bit** or **conforming bit** (position 2),
+/// depending on the **executable bit**.
+/// * For data: **direction bit**. If clear, the segment grows up, and if set, the segment grows down.
+/// * For code: **conforming bit**. If clear, code in this segment can only be executed from the ring set
+/// in `DescriptorPrivilege`, and if set, `DescriptorPrivilege` only represents the highest privilege level
+/// this code is allowed to be executed from. This means that code in privilege mode 3 is allowed to jump
+/// to a segment in privilege mode 1.
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
 pub enum Direction {
@@ -40,6 +53,9 @@ pub enum Direction {
     GrowsDown = 1,
 }
 
+/// `ReadWritable` (bit at position 1) specifies the permissions of the segment.
+/// * For code: if clear: `--x`, and if set: `r-x`
+/// * For data: if clear: `r--`, and if set: `rw-`
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
 pub enum ReadWriteAble {
@@ -47,6 +63,9 @@ pub enum ReadWriteAble {
     Set = 1,
 }
 
+/// `AccessBit` (position 0) specifies whether the entry has been acessed or not.
+/// Best left set to 1, except for some obscure edge cases I do not want to know
+/// about.
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
 pub enum AccessBit {
