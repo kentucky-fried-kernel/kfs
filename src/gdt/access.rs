@@ -1,3 +1,6 @@
+/// Presence represents the **present bit**, the access byte's leftmost bit
+/// (position 7).
+/// If set, the current entry is seen as populated by the CPU.
 #[derive(PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum Presence {
@@ -5,6 +8,9 @@ pub enum Presence {
     Valid = 1,
 }
 
+/// DescriptorPrivilege represents the 2 bits (position 6 and 5) specifying the `descriptor privilege
+/// level`.
+/// The privilege level grows outward: `0` stands for kernel mode, `3` for user mode.
 #[derive(PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum DescriptorPrivilege {
@@ -48,8 +54,8 @@ pub enum AccessBit {
     Default = 1,
 }
 
-/// The access byte is part of a Global Descriptor Table entry and represents
-/// its permissions. This is required for the CPU to know whether, how, and by who
+/// The access byte is part of a [Global Descriptor Table entry](https://wiki.osdev.org/Global_Descriptor_Table)
+/// and represents its permissions. This is required for the CPU to know whether, how, and by who
 /// the entry is accessible.
 pub struct Access {
     p: Presence,
