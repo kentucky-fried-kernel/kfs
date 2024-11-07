@@ -48,6 +48,9 @@ pub enum AccessBit {
     Default = 1,
 }
 
+/// The access byte is part of a Global Descriptor Table entry and represents
+/// its permissions. This is required for the CPU to know whether, how, and by who
+/// the entry is accessible.
 pub struct Access {
     p: Presence,
     dpl: DescriptorPrivilege,
@@ -83,7 +86,7 @@ impl Access {
         let mut result: u8 = 0;
 
         result |= (self.p as u8) << 7;
-        result |= (self.dpl as u8) << 5; // Because its 2 bits of information
+        result |= (self.dpl as u8) << 5;
         result |= (self.s as u8) << 4;
         result |= (self.e as u8) << 3;
         result |= (self.dc as u8) << 2;
