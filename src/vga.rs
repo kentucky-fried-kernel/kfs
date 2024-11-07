@@ -2,7 +2,6 @@
 /// thus displaying characters on the screen.
 use core::error::Error;
 
-/// VGAColor represents every possible color
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum VGAColor {
@@ -40,6 +39,13 @@ const VGA_BUFFER_ADDR: *mut u16 = 0xB8000 as *mut u16;
 
 pub struct OutOfBoundsError;
 
+/// The VGA buffer consists of a `80 * 25` `u16` array, which, when written to, triggers
+/// characters to be displayed on the Text UI (https://wiki.osdev.org/Text_UI).
+/// Each entry is split into 2 parts:
+/// * The leftmost byte determines the color of the entry, which is again split into 2 parts:
+///     * 4 leftmost bits: background color
+///     * 4 rightmost bits: font color
+/// * The rightmost byte determines the character's ASCII value.
 pub struct Buffer {
     color: u8,
     buf: *mut u16,
