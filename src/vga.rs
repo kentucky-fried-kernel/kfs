@@ -1,5 +1,8 @@
+/// The `vga` module implements the utilities that allow writing to the VGA buffer,
+/// thus displaying characters on the screen.
 use core::error::Error;
 
+/// VGAColor represents every possible color
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum VGAColor {
@@ -35,7 +38,7 @@ const VGA_WIDTH: u8 = 80;
 const VGA_HEIGHT: u8 = 25;
 const VGA_BUFFER_ADDR: *mut u16 = 0xB8000 as *mut u16;
 
-pub struct OutOffBoundsError;
+pub struct OutOfBoundsError;
 
 pub struct Buffer {
     color: u8,
@@ -77,9 +80,9 @@ impl Buffer {
         row: u8,
         column: u8,
         character: u8,
-    ) -> Result<(), OutOffBoundsError> {
+    ) -> Result<(), OutOfBoundsError> {
         if row >= VGA_HEIGHT || column >= VGA_WIDTH {
-            return Err(OutOffBoundsError);
+            return Err(OutOfBoundsError);
         }
         let entry: u16 = (character as u16) | (self.color as u16) << 8;
         let index: isize = row as isize * VGA_WIDTH as isize + column as isize;
