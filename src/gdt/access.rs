@@ -43,9 +43,9 @@ pub enum ExecutabilityType {
 /// depending on the **executable bit**.
 /// * For data: **direction bit**. If clear, the segment grows up, and if set, the segment grows down.
 /// * For code: **conforming bit**. If clear, code in this segment can only be executed from the ring set
-/// in `DescriptorPrivilege`, and if set, `DescriptorPrivilege` only represents the highest privilege level
-/// this code is allowed to be executed from. This means that code in privilege mode 3 is allowed to jump
-/// to a segment in privilege mode 1.
+///     in `DescriptorPrivilege`, and if set, `DescriptorPrivilege` only represents the highest privilege level
+///     this code is allowed to be executed from. This means that code in privilege mode 3 is allowed to jump
+///     to a segment in privilege mode 1.
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
 pub enum Direction {
