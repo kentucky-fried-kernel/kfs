@@ -18,7 +18,7 @@ _Note: If you do not get the Dev Container prompt, you can also open the `VSCode
 If you don't have `VSCode`, you can:
 ```sh
 # Build the Docker Image
-ocker build -f .devcontainer/Dockerfile -t kfs .devcontainer 
+docker build -f .devcontainer/Dockerfile -t kfs .devcontainer 
 # Mount the kernel code and run it
 docker run -v .:/root -it kfs bash
 ```
