@@ -2,6 +2,30 @@
 This is our repository for 42's `kfs` (kernel from scratch) project. The aim is to build
 a fully functional 32-bit kernel. 
 
+## Running the Kernel
+`qemu` and `grub-mkrescue` are very specific about their mutual versions, so we made a [DevContainer](.devcontainer) to make it work on every Linux machine.
+
+### Clone kfs
+```sh
+git clone git@github.com:kentucky-fried-kernel/kfs.git && cd kfs
+```
+#### VSCode
+If you are in `VSCode`, you can just install the [Dev Container](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension. Once installed, `VSCode` will prompt you to "Rebuild and Reopen in Container". The first time will take a while, as a whole Docker Image has to be built.
+
+_Note: If you do not get the Dev Container prompt, you can also open the `VSCode` settings (Ctrl/Cmd+Shift+P) and search for 'Dev Container: Rebuild and Reopen in Container'._
+
+#### Shell
+If you don't have `VSCode`, you can:
+```sh
+# Build the Docker Image
+ocker build -f .devcontainer/Dockerfile -t kfs .devcontainer 
+# Mount the kernel code and run it
+docker run -v .:/root -it kfs bash
+```
+---
+**If you have a window manager** you can now run `make run`, which will run our kernel in a `qemu` window.
+
+**If you have a headless system** you can now run `make debug`, which will run the kernel in your shell.
 
 ## Requirements
 This project is separated into 10 subprojects.
