@@ -5,15 +5,15 @@ a fully functional 32-bit kernel.
 
 ## Requirements
 This project is separated into 10 subprojects.
-- [ ] kfs-1
-  - [ ] Bootable via GRUB
-  - [ ] ASM multiboot header
-  - [ ] Basic kernel library
-  - [ ] Basic code to print stuff on the screen
-  - [ ] Scroll and cursor support
-  - [ ] I/O interface with colors support
-  - [ ] Handles keyboard entries
-  - [ ] Handles different screens with shortcuts to switch between them
+- [x] kfs-1
+  - [x] Bootable via GRUB
+  - [x] ASM multiboot header
+  - [x] Basic kernel library
+  - [x] Basic code to print stuff on the screen
+  - [x] Scroll and cursor support
+  - [x] I/O interface with colors support
+  - [x] Handles keyboard entries
+  - [x] Handles different screens with shortcuts to switch between them
 - [ ] kfs-2
   - [ ] Implements Global Descriptor Table (GDT)
     - [ ] Kernel Code
