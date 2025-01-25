@@ -322,12 +322,32 @@ mod test {
     #[test]
     fn a_long_line() {
         let mut t = Terminal::default();
-        for i in 0..VIEW_WIDTH {
+        for _ in 0..VIEW_WIDTH {
             t.handle_key(Key::A);
         }
 
         let b = Buffer::from_screen(t.active_screen());
         assert_eq!(b.cursor_x, 0);
         assert_eq!(b.cursor_y, 1);
+    }
+
+    #[test]
+    fn backspacing() {
+        let mut t = Terminal::default();
+        let test_string = "123";
+        t.write_str(&test_string);
+        t.handle_key(Key::Backspace);
+
+        let b = Buffer::from_screen(t.active_screen());
+
+        for (i, c) in test_string.as_bytes().iter().enumerate() {
+            if test_string.len() - 1 == i {
+                break;
+            }
+            assert_eq!(b.buffer[i], Entry::new(*c).to_u16());
+        }
+
+        assert_eq!(b.cursor_x, test_string.len() as u16 - 1);
+        assert_eq!(b.cursor_y, 0);
     }
 }
