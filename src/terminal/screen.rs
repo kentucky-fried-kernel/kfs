@@ -69,7 +69,7 @@ impl Screen {
             return;
         }
         let mut index = BUFFER_SIZE - 2;
-        while index + 1 > self.cursor  && index > 0{
+        while index + 1 > self.cursor && index > 0 {
             self.buffer[index + 1] = self.buffer[index];
             index -= 1;
         }
