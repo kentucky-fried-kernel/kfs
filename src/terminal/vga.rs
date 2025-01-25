@@ -17,13 +17,34 @@ pub const VIEW_BUFFER_SIZE: usize = VIEW_WIDTH * VIEW_HEIGHT;
 /// The base memory address of the VGA buffer for text mode display.
 const VGA_BUFFER_ADDR: *mut u16 = 0xB8000 as *mut u16;
 
+/// A struct representing a screen buffer for VGA entry handling and cursor management.
+///
+/// The `Buffer` holds a 2D array representing the screen's character data,
+/// a cursor position (`cursor_x` and `cursor_y`), and provides methods for creating
+/// a new buffer from a screen and flushing its contents to a device.
 pub struct Buffer {
+    /// A fixed-size array to hold screen data, representing characters and their colors.
     buffer: [u16; VIEW_BUFFER_SIZE],
+
+    /// The horizontal position of the cursor in the buffer.
     cursor_x: u16,
+
+    /// The vertical position of the cursor in the buffer.
     cursor_y: u16,
 }
 
 impl Buffer {
+    /// Creates a new `Buffer` from a given `Screen` object.
+    ///
+    /// This function processes a `Screen`'s buffer and computes a corresponding `Buffer` for display.
+    /// It handles cursor positioning, padding, and newline characters. The new buffer is populated
+    /// with the screen's entries, and the cursor position is updated based on the screen's cursor.
+    ///
+    /// # Arguments
+    /// * `s` - A reference to a `Screen` object that contains the data to be converted into a `Buffer`.
+    ///
+    /// # Returns
+    /// A new `Buffer` with the formatted data from the `Screen` and the updated cursor position.
     pub fn from_screen(s: &Screen) -> Self {
         let mut view_padding_whitespace: usize = 0;
 
@@ -63,7 +84,16 @@ impl Buffer {
 
         vga_buffer
     }
-
+    /// Flushes the contents of the buffer to the hardware VGA device.
+    ///
+    /// This function writes the entries in the buffer to the VGA display,
+    /// and updates the cursor position based on the `cursor_x` and `cursor_y` values stored in the buffer.
+    ///
+    /// # Example
+    /// ```
+    /// let buffer = Buffer::from_screen(&screen);
+    /// buffer.flush();
+    /// ```
     pub fn flush(&self) {
         for (i, e) in self.buffer.iter().enumerate() {
             write_entry_to_vga(i, *e).unwrap();
@@ -253,7 +283,7 @@ mod test {
         let mut t = Terminal::default();
         t.write_str("A");
         for i in 0..VIEW_HEIGHT as u16 {
-            if i % 2 == 0{
+            if i % 2 == 0 {
                 t.write_str("\n");
             } else {
                 t.handle_key(Key::Enter);
