@@ -31,8 +31,8 @@ impl Screen {
             Backspace => {
                 if self.cursor > 0 {
                     self.cursor -= 1;
+                    self.remove_entry_at(self.cursor);
                 }
-                self.remove_entry_at(self.cursor);
             }
             ArrowUp => self.scroll(1),
             ArrowDown => self.scroll(-1),
@@ -42,7 +42,7 @@ impl Screen {
                 }
             }
             ArrowRight => {
-                if self.cursor < BUFFER_SIZE - 1 && self.cursor <= self.last_entry_index {
+                if self.cursor < BUFFER_SIZE - 1 && self.cursor < self.last_entry_index {
                     self.cursor += 1;
                 }
             }
