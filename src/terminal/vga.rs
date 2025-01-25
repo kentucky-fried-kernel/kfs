@@ -318,4 +318,16 @@ mod test {
         assert_eq!(b.cursor_x, test_string_2.len() as u16);
         assert_eq!(b.cursor_y, 1);
     }
+
+    #[test]
+    fn a_long_line() {
+        let mut t = Terminal::default();
+        for i in 0..VIEW_WIDTH {
+            t.handle_key(Key::A);
+        }
+
+        let b = Buffer::from_screen(t.active_screen());
+        assert_eq!(b.cursor_x, 0);
+        assert_eq!(b.cursor_y, 1);
+    }
 }
