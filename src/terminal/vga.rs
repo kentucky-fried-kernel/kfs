@@ -17,52 +17,61 @@ pub const VIEW_BUFFER_SIZE: usize = VIEW_WIDTH * VIEW_HEIGHT;
 /// The base memory address of the VGA buffer for text mode display.
 const VGA_BUFFER_ADDR: *mut u16 = 0xB8000 as *mut u16;
 
-/// Flushes the contents of the screen buffer to the VGA screen, rendering characters, handling newlines,
-/// and updating the cursor position. It checks for viewport boundaries and ensures the screen's contents
-/// are properly displayed at the current viewport position.
-/// ### Parameters:
-/// - `t`: A reference to the `Screen` struct that holds the screen's buffer, cursor, and viewport state.
-///
-/// ### Notes:
-/// - If the cursor is not inside the viewport, it will stay at the last valid position inside the viewport.
-/// - This function ensures that the view area does not overflow beyond the `VIEW_BUFFER_SIZE`.
-pub fn flush_vga(t: &Screen) {
-    for x in 0..VIEW_WIDTH {
-        for y in 0..VIEW_HEIGHT {
-            write_entry_to_vga(x + VIEW_WIDTH * y, Entry::new(b' ').to_u16()).unwrap();
+pub struct Buffer {
+    buffer: [u16; VIEW_BUFFER_SIZE],
+    cursor_x: u16,
+    cursor_y: u16,
+}
+
+impl Buffer {
+    pub fn from_screen(s: &Screen) -> Self {
+        let mut view_padding_whitespace: usize = 0;
+
+        let mut vga_buffer: Buffer = Buffer {
+            buffer: [0; VIEW_BUFFER_SIZE],
+            cursor_x: 0,
+            cursor_y: 0,
+        };
+
+        let view_start_index = calculate_view_start_index(s);
+        for (relative_index, &entry) in s.buffer.iter().skip(view_start_index).enumerate() {
+            let padded_relative_index = relative_index + view_padding_whitespace;
+            let index_after_viewport = padded_relative_index >= VIEW_BUFFER_SIZE;
+            if index_after_viewport {
+                break;
+            }
+
+            let relative_cursor = s.cursor - view_start_index;
+            let padded_relative_cursor = relative_cursor + view_padding_whitespace;
+            if relative_cursor == relative_index {
+                vga_buffer.cursor_x = (padded_relative_cursor % VIEW_WIDTH) as u16;
+                vga_buffer.cursor_y = (padded_relative_cursor / VIEW_WIDTH) as u16;
+            }
+
+            match (entry & 0xFF) as u8 {
+                b'\n' => {
+                    let padding = VIEW_WIDTH - (padded_relative_index % VIEW_WIDTH) - 1;
+                    view_padding_whitespace += padding;
+
+                    for _ in 0..(padding + 1) {
+                        vga_buffer.buffer[padded_relative_index] = Entry::new(b' ').to_u16()
+                    }
+                }
+                _ => vga_buffer.buffer[padded_relative_index] = entry, // _ => write_entry_to_vga(padded_relative_index, entry).unwrap(),
+            }
         }
+
+        vga_buffer
     }
 
-    let mut view_padding_whitespace: usize = 0;
-
-    let view_start_index = calculate_view_start_index(t);
-    for (relative_index, &entry) in t.buffer.iter().skip(view_start_index).enumerate() {
-        let padded_relative_index = relative_index + view_padding_whitespace;
-        let index_after_viewport = padded_relative_index >= VIEW_BUFFER_SIZE;
-        if index_after_viewport {
-            return;
+    pub fn flush(&self) {
+        for (i, e) in self.buffer.iter().enumerate() {
+            write_entry_to_vga(i, *e).unwrap();
         }
-
-        let relative_cursor = t.cursor - view_start_index;
-        let padded_relative_cursor = relative_cursor + view_padding_whitespace;
-        if relative_cursor == relative_index {
-            unsafe {
-                let c = Cursor {};
-                c.update_pos((padded_relative_cursor % VIEW_WIDTH) as u16, (padded_relative_cursor / VIEW_WIDTH) as u16)
-            };
-        }
-
-        match (entry & 0xFF) as u8 {
-            b'\n' => {
-                let padding = VIEW_WIDTH - (padded_relative_index % VIEW_WIDTH) - 1;
-                view_padding_whitespace += padding;
-
-                for i in 0..(padding + 1) {
-                    write_entry_to_vga(padded_relative_index + i, Entry::new(b' ').to_u16()).unwrap();
-                }
-            }
-            _ => write_entry_to_vga(padded_relative_index, entry).unwrap(),
-        }
+        unsafe {
+            let c = Cursor {};
+            c.update_pos(self.cursor_x, self.cursor_y)
+        };
     }
 }
 
@@ -75,7 +84,7 @@ fn calculate_view_start_index(t: &Screen) -> usize {
         if current_line == (0, 0) {
             current_line.0 = i;
         }
-        if (current_line.1 - current_line.0) == (VIEW_WIDTH - 1) {
+        if current_line.1 >= current_line.0 && (current_line.1 - current_line.0) == (VIEW_WIDTH - 1) {
             rows[index_rows] = current_line;
             index_rows += 1;
             current_line = (0, 0);
@@ -218,4 +227,61 @@ pub enum Color {
     Default = 0x07,
     /// White on Red
     Error = 0x4F,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::terminal::{ps2::Key, Terminal};
+
+    use super::*;
+
+    #[test]
+    fn hello_world() {
+        let test_string = "Hello World";
+        let mut terminal = Terminal::default();
+        terminal.write_str(&test_string);
+        let b = Buffer::from_screen(terminal.active_screen());
+        assert_eq!(b.cursor_x, 11);
+        assert_eq!(b.cursor_y, 0);
+        for (i, c) in test_string.as_bytes().iter().enumerate() {
+            assert_eq!(b.buffer[i], Entry::new(*c).to_u16())
+        }
+    }
+
+    #[test]
+    fn hitting_enter() {
+        let mut t = Terminal::default();
+        t.write_str("A");
+        for _ in 0..VIEW_HEIGHT as u16 {
+            t.write_str("\n");
+        }
+        let b = Buffer::from_screen(t.active_screen());
+        assert_eq!(b.buffer[0], Entry::new(b' ').to_u16());
+
+        assert_eq!(b.cursor_x, 0);
+        assert_eq!(b.cursor_y, (VIEW_HEIGHT - 1) as u16)
+    }
+
+    #[test]
+    fn lines_of_coke() {
+        let mut t = Terminal::default();
+        let test_string_1 = "Coka";
+        let test_string_2 = "Cola";
+
+        t.write_str(&test_string_1);
+        t.handle_key(Key::Enter);
+        t.write_str(&test_string_2);
+
+        let b = Buffer::from_screen(t.active_screen());
+
+        for (i, c) in test_string_1.as_bytes().iter().enumerate() {
+            assert_eq!(b.buffer[i], Entry::new(*c).to_u16());
+        }
+        for (i, c) in test_string_2.as_bytes().iter().enumerate() {
+            assert_eq!(b.buffer[VIEW_WIDTH + i], Entry::new(*c).to_u16());
+        }
+
+        assert_eq!(b.cursor_x, test_string_2.len() as u16);
+        assert_eq!(b.cursor_y, 1);
+    }
 }

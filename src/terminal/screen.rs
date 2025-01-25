@@ -1,6 +1,6 @@
 use super::{
     ps2::Key,
-    vga::{flush_vga, Color, Entry},
+    vga::{Color, Entry},
 };
 
 pub const BUFFER_SIZE: usize = 1000;
@@ -69,7 +69,7 @@ impl Screen {
             return;
         }
         let mut index = BUFFER_SIZE - 2;
-        while index + 1 > self.cursor {
+        while index + 1 > self.cursor  && index > 0{
             self.buffer[index + 1] = self.buffer[index];
             index -= 1;
         }
@@ -91,10 +91,6 @@ impl Screen {
         for &c in string.as_bytes().iter() {
             self.write_color(c, color);
         }
-    }
-
-    pub fn flush(&self) {
-        flush_vga(self);
     }
 
     fn remove_entry_at(&mut self, mut index: usize) {
