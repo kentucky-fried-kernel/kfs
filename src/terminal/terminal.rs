@@ -47,7 +47,7 @@ impl Terminal {
         self.screens[self.active_screen].write_color_str(string, color);
     }
 
-    pub fn flush(&self) {
-        self.screens[self.active_screen].flush();
+    pub fn active_screen(&mut self) -> &mut Screen {
+        &mut self.screens[self.active_screen]
     }
 }
