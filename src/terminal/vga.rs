@@ -252,8 +252,12 @@ mod test {
     fn hitting_enter() {
         let mut t = Terminal::default();
         t.write_str("A");
-        for _ in 0..VIEW_HEIGHT as u16 {
-            t.write_str("\n");
+        for i in 0..VIEW_HEIGHT as u16 {
+            if i % 2 == 0{
+                t.write_str("\n");
+            } else {
+                t.handle_key(Key::Enter);
+            }
         }
         let b = Buffer::from_screen(t.active_screen());
         assert_eq!(b.buffer[0], Entry::new(b' ').to_u16());
