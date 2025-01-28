@@ -97,10 +97,12 @@ impl Buffer {
             write_entry_to_vga(i, *e).unwrap();
         }
         match self.cursor {
-            Some(c) => unsafe {
-                c.update_pos();
+            Some(c) => {
+                unsafe {
+                    c.flush_pos();
+                }
                 Cursor::show();
-            },
+            }
             None => Cursor::hide(),
         }
     }

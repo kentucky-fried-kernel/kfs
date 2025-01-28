@@ -18,7 +18,7 @@ impl Cursor {
         Cursor { x, y }
     }
 
-    /// Updates the text-mode cursor position in the VGA buffer by setting the CRTC's
+    /// Flushes the text-mode cursor position in the VGA buffer by setting the CRTC's
     /// [location registers](http://www.osdever.net/FreeVGA/vga/crtcreg.htm#0F) (`0x0F` and `0x0D`)
     /// to `x, y`.
     ///
@@ -26,8 +26,8 @@ impl Cursor {
     /// 1.  This function uses `Cursor::update`, which writes directly to the VGA buffer. In user-mode, this **will** result
     ///     in invalid memory access.
     ///
-    /// 2.  `update_pos` may cause undefined behavior if called with `x` or `y` values outside of the range `0x00..=0x0F`.
-    pub unsafe fn update_pos(&self) {
+    /// 2.  `flush_pos` may cause undefined behavior if called with `x` or `y` values outside of the range `0x00..=0x0F`.
+    pub unsafe fn flush_pos(&self) {
         let out_of_bounds: bool = !(0..VIEW_HEIGHT).contains(&(self.y as usize)) || !(0..VIEW_WIDTH).contains(&(self.x as usize));
         if out_of_bounds {
             return;

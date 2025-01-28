@@ -1,6 +1,6 @@
 #![no_std]
 
-use terminal::{cursor::Cursor, Screen};
+use terminal::Screen;
 
 mod gdt;
 mod panic;
