@@ -253,29 +253,29 @@ impl Entry {
 ///
 /// The colors are defined as `u8` values, where each value corresponds to a particular color.
 /// The default color is light gray on black.
-#[allow(dead_code)]
 #[repr(u8)]
 pub enum Color {
     /// Light gray on black (default)
     Default = 0x07,
     /// White on Red
+    #[allow(unused)]
     Error = 0x4F,
 }
 
 #[cfg(test)]
 mod test {
-    use crate::terminal::{ps2::Key, Terminal};
+    use crate::terminal::ps2::Key;
 
     use super::*;
 
     #[test]
     fn hello_world() {
         let test_string = "Hello World";
-        let mut terminal = Terminal::default();
-        terminal.write_str(&test_string);
-        let b = Buffer::from_screen(terminal.active_screen());
-        assert_eq!(b.cursor_x, 11);
-        assert_eq!(b.cursor_y, 0);
+        let mut s = Screen::default();
+        s.write_str(&test_string);
+        let b = Buffer::from_screen(&s);
+        assert_eq!(b.cursor.unwrap().x, 11);
+        assert_eq!(b.cursor.unwrap().y, 0);
         for (i, c) in test_string.as_bytes().iter().enumerate() {
             assert_eq!(b.buffer[i], Entry::new(*c).to_u16())
         }
@@ -283,33 +283,33 @@ mod test {
 
     #[test]
     fn hitting_enter() {
-        let mut t = Terminal::default();
-        t.write_str("A");
+        let mut s = Screen::default();
+        s.write_str("A");
         for i in 0..VIEW_HEIGHT as u16 {
             if i % 2 == 0 {
-                t.write_str("\n");
+                s.write_str("\n");
             } else {
-                t.handle_key(Key::Enter);
+                s.handle_key(Key::Enter);
             }
         }
-        let b = Buffer::from_screen(t.active_screen());
+        let b = Buffer::from_screen(&s);
         assert_eq!(b.buffer[0], Entry::new(b' ').to_u16());
 
-        assert_eq!(b.cursor_x, 0);
-        assert_eq!(b.cursor_y, (VIEW_HEIGHT - 1) as u16)
+        assert_eq!(b.cursor.unwrap().x, 0);
+        assert_eq!(b.cursor.unwrap().y, (VIEW_HEIGHT - 1) as u16)
     }
 
     #[test]
     fn lines_of_coke() {
-        let mut t = Terminal::default();
+        let mut s = Screen::default();
         let test_string_1 = "Coka";
         let test_string_2 = "Cola";
 
-        t.write_str(&test_string_1);
-        t.handle_key(Key::Enter);
-        t.write_str(&test_string_2);
+        s.write_str(&test_string_1);
+        s.handle_key(Key::Enter);
+        s.write_str(&test_string_2);
 
-        let b = Buffer::from_screen(t.active_screen());
+        let b = Buffer::from_screen(&s);
 
         for (i, c) in test_string_1.as_bytes().iter().enumerate() {
             assert_eq!(b.buffer[i], Entry::new(*c).to_u16());
@@ -318,30 +318,30 @@ mod test {
             assert_eq!(b.buffer[VIEW_WIDTH + i], Entry::new(*c).to_u16());
         }
 
-        assert_eq!(b.cursor_x, test_string_2.len() as u16);
-        assert_eq!(b.cursor_y, 1);
+        assert_eq!(b.cursor.unwrap().x, test_string_2.len() as u16);
+        assert_eq!(b.cursor.unwrap().y, 1);
     }
 
     #[test]
     fn a_long_line() {
-        let mut t = Terminal::default();
+        let mut s = Screen::default();
         for _ in 0..VIEW_WIDTH {
-            t.handle_key(Key::A);
+            s.handle_key(Key::A);
         }
 
-        let b = Buffer::from_screen(t.active_screen());
-        assert_eq!(b.cursor_x, 0);
-        assert_eq!(b.cursor_y, 1);
+        let b = Buffer::from_screen(&s);
+        assert_eq!(b.cursor.unwrap().x, 0);
+        assert_eq!(b.cursor.unwrap().y, 1);
     }
 
     #[test]
     fn backspacing() {
-        let mut t = Terminal::default();
+        let mut s = Screen::default();
         let test_string = "123";
-        t.write_str(&test_string);
-        t.handle_key(Key::Backspace);
+        s.write_str(&test_string);
+        s.handle_key(Key::Backspace);
 
-        let b = Buffer::from_screen(t.active_screen());
+        let b = Buffer::from_screen(&s);
 
         for (i, c) in test_string.as_bytes().iter().enumerate() {
             if test_string.len() - 1 == i {
@@ -350,7 +350,7 @@ mod test {
             assert_eq!(b.buffer[i], Entry::new(*c).to_u16());
         }
 
-        assert_eq!(b.cursor_x, test_string.len() as u16 - 1);
-        assert_eq!(b.cursor_y, 0);
+        assert_eq!(b.cursor.unwrap().x, test_string.len() as u16 - 1);
+        assert_eq!(b.cursor.unwrap().y, 0);
     }
 }

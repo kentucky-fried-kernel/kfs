@@ -12,6 +12,7 @@ impl Terminal {
     ///
     /// # Returns
     /// A `Terminal` instance with the default screen state.
+    #[allow(unused)]
     pub fn default() -> Terminal {
         Terminal {
             active_screen_index: 0,
@@ -26,6 +27,7 @@ impl Terminal {
     ///
     /// # Parameters
     /// - `key`: The key that was pressed.
+    #[allow(unused)]
     pub fn handle_key(&mut self, key: Key) {
         match key {
             Key::Tab => {
@@ -38,6 +40,7 @@ impl Terminal {
         }
     }
 
+    #[allow(unused)]
     pub fn write_str(&mut self, string: &str) {
         self.screens[self.active_screen_index].write_str(string);
     }
@@ -45,9 +48,5 @@ impl Terminal {
     #[allow(dead_code)]
     pub fn write_color_str(&mut self, string: &str, color: u8) {
         self.screens[self.active_screen_index].write_color_str(string, color);
-    }
-
-    pub fn active_screen(&mut self) -> &mut Screen {
-        &mut self.screens[self.active_screen_index]
     }
 }

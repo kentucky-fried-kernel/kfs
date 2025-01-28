@@ -8,7 +8,6 @@ pub struct Cursor {
     pub y: u16,
 }
 
-#[allow(unused)]
 impl Cursor {
     const LOCATION_REG_LOW: u8 = 0x0F;
     const LOCATION_REG_HIGH: u8 = 0x0E;

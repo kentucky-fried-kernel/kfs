@@ -61,17 +61,6 @@ fn promt_execute(prompt: &[u8], s: &mut Screen) {
     }
 }
 
-fn add_char(p: &mut [u8; PROMPT_MAX_LENGTH], c: u8) {
-    let mut i = 0;
-    for (ind, ch) in p.iter_mut().enumerate() {
-        if *ch == 0 {
-            i = ind;
-            break;
-        }
-    }
-    p[i] = c;
-}
-
 pub fn echo(s: &mut Screen) {
     s.write_str("ECHO\n");
 }
