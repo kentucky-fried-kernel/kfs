@@ -51,6 +51,8 @@ fn flush(s: &mut Screen) {
 fn promt_execute(prompt: &[u8], s: &mut Screen) {
     if str_eq_prompt("echo", prompt) {
         echo(s)
+    } else if str_eq_prompt("panic", prompt) {
+        panic!()
     } else if str_eq_prompt("halt", prompt) {
         halt();
     }
