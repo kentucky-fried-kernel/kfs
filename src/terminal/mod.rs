@@ -5,4 +5,5 @@ mod screen;
 mod terminal;
 pub mod vga;
 
-pub use terminal::Terminal;
+pub use screen::*;
+pub use terminal::*;

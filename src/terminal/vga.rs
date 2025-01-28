@@ -26,11 +26,8 @@ pub struct Buffer {
     /// A fixed-size array to hold screen data, representing characters and their colors.
     buffer: [u16; VIEW_BUFFER_SIZE],
 
-    /// The horizontal position of the cursor in the buffer.
-    cursor_x: u16,
-
-    /// The vertical position of the cursor in the buffer.
-    cursor_y: u16,
+    /// Cursor
+    cursor: Option<Cursor>,
 }
 
 impl Buffer {
@@ -50,8 +47,7 @@ impl Buffer {
 
         let mut vga_buffer: Buffer = Buffer {
             buffer: [0; VIEW_BUFFER_SIZE],
-            cursor_x: 0,
-            cursor_y: 0,
+            cursor: None,
         };
 
         let view_start_index = calculate_view_start_index(s);
@@ -65,8 +61,10 @@ impl Buffer {
             let relative_cursor = s.cursor - view_start_index;
             let padded_relative_cursor = relative_cursor + view_padding_whitespace;
             if relative_cursor == relative_index {
-                vga_buffer.cursor_x = (padded_relative_cursor % VIEW_WIDTH) as u16;
-                vga_buffer.cursor_y = (padded_relative_cursor / VIEW_WIDTH) as u16;
+                vga_buffer.cursor = Some(Cursor::new(
+                    (padded_relative_cursor % VIEW_WIDTH) as u16,
+                    (padded_relative_cursor / VIEW_WIDTH) as u16,
+                ));
             }
 
             match (entry & 0xFF) as u8 {
@@ -98,10 +96,15 @@ impl Buffer {
         for (i, e) in self.buffer.iter().enumerate() {
             write_entry_to_vga(i, *e).unwrap();
         }
-        unsafe {
-            let c = Cursor {};
-            c.update_pos(self.cursor_x, self.cursor_y)
-        };
+        match self.cursor {
+            Some(c) => unsafe {
+                c.update_pos();
+                Cursor::resize(0, 15);
+            },
+            None => unsafe {
+                Cursor::resize(0, 0);
+            },
+        }
     }
 }
 

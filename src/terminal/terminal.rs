@@ -1,9 +1,9 @@
 use super::{ps2::Key, screen::Screen};
 
-const NBR_OF_SCREENS_PER_TERMINAL: usize = 5;
+pub const NBR_OF_SCREENS_PER_TERMINAL: usize = 5;
 
 pub struct Terminal {
-    active_screen: usize,
+    pub active_screen_index: usize,
     screens: [Screen; NBR_OF_SCREENS_PER_TERMINAL],
 }
 
@@ -14,7 +14,7 @@ impl Terminal {
     /// A `Terminal` instance with the default screen state.
     pub fn default() -> Terminal {
         Terminal {
-            active_screen: 0,
+            active_screen_index: 0,
             screens: [Screen::default(); NBR_OF_SCREENS_PER_TERMINAL],
         }
     }
@@ -29,25 +29,25 @@ impl Terminal {
     pub fn handle_key(&mut self, key: Key) {
         match key {
             Key::Tab => {
-                self.active_screen += 1;
-                if self.active_screen >= NBR_OF_SCREENS_PER_TERMINAL {
-                    self.active_screen = 0;
+                self.active_screen_index += 1;
+                if self.active_screen_index >= NBR_OF_SCREENS_PER_TERMINAL {
+                    self.active_screen_index = 0;
                 }
             }
-            _ => self.screens[self.active_screen].handle_key(key),
+            _ => self.screens[self.active_screen_index].handle_key(key),
         }
     }
 
     pub fn write_str(&mut self, string: &str) {
-        self.screens[self.active_screen].write_str(string);
+        self.screens[self.active_screen_index].write_str(string);
     }
 
     #[allow(dead_code)]
     pub fn write_color_str(&mut self, string: &str, color: u8) {
-        self.screens[self.active_screen].write_color_str(string, color);
+        self.screens[self.active_screen_index].write_color_str(string, color);
     }
 
     pub fn active_screen(&mut self) -> &mut Screen {
-        &mut self.screens[self.active_screen]
+        &mut self.screens[self.active_screen_index]
     }
 }
