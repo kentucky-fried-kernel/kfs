@@ -79,7 +79,15 @@ impl Cursor {
         )
     }
 
-    pub unsafe fn hide() {
-        Self::update(Cursor::REG_START, 1 << 5);
+    pub fn show() {
+        unsafe {
+            Self::resize(0, 15);
+        }
+    }
+
+    pub fn hide() {
+        unsafe {
+            Self::update(Cursor::REG_START, 1 << 5);
+        }
     }
 }

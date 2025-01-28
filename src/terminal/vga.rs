@@ -99,11 +99,9 @@ impl Buffer {
         match self.cursor {
             Some(c) => unsafe {
                 c.update_pos();
-                Cursor::resize(0, 15);
+                Cursor::show();
             },
-            None => unsafe {
-                Cursor::hide();
-            },
+            None => Cursor::hide(),
         }
     }
 }
