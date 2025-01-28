@@ -78,4 +78,8 @@ impl Cursor {
             out("al") _,
         )
     }
+
+    pub unsafe fn hide() {
+        Self::update(Cursor::REG_START, 1 << 5);
+    }
 }

@@ -102,7 +102,7 @@ impl Buffer {
                 Cursor::resize(0, 15);
             },
             None => unsafe {
-                Cursor::resize(0, 0);
+                Cursor::hide();
             },
         }
     }

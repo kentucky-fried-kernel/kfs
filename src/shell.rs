@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 use crate::terminal::{
     ps2::{self, Key},
     vga::Buffer,
@@ -11,8 +13,9 @@ pub fn launch(s: &mut Screen) {
 
     loop {
         s.write_str("sh> ");
-        prompt_start = s.cursor;
         flush(s);
+
+        prompt_start = s.cursor;
 
         loop {
             if let Some(key) = ps2::read_if_ready() {
@@ -45,6 +48,22 @@ fn flush(s: &mut Screen) {
     b.flush();
 }
 
+fn promt_execute(prompt: &[u8], s: &mut Screen) {
+    if str_eq_prompt("echo", prompt) {
+        echo(s)
+    } else if str_eq_prompt("halt", prompt) {
+        halt();
+    }
+}
+
+pub fn echo(s: &mut Screen) {
+    s.write_str("ECHO\n");
+}
+
+fn halt() {
+    unsafe { asm!("hlt") }
+}
+
 fn str_eq_prompt(s: &str, prompt: &[u8]) -> bool {
     for (i, c) in s.as_bytes().iter().enumerate() {
         if *c != prompt[i] {
@@ -53,14 +72,4 @@ fn str_eq_prompt(s: &str, prompt: &[u8]) -> bool {
     }
 
     true
-}
-
-fn promt_execute(prompt: &[u8], s: &mut Screen) {
-    if str_eq_prompt("echo", prompt) {
-        echo(s)
-    }
-}
-
-pub fn echo(s: &mut Screen) {
-    s.write_str("ECHO\n");
 }
