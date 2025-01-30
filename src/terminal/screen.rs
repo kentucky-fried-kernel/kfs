@@ -3,7 +3,7 @@ use super::{
     vga::{Color, Entry},
 };
 
-pub const BUFFER_SIZE: usize = 1000;
+pub const BUFFER_SIZE: usize = 1_000;
 
 #[derive(Clone, Copy)]
 pub struct Screen {
@@ -100,5 +100,12 @@ impl Screen {
         }
         self.last_entry_index -= 1;
         self.buffer[index] = Entry::new(b' ').to_u16();
+    }
+
+    pub fn move_cursor_to_end(&mut self) {
+        for _ in 0..BUFFER_SIZE {
+            self.handle_key(Key::ArrowRight);
+        }
+        self.rows_scrolled = 0;
     }
 }

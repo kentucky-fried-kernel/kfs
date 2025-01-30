@@ -3,15 +3,16 @@ use core::str;
 #[derive(Debug)]
 pub struct ParseError;
 
+#[allow(unused)]
 pub fn slice_to_str((slice, len): (&[u8; 65], usize)) -> Result<&str, ParseError> {
     let real_part = &slice[65 - len..65];
 
     match str::from_utf8(real_part) {
         Ok(s) => Ok(s),
-        Err(_) => Err(ParseError),
+        Err(_) => Err(ParseError {}),
     }
 }
-
+#[allow(unused)]
 pub fn u64_to_base(mut addr: u64, base: u8) -> Result<([u8; 65], usize), ()> {
     if !(2..=16).contains(&base) {
         return Err(());
