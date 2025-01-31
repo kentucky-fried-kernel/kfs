@@ -2,7 +2,7 @@
 
 .global _start
 .global stack_top
-.global GDT_end
+.global flush_gdt_registers
 
 
 .set MB_MAGIC, 0x1BADB002          
@@ -22,8 +22,8 @@
 		.skip 4096
 	stack_top:
 
- 
 .section .text
+
 	_start:
 		mov $stack_top, %esp
 
@@ -36,3 +36,23 @@
 			cli      
 			hlt      
 			jmp hang
+
+
+
+gdtr:
+	.short 0x6
+	.long 0x800
+
+flush_gdt_registers:
+	lgdt gdtr
+	jmp $0x8, $flush
+	hlt
+
+flush:
+	mov %ax, 0x10
+	mov %ds, %ax
+	mov %es, %ax
+	mov %fs, %ax
+	mov %gs, %ax
+	mov %ss, %ax
+	ret
