@@ -103,8 +103,8 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("\nAvailable commands:\n\n");
     s.write_str("    echo:                print 'ECHO' to the console\n");
     s.write_str("    panic:               trigger a kernel panic\n");
-    s.write_str("    halt:                halt the CPU execution\n");
-    s.write_str("    reboot:              reboot the CPU\n");
+    s.write_str("    halt:                halt the kernel execution\n");
+    s.write_str("    reboot:              reboot the kernel\n");
     s.write_str("    prints <address>:    display 16 bytes of the stack starting from <address>\n");
     s.write_str("    prints               display the whole kernel stack\n");
     s.write_str("    help                 display this help message\n\n");
