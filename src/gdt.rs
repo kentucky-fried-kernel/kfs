@@ -1,9 +1,7 @@
-use core::{arch::asm, ptr::write_volatile};
-
-use crate::print::u64_to_base;
+use core::ptr::write_volatile;
 
 fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
-    let mut descriptor: u64 = 0;
+    let mut descriptor: u64;
 
     descriptor = (limit as u64) & 0x000F0000;
     descriptor |= ((flags as u64) << 8) & 0x00F0FF00;
@@ -38,8 +36,8 @@ pub fn set_gdt() {
         GDT[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
         GDT[6] = GDT[5];
 
-        for (i, entry) in GDT.iter().enumerate() {
-            write_volatile(GDT_ADDRESS.add(i), *entry);
+        for i in 0..GDT_LIMIT {
+            write_volatile(GDT_ADDRESS.add(i), GDT[i]);
         }
 
         flush_gdt_registers();

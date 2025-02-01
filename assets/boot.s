@@ -40,19 +40,18 @@
 
 
 gdtr:
-	.short 0x6
+	.short 0x37
 	.long 0x800
 
 flush_gdt_registers:
 	lgdt gdtr
 	jmp $0x8, $flush
-	hlt
 
 flush:
-	mov %ax, 0x10
-	mov %ds, %ax
-	mov %es, %ax
-	mov %fs, %ax
-	mov %gs, %ax
-	mov %ss, %ax
+	mov $0x10, %ax  
+	mov %ax, %ds
+	mov %ax, %es
+	mov %ax, %fs
+	mov %ax, %gs
+	mov %ax, %ss
 	ret
