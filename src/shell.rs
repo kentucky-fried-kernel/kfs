@@ -1,7 +1,7 @@
 use core::arch::asm;
 
 use crate::{
-    print::u64_to_base,
+    conv::hextou,
     terminal::{
         ps2::{self, read_if_ready, Key},
         vga::Buffer,
@@ -60,73 +60,97 @@ fn promt_execute(prompt: &[u8], s: &mut Screen) {
         halt();
     } else if str_eq_prompt("reboot", prompt) {
         reboot();
-    } else if prompt.starts_with(b"prints") {
-        print_stack(s, atohex(&prompt[7..]));
+    } else if prompt.starts_with(b"prints ") {
+        print_stack_slice(s, &prompt[7..]);
+    } else if str_eq_prompt("prints", prompt) {
+        print_stack(s)
+    } else if str_eq_prompt("help", prompt){
+        help(s);
+    } else {
+        s.write_str("command not found\n");
     }
 }
 
-fn atohex(bytes: &[u8]) -> usize {
-    let num: &[u8];
-    if bytes[0] == b'0' && bytes[1] == b'x' {
-        num = &bytes[2..];
-    } else {
-        num = &bytes;
+fn help(s: &mut Screen) {
+    s.write_str("Available commands:\n");
+    s.write_str("    echo:                print 'ECHO' to the console\n");
+    s.write_str("    panic:               trigger a kernel panic\n");
+    s.write_str("    halt:                halt the CPU execution\n");
+    s.write_str("    reboot:              reboot the CPU\n");
+    s.write_str("    prints <address>:    display 16 bytes of the stack starting from <address>\n");
+    s.write_str("    prints               display the whole kernel stack\n");
+    s.write_str("    help                 display this help message\n");
+}
+
+fn contains_non_null(bytes: &[u8]) -> bool {
+    for byte in bytes {
+        if *byte != 0 {
+            return true;
+        }
     }
+    false
+}
 
-    let mut result: usize = 0;
+fn print_stack(s: &mut Screen) {
+    let addr = 0x0;
+    let ptr: *const u8 = addr as *const u8;
+    let stack_size = 4096;
 
-    for byte in num {
-        let digit: u8;
+    for row_idx in (0..stack_size).step_by(16) {
+        let mut bytes: [u8; 16] = [0u8; 16];
 
-        if *byte >= b'0' && *byte <= b'9' {
-            digit = *byte - b'0';
-        } else if *byte >= b'a' && *byte <= b'f' {
-            digit = *byte - b'a' + 10;
-        } else if *byte >= b'A' && *byte <= b'F' {
-            digit = *byte - b'A' + 10;
-        } else {
-            break;
+        for byte_idx in 0..16 {
+            let byte = unsafe { *ptr.add(row_idx + byte_idx) };
+            bytes[byte_idx] = byte;
         }
 
-        result = result * 16 + digit as usize;
+        if contains_non_null(&bytes) {
+            s.write_str("0x");
+            s.write_hex((addr + row_idx) as u32);
+            s.write_str("-0x");
+            s.write_hex((addr + row_idx + 15) as u32);
+            s.write_str(": ");
+
+            for byte in bytes.chunks(4) {
+                s.write_str("0x");
+                for b in byte {
+                    s.write_hex_byte(*b);
+                }
+                s.write_str(" ");
+            }
+            s.write_str("\n");
+            flush(s);
+        }
     }
-    result
+
+    s.write_str("Stack displayed by rows of 16 bytes. Omitted rows containing only zeros.\n");
 }
 
-fn print_stack(s: &mut Screen, addr: usize) {
+fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
+    let addr = match hextou(prompt) {
+        Some(a) => a,
+        None => {
+            s.write_str("No valid hex found in input\n");
+            return;
+        }
+    };
     let ptr: *const u8 = addr as *const u8;
 
     s.write_str("0x");
-    write_hex(addr as u64, s);
+    s.write_hex(addr as u32);
     s.write_str("-0x");
-    write_hex(addr as u64 + 16, s);
+    s.write_hex(addr as u32 + 12);
     s.write_str(": ");
     for word_idx in 0..4 {
         s.write_str("0x");
 
         for byte_idx in 0..4 {
             let byte = unsafe { *ptr.add((word_idx * 4) + byte_idx) };
-            write_hex_byte(byte, s);
+            s.write_hex_byte(byte);
         }
         s.write_str(" ");
     }
     s.write_str("\n");
-}
-
-fn write_hex_byte(byte: u8, s: &mut Screen) {
-    let high_nibble = (byte >> 4) & 0xF;
-    let low_nibble = byte & 0xF;
-
-    s.write(if high_nibble < 10 { b'0' + high_nibble } else { b'a' + (high_nibble - 10) });
-    s.write(if low_nibble < 10 { b'0' + low_nibble } else { b'a' + (low_nibble - 10) });
-}
-
-fn write_hex(value: u64, s: &mut Screen) {
-    let mut nibble;
-    for i in (0..8).rev() {
-        nibble = ((value >> (i * 4)) & 0xF) as u8;
-        s.write(if nibble < 10 { b'0' + nibble } else { b'a' + (nibble - 10) });
-    }
 }
 
 pub fn echo(s: &mut Screen) {

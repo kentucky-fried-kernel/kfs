@@ -8,6 +8,7 @@ mod panic;
 mod print;
 mod shell;
 mod terminal;
+mod conv;
 
 #[no_mangle]
 pub extern "C" fn kernel_main() {
