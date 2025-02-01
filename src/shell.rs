@@ -93,7 +93,7 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             return;
         }
     }
-    s.write_str("command not found");
+    s.write_str("command not found\n");
 }
 
 #[allow(unused)]
@@ -190,10 +190,7 @@ fn prints_cmd(args: &[u8], s: &mut Screen) {
 
 #[allow(unused)]
 fn echo_cmd(args: &[u8], s: &mut Screen) {
-    let args_len = match args
-        .iter()
-        .position(|&c| c == 0)
-    {
+    let args_len = match args.iter().position(|&c| c == 0) {
         Some(pos) => pos,
         None => args.len(),
     };
