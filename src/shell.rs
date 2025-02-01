@@ -79,6 +79,8 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
         Some(pos) => pos,
         None => prompt.len(),
     };
+    // TODO: add a way to get the total prompt length from the prompt (`prompt.len()` does not work since the prompt
+    // is padded with trailing zeros).
     let prompt_len = match prompt.iter().position(|&c| c == 0) {
         Some(pos) => pos,
         None => prompt.len(),
