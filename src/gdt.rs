@@ -21,7 +21,6 @@ extern "C" {
     fn flush_gdt_registers() -> u32;
 }
 
-#[allow(named_asm_labels)]
 pub fn set_gdt() {
     let mut gdt: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
     gdt[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);

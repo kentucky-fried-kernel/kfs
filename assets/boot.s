@@ -37,14 +37,15 @@
 			hlt      
 			jmp hang
 
-
-
 gdtr:
 	.short 0x37
 	.long 0x800
 
 flush_gdt_registers:
 	lgdt gdtr
+	mov %cr0, %eax
+	or $0x1, %eax
+	mov %eax, %cr0
 	jmp $0x8, $flush
 
 flush:
