@@ -3,12 +3,12 @@
 use gdt::set_gdt;
 use terminal::Screen;
 
+mod conv;
 mod gdt;
 mod panic;
 mod print;
 mod shell;
 mod terminal;
-mod conv;
 
 #[no_mangle]
 pub extern "C" fn kernel_main() {

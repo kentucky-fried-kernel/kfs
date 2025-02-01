@@ -64,7 +64,7 @@ fn promt_execute(prompt: &[u8], s: &mut Screen) {
         print_stack_slice(s, &prompt[7..]);
     } else if str_eq_prompt("prints", prompt) {
         print_stack(s)
-    } else if str_eq_prompt("help", prompt){
+    } else if str_eq_prompt("help", prompt) {
         help(s);
     } else {
         s.write_str("command not found\n");
@@ -112,9 +112,9 @@ fn print_stack(s: &mut Screen) {
             s.write_hex((addr + row_idx + 15) as u32);
             s.write_str(": ");
 
-            for byte in bytes.chunks(4) {
+            for word in bytes.chunks(4) {
                 s.write_str("0x");
-                for b in byte {
+                for b in word {
                     s.write_hex_byte(*b);
                 }
                 s.write_str(" ");
