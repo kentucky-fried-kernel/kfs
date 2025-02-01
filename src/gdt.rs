@@ -14,12 +14,7 @@ fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
     descriptor
 }
 
-#[no_mangle]
-static GDT_SIZE: usize = 7;
-static GDT_LIMIT: usize = GDT_SIZE - 1;
-#[no_mangle]
-static mut GDT: [u64; GDT_SIZE] = [0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0];
-
+const GDT_SIZE: usize = 7;
 const GDT_ADDRESS: *mut u64 = 0x00000800 as *mut u64;
 
 extern "C" {
@@ -28,16 +23,17 @@ extern "C" {
 
 #[allow(named_asm_labels)]
 pub fn set_gdt() {
-    unsafe {
-        GDT[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
-        GDT[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
-        GDT[3] = GDT[2];
-        GDT[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
-        GDT[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
-        GDT[6] = GDT[5];
+    let mut gdt: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
+    gdt[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
+    gdt[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
+    gdt[3] = gdt[2];
+    gdt[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
+    gdt[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
+    gdt[6] = gdt[5];
 
-        for i in 0..GDT_LIMIT {
-            write_volatile(GDT_ADDRESS.add(i), GDT[i]);
+    unsafe {
+        for (i, entry) in gdt.iter().enumerate() {
+            write_volatile(GDT_ADDRESS.add(i), *entry);
         }
 
         flush_gdt_registers();
