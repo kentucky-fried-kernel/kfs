@@ -9,6 +9,11 @@ use crate::{
     },
 };
 
+struct Command<'a> {
+    name: &'a str,
+    func: fn(args: &[u8], s: &mut Screen),
+}
+
 const PROMPT_MAX_LENGTH: usize = 1000;
 
 pub fn launch(s: &mut Screen) {
@@ -30,7 +35,7 @@ pub fn launch(s: &mut Screen) {
                             *place = (*data & 0xFF) as u8
                         }
                         s.handle_key(key);
-                        promt_execute(&prompt, s);
+                        prompt_execute(&prompt, s);
                         break;
                     }
                     Key::ArrowLeft | Key::Backspace => {
@@ -51,28 +56,49 @@ fn flush(s: &mut Screen) {
     b.flush();
 }
 
-fn promt_execute(prompt: &[u8], s: &mut Screen) {
-    if str_eq_prompt("echo", prompt) {
-        echo(s)
-    } else if str_eq_prompt("panic", prompt) {
-        panic!()
-    } else if str_eq_prompt("halt", prompt) {
-        halt();
-    } else if str_eq_prompt("reboot", prompt) {
-        reboot();
-    } else if prompt.starts_with(b"prints ") {
-        print_stack_slice(s, &prompt[7..]);
-    } else if str_eq_prompt("prints", prompt) {
-        print_stack(s)
-    } else if str_eq_prompt("help", prompt) {
-        help(s);
-    } else {
-        s.write_str("command not found\n");
+fn prompt_execute(prompt: &[u8], s: &mut Screen) {
+    static COMMANDS: &[Command] = &[
+        Command { name: "echo", func: echo_cmd },
+        Command {
+            name: "panic",
+            func: panic_cmd,
+        },
+        Command { name: "halt", func: halt_cmd },
+        Command {
+            name: "reboot",
+            func: reboot_cmd,
+        },
+        Command {
+            name: "prints",
+            func: prints_cmd,
+        },
+        Command { name: "help", func: help_cmd },
+    ];
+
+    let cmd_end = match prompt.iter().position(|&c| c == b' ' || c == 0) {
+        Some(pos) => pos,
+        None => prompt.len(),
+    };
+    let prompt_len = match prompt.iter().position(|&c| c == 0) {
+        Some(pos) => pos,
+        None => prompt.len(),
+    };
+
+    let cmd = &prompt[..cmd_end];
+
+    for command in COMMANDS {
+        if cmd == command.name.as_bytes() {
+            let args = if cmd_end < prompt_len { &prompt[cmd_end + 1..] } else { &[] };
+            (command.func)(args, s);
+            return;
+        }
     }
+    s.write_str("command not found");
 }
 
-fn help(s: &mut Screen) {
-    s.write_str("Available commands:\n\n");
+#[allow(unused)]
+fn help_cmd(args: &[u8], s: &mut Screen) {
+    s.write_str("\nAvailable commands:\n\n");
     s.write_str("    echo:                print 'ECHO' to the console\n");
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the CPU execution\n");
@@ -154,28 +180,44 @@ fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
     s.write_str("\n");
 }
 
-pub fn echo(s: &mut Screen) {
-    s.write_str("ECHO\n");
+fn prints_cmd(args: &[u8], s: &mut Screen) {
+    if args.is_empty() {
+        print_stack(s);
+    } else {
+        print_stack_slice(s, args);
+    }
 }
 
-fn reboot() {
+#[allow(unused)]
+fn echo_cmd(args: &[u8], s: &mut Screen) {
+    let args_len = match args
+        .iter()
+        .position(|&c| c == 0)
+    {
+        Some(pos) => pos,
+        None => args.len(),
+    };
+
+    for byte in &args[..args_len] {
+        s.write(*byte);
+    }
+    s.write_str("\n");
+}
+
+fn reboot_cmd(args: &[u8], s: &mut Screen) {
     while read_if_ready().is_some() {}
 
     unsafe { asm!("out dx, al", in("dx") 0x64, in("al") 0xFEu8) };
 
-    halt();
+    halt_cmd(args, s);
 }
 
-fn halt() {
+#[allow(unused)]
+fn halt_cmd(args: &[u8], s: &mut Screen) {
     unsafe { asm!("hlt") }
 }
 
-fn str_eq_prompt(s: &str, prompt: &[u8]) -> bool {
-    for (i, c) in s.as_bytes().iter().enumerate() {
-        if *c != prompt[i] {
-            return false;
-        }
-    }
-
-    true
+#[allow(unused)]
+fn panic_cmd(args: &[u8], s: &mut Screen) {
+    panic!()
 }
