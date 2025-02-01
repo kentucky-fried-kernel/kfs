@@ -72,14 +72,14 @@ fn promt_execute(prompt: &[u8], s: &mut Screen) {
 }
 
 fn help(s: &mut Screen) {
-    s.write_str("Available commands:\n");
+    s.write_str("Available commands:\n\n");
     s.write_str("    echo:                print 'ECHO' to the console\n");
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the CPU execution\n");
     s.write_str("    reboot:              reboot the CPU\n");
     s.write_str("    prints <address>:    display 16 bytes of the stack starting from <address>\n");
     s.write_str("    prints               display the whole kernel stack\n");
-    s.write_str("    help                 display this help message\n");
+    s.write_str("    help                 display this help message\n\n");
 }
 
 fn contains_non_null(bytes: &[u8]) -> bool {
@@ -123,7 +123,7 @@ fn print_stack(s: &mut Screen) {
         }
     }
 
-    s.write_str("Stack displayed by rows of 16 bytes. Omitted rows containing only zeros.\n");
+    s.write_str("\nStack displayed by rows of 16 bytes. Omitted rows containing only zeros.\n");
 }
 
 fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
