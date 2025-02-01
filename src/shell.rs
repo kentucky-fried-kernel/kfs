@@ -1,7 +1,7 @@
 use core::arch::asm;
 
 use crate::terminal::{
-    ps2::{self, Key},
+    ps2::{self, read_if_ready, Key},
     vga::Buffer,
     Screen,
 };
@@ -55,11 +55,21 @@ fn promt_execute(prompt: &[u8], s: &mut Screen) {
         panic!()
     } else if str_eq_prompt("halt", prompt) {
         halt();
+    } else if str_eq_prompt("reboot", prompt) {
+        reboot();
     }
 }
 
 pub fn echo(s: &mut Screen) {
     s.write_str("ECHO\n");
+}
+
+fn reboot() {
+    while read_if_ready().is_some() {}
+
+    unsafe { asm!("out dx, al", in("dx") 0x64, in("al") 0xFEu8) };
+
+    halt();
 }
 
 fn halt() {
