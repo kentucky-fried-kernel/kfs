@@ -65,7 +65,7 @@ pub fn echo(s: &mut Screen) {
 }
 
 fn reboot() {
-    while let Some(_) = read_if_ready() {}
+    while read_if_ready().is_some() {}
 
     unsafe { asm!("out dx, al", in("dx") 0x64, in("al") 0xFEu8) };
 
