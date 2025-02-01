@@ -9,11 +9,6 @@ use crate::{
     },
 };
 
-struct Command<'a> {
-    name: &'a str,
-    func: fn(args: &[u8], s: &mut Screen),
-}
-
 const PROMPT_MAX_LENGTH: usize = 1000;
 
 pub fn launch(s: &mut Screen) {
@@ -54,6 +49,11 @@ pub fn launch(s: &mut Screen) {
 fn flush(s: &mut Screen) {
     let b: Buffer = Buffer::from_screen(s);
     b.flush();
+}
+
+struct Command<'a> {
+    name: &'a str,
+    func: fn(args: &[u8], s: &mut Screen),
 }
 
 fn prompt_execute(prompt: &[u8], s: &mut Screen) {
@@ -168,7 +168,7 @@ fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
     s.write_str("0x");
     s.write_hex(addr as u32);
     s.write_str("-0x");
-    s.write_hex(addr as u32 + 12);
+    s.write_hex(addr as u32 + 15);
     s.write_str(": ");
     for word_idx in 0..4 {
         s.write_str("0x");
