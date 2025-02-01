@@ -1,18 +1,17 @@
 /// Converts a slice of bytes into a `usize`, assuming hexadecimal format, skipping leading and
 /// trailing whitespaces.
 ///
-/// Returns `None` if `bytes` cannot be converted to a `usize` deterministically. 
+/// Returns `None` if `bytes` cannot be converted to a `usize` deterministically.
 pub fn hextou(bytes: &[u8]) -> Option<usize> {
     let mut starting_idx = 0;
     while b"\t \n".contains(&bytes[starting_idx]) {
         starting_idx += 1;
     }
-    let num: &[u8];
-    if bytes[starting_idx] == b'0' && bytes[starting_idx + 1] == b'x' {
-        num = &bytes[starting_idx + 2..];
+    let num: &[u8] = if bytes[starting_idx] == b'0' && bytes[starting_idx + 1] == b'x' {
+        &bytes[starting_idx + 2..]
     } else {
-        num = &bytes[starting_idx..];
-    }
+        &bytes[starting_idx..]
+    };
 
     let mut result: usize = 0;
 
@@ -25,12 +24,10 @@ pub fn hextou(bytes: &[u8]) -> Option<usize> {
             digit = *byte - b'a' + 10;
         } else if *byte >= b'A' && *byte <= b'F' {
             digit = *byte - b'A' + 10;
+        } else if b"\t \n\0".contains(byte) {
+            break;
         } else {
-            if b"\t \n\0".contains(byte) {
-                break;
-            } else {
-                return None;
-            }
+            return None;
         }
 
         result = result * 16 + digit as usize;

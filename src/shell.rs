@@ -99,6 +99,7 @@ fn print_stack(s: &mut Screen) {
     for row_idx in (0..stack_size).step_by(16) {
         let mut bytes: [u8; 16] = [0u8; 16];
 
+        #[allow(clippy::needless_range_loop)]
         for byte_idx in 0..16 {
             let byte = unsafe { *ptr.add(row_idx + byte_idx) };
             bytes[byte_idx] = byte;
