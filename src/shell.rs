@@ -38,6 +38,9 @@ pub fn launch(s: &mut Screen) {
                             s.handle_key(key);
                         }
                     }
+                    Key::Escape => {
+                        reboot_cmd(&[], s);
+                    }
                     _ => s.handle_key(key),
                 }
                 flush(s);

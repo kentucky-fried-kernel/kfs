@@ -63,6 +63,7 @@ unsafe fn read(port: u16) -> u8 {
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum Key {
+    Escape,
     Tab,
     Enter,
     ArrowUp,
@@ -125,7 +126,7 @@ use Key::*;
 /// Conversion table for all characters currently supported by our kernel for PS2 input.
 const SCANCODE_TO_KEY: [Option<Key>; 256] = [
     None,
-    None,
+    Some(Escape),
     Some(N1),
     Some(N2),
     Some(N3),
