@@ -185,9 +185,17 @@ fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
 
 fn prints_cmd(args: &[u8], s: &mut Screen) {
     let sp: usize;
+    #[cfg(not(test))]
     unsafe {
         asm!(
-            "mov {0}, [esp]",
+            "mov {0}, esp",
+            out(reg) sp,
+        )
+    }
+    #[cfg(test)]
+    unsafe {
+        asm!(
+            "mov {0}, rsp",
             out(reg) sp,
         )
     }
