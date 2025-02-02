@@ -150,9 +150,6 @@ fn print_stack(sp_addr: usize, s: &mut Screen) {
             }
             s.write_str("\n");
             flush(s);
-        } else {
-            s.write_str("null row\n");
-            flush(s);
         }
     }
 
