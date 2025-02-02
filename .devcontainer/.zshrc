@@ -2,7 +2,7 @@ export ZSH="$HOME/.oh-my-zsh"
 
 ZSH_THEME="robbyrussell"
 
-plugins=(git docker python golang docker-compose git-auto-fetch rust alias-finder ssh)
+plugins=(git git-auto-fetch rust alias-finder ssh)
 
 # Enables autoload of alias-finder, disabled by default
 zstyle ':omz:plugins:alias-finder' autoload yes
