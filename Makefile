@@ -18,7 +18,7 @@ CARGO_TOML := Cargo.toml
 all: $(BUILD_DIR)/$(BINARY)
 
 $(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(BUILD_DIR)/$(GDT_OBJ) $(LIB)
-	ld -m elf_i386 -T assets/linker.ld -o $@ $^
+	ld -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
 
 $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
 	as --32 -o $@ $<
@@ -35,7 +35,7 @@ $(BUILD_DIR):
 
 iso: all 
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
-	cp assets/grub.cfg $(BUILD_DIR)/iso/boot/grub
+	cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
 	cp $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/iso/boot/
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
 
@@ -44,7 +44,7 @@ run: iso
 
 debug-iso: all
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
-	cp assets/grub.cfg $(BUILD_DIR)/iso/boot/grub
+	cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
 	cp $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/iso/boot/
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
 
@@ -56,7 +56,7 @@ crash: debug-iso
 
 test: all 
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
-	cp assets/grub.cfg $(BUILD_DIR)/iso/boot/grub
+	cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
 	cp $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/iso/boot/
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
 	qemu-system-i386 -s -S -kernel build/kernel.bin -append "root=/dev/hda"
