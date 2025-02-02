@@ -4,8 +4,11 @@ BUILD_DIR := build
 NAME := kernel
 BINARY := $(NAME).bin
 ISO := $(NAME).iso
-MULTIBOOT_HEADER := assets/boot.s
+
+MULTIBOOT_HEADER := src/arch/x86/boot.s
 MULTIBOOT_HEADER_OBJ := boot.o
+GDT := src/arch/x86/gdt.s
+GDT_OBJ := gdt.o
 
 LIB := target/i386-unknown-none/release/libkfs.a
 
@@ -14,10 +17,13 @@ CARGO_TOML := Cargo.toml
 
 all: $(BUILD_DIR)/$(BINARY)
 
-$(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(LIB)
+$(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(BUILD_DIR)/$(GDT_OBJ) $(LIB)
 	ld -m elf_i386 -T assets/linker.ld -o $@ $^
 
 $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
+	as --32 -o $@ $<
+
+$(BUILD_DIR)/$(GDT_OBJ): $(GDT) | $(BUILD_DIR)
 	as --32 -o $@ $<
 
 $(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
@@ -58,6 +64,7 @@ test: all
 fclean:
 	cargo clean
 	$(RM) -rf $(BUILD_DIR)
+	$(RM) -f $(GDT_OBJ)
 
 re: fclean all
 
