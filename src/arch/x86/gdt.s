@@ -1,10 +1,11 @@
+# Used in src/gdt.rs
 .global flush_gdt_registers
 
-# asdkajsd
 gdtr:
-	.short 0x37
-	.long 0x800
+	.short 0x37 # Limit
+	.long 0x800 # Base
 
+# Must be called after writing the GDT entries to the base address
 flush_gdt_registers:
 	lgdt gdtr
 	mov %cr0, %eax
