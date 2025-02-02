@@ -95,7 +95,11 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             return;
         }
     }
-    s.write_str("command not found\n");
+    s.write_str("'");
+    for byte in &cmd[..cmd_end] {
+        s.write(*byte);
+    }
+    s.write_str("': command not found\n");
 }
 
 #[allow(unused)]
@@ -105,7 +109,7 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the kernel execution\n");
     s.write_str("    reboot:              reboot the kernel\n");
-    s.write_str("    prints <address>:    display 512 bytes of memory starting from <address>\n");
+    s.write_str("    prints <address>:    display 1024 bytes of memory starting from <address>\n");
     s.write_str("    prints               display the kernel stack boundaries\n");
     s.write_str("    help                 display this help message\n\n");
 }
