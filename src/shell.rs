@@ -129,7 +129,6 @@ fn print_stack_slice(addr: usize, s: &mut Screen) {
     for row_idx in (addr..(addr + 1024)).step_by(16) {
         let mut bytes: [u8; 16] = [0u8; 16];
 
-        // Range loop needed here to modify the slice while looping.
         #[allow(clippy::needless_range_loop)]
         for byte_idx in 0..16 {
             let byte = unsafe { *ptr.add(row_idx + byte_idx) };
@@ -179,7 +178,7 @@ fn prints_cmd(args: &[u8], s: &mut Screen) {
         )
     }
 
-    if args.is_empty() {
+    if args.is_empty() || args.iter().all(|&c| c == b' ' || c == 0) {
         s.write_str("ESP: 0x");
         s.write_hex(sp as u32);
         s.write_str(" STACK_TOP: 0x");
