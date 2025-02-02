@@ -32,5 +32,5 @@ pub fn hextou(bytes: &[u8]) -> Option<usize> {
 
         result = result * 16 + digit as usize;
     }
-    Some(result)
+    Some(result / 2)
 }

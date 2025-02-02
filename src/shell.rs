@@ -105,8 +105,8 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the kernel execution\n");
     s.write_str("    reboot:              reboot the kernel\n");
-    s.write_str("    prints <address>:    display 16 bytes of the stack starting from <address>\n");
-    s.write_str("    prints               display the whole kernel stack\n");
+    s.write_str("    prints <address>:    display 512 bytes of memory starting from <address>\n");
+    s.write_str("    prints               display the kernel stack boundaries\n");
     s.write_str("    help                 display this help message\n\n");
 }
 
@@ -119,12 +119,10 @@ fn contains_non_null(bytes: &[u8]) -> bool {
     false
 }
 
-fn print_stack(sp_addr: usize, s: &mut Screen) {
-    let addr = 0x0;
+fn print_stack_slice(addr: usize, s: &mut Screen) {
     let ptr: *const u8 = addr as *const u8;
-    let stack_size = 4096;
 
-    for row_idx in (sp_addr..sp_addr + stack_size).step_by(16) {
+    for row_idx in (addr..(addr + 1024)).step_by(16) {
         let mut bytes: [u8; 16] = [0u8; 16];
 
         // Range loop needed here to modify the slice while looping.
@@ -153,34 +151,11 @@ fn print_stack(sp_addr: usize, s: &mut Screen) {
         }
     }
 
-    s.write_str("\nStack displayed by rows of 16 bytes. Omitted rows containing only zeros.\n");
+    s.write_str("\n1024 bytes displayed by rows of 16. Zeroed out rows omitted.\n");
 }
 
-fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
-    let addr = match hextou(prompt) {
-        Some(a) => a,
-        None => {
-            s.write_str("No valid hex found in input\n");
-            return;
-        }
-    };
-    let ptr: *const u8 = addr as *const u8;
-
-    s.write_str("0x");
-    s.write_hex(addr as u32);
-    s.write_str("-0x");
-    s.write_hex(addr as u32 + 15);
-    s.write_str(": ");
-    for word_idx in 0..4 {
-        s.write_str("0x");
-
-        for byte_idx in 0..4 {
-            let byte = unsafe { *ptr.add((word_idx * 4) + byte_idx) };
-            s.write_hex_byte(byte);
-        }
-        s.write_str(" ");
-    }
-    s.write_str("\n");
+extern "C" {
+    static stack_top: u8;
 }
 
 fn prints_cmd(args: &[u8], s: &mut Screen) {
@@ -201,9 +176,22 @@ fn prints_cmd(args: &[u8], s: &mut Screen) {
     }
 
     if args.is_empty() {
-        print_stack(sp, s);
+        s.write_str("ESP: 0x");
+        s.write_hex(sp as u32);
+        s.write_str(" STACK_TOP: 0x");
+        unsafe {
+            s.write_hex(&stack_top as *const u8 as u32);
+        }
+        s.write_str("\n");
     } else {
-        print_stack_slice(s, args);
+        let addr = match hextou(args) {
+            Some(a) => a,
+            None => {
+                s.write_str("No valid hex found in input\n");
+                return;
+            }
+        };
+        print_stack_slice(addr, s);
     }
 }
 
