@@ -1,6 +1,6 @@
 use super::{ps2::Key, screen::Screen};
 
-pub const NBR_OF_SCREENS_PER_TERMINAL: usize = 5;
+pub const NBR_OF_SCREENS_PER_TERMINAL: usize = 2;
 
 pub struct Terminal {
     pub active_screen_index: usize,

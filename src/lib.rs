@@ -3,6 +3,7 @@
 use gdt::set_gdt;
 use terminal::Screen;
 
+mod conv;
 mod gdt;
 mod panic;
 mod print;

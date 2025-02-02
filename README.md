@@ -38,17 +38,17 @@ This project is separated into 10 subprojects.
   - [x] I/O interface with colors support
   - [x] Handles keyboard entries
   - [x] Handles different screens with shortcuts to switch between them
-- [ ] kfs-2
-  - [ ] Implements Global Descriptor Table (GDT)
-    - [ ] Kernel Code
-    - [ ] Kernel Data
-    - [ ] Kernel Stack
-    - [ ] User Code
-    - [ ] User Data
-    - [ ] User Stack
-    - [ ] GDT must be set at address 0x000008000
-  - [ ] Tool to print the kernel stack
-  - [ ] Basic shell with commands like `reboot`, `halt`, etc.
+- [x] kfs-2
+  - [x] Implements Global Descriptor Table (GDT)
+    - [x] Kernel Code
+    - [x] Kernel Data
+    - [x] Kernel Stack
+    - [x] User Code
+    - [x] User Data
+    - [x] User Stack
+    - [x] GDT must be set at address 0x000008000
+  - [x] Tool to print the kernel stack
+  - [x] Basic shell with commands like `reboot`, `halt`, etc.
 - [ ] kfs-3
   - [ ] Complete memory code structure with pagination
   - [ ] Read/Write operations on memory

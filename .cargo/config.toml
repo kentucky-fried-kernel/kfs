@@ -1,2 +1,2 @@
 [alias]
-build-kernel = "build -Z build-std=core,alloc --target=assets/i386-unknown-none.json --release"
+build-kernel = "build -Z build-std=core,alloc --target=.cargo/i386-unknown-none.json --release"

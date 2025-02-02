@@ -17,8 +17,8 @@ fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
 const GDT_SIZE: usize = 7;
 const GDT_ADDRESS: *mut u64 = 0x00000800 as *mut u64;
 
-extern "C" {
-    fn flush_gdt_registers() -> u32;
+unsafe extern "C" {
+    unsafe fn flush_gdt_registers() -> u32;
 }
 
 pub fn set_gdt() {
