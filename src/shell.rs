@@ -119,14 +119,15 @@ fn contains_non_null(bytes: &[u8]) -> bool {
     false
 }
 
-fn print_stack(s: &mut Screen) {
+fn print_stack(sp_addr: usize, s: &mut Screen) {
     let addr = 0x0;
     let ptr: *const u8 = addr as *const u8;
     let stack_size = 4096;
 
-    for row_idx in (0..stack_size).step_by(16) {
+    for row_idx in (sp_addr..sp_addr + stack_size).step_by(16) {
         let mut bytes: [u8; 16] = [0u8; 16];
 
+        // Range loop needed here to modify the slice while looping.
         #[allow(clippy::needless_range_loop)]
         for byte_idx in 0..16 {
             let byte = unsafe { *ptr.add(row_idx + byte_idx) };
@@ -148,6 +149,9 @@ fn print_stack(s: &mut Screen) {
                 s.write_str(" ");
             }
             s.write_str("\n");
+            flush(s);
+        } else {
+            s.write_str("null row\n");
             flush(s);
         }
     }
@@ -183,8 +187,15 @@ fn print_stack_slice(s: &mut Screen, prompt: &[u8]) {
 }
 
 fn prints_cmd(args: &[u8], s: &mut Screen) {
+    let sp: usize;
+    unsafe {
+        asm!(
+            "mov {0}, esp",
+            out(reg) sp,
+        )
+    }
     if args.is_empty() {
-        print_stack(s);
+        print_stack(sp, s);
     } else {
         print_stack_slice(s, args);
     }
