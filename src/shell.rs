@@ -187,10 +187,11 @@ fn prints_cmd(args: &[u8], s: &mut Screen) {
     let sp: usize;
     unsafe {
         asm!(
-            "mov {0}, esp",
+            "mov {0}, [esp]",
             out(reg) sp,
         )
     }
+
     if args.is_empty() {
         print_stack(sp, s);
     } else {
