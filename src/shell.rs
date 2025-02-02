@@ -101,7 +101,7 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
 #[allow(unused)]
 fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("\nAvailable commands:\n\n");
-    s.write_str("    echo:                print 'ECHO' to the console\n");
+    s.write_str("    echo:                echoes input to the console\n");
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the kernel execution\n");
     s.write_str("    reboot:              reboot the kernel\n");
