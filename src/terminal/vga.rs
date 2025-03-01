@@ -264,9 +264,8 @@ pub enum Color {
 
 #[cfg(test)]
 mod test {
-    use crate::terminal::ps2::Key;
-
     use super::*;
+    use crate::ps2::Key;
 
     #[test]
     fn hello_world() {

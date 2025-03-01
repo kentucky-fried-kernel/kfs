@@ -392,7 +392,7 @@ fn status() -> u8 {
 }
 
 /// Reads from `port` and returns the extracted value.
-pub unsafe fn read(port: u16) -> u8 {
+unsafe fn read(port: u16) -> u8 {
     assert!(port == DATA_PORT || port == STATUS_PORT);
 
     let res: u8;
