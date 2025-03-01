@@ -1,5 +1,5 @@
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller
-use core::arch::asm;
+use core::{arch::asm, ptr::null};
 
 const DATA_PORT: u16 = 0x60;
 const STATUS_PORT: u16 = 0x64;
@@ -31,6 +31,93 @@ struct RSDP {
     rsdt_address: u32,
 }
 
+/// https://wiki.osdev.org/RSDT
+///
+/// No need for handling 2.0 since we are building for 32-bit.
+#[repr(C, packed)]
+struct SDTHeader {
+    signature: [u8; 4],
+    length: u32,
+    revision: u8,
+    checksum: u8,
+    oem_id: [u8; 6],
+    oem_table_id: [u8; 6],
+    oem_revision: u32,
+    creator_id: u32,
+    creator_revision: u32,
+}
+
+#[repr(C, packed)]
+struct RSDT {
+    h: SDTHeader,
+    // std_ptr: [u32; (h.length - size_of::<SDTHeader>()) / 4],
+}
+
+/// https://wiki.osdev.org/FADT
+#[repr(C, packed)]
+struct FADT {
+    h: SDTHeader,
+    firmware_ctrl: u32,
+    dsdt: u32,
+    reserved: u8,
+    preferred_power_management_profile: u8,
+    sci_interrupt: u16,
+    smi_command_port: u32,
+    acpi_enable: u8,
+    acpi_disable: u8,
+    s4_bios_req: u8,
+    pstate_control: u8,
+    pm1a_event_block: u32,
+    pm1b_event_block: u32,
+    pm1a_control_block: u32,
+    pm1b_control_block: u32,
+    pm2_control_block: u32,
+    pm_timer_block: u32,
+    gpe0_block: u32,
+    gpe1_block: u32,
+    pm1_event_length: u8,
+    pm1_control_length: u8,
+    pm2_control_length: u8,
+    pm_timer_length: u8,
+    gpe0_length: u8,
+    gpe1_length: u8,
+    gpe1_base: u8,
+    cstate_control: u8,
+    worst_c2_latency: u16,
+    worst_c3_latency: u16,
+    flush_size: u16,
+    flush_stride: u16,
+    duty_offset: u8,
+    duty_width: u8,
+    day_alarm: u8,
+    month_alarm: u8,
+    century: u8,
+
+    boot_architecture_flags: u16,
+
+    reserved_2: u8,
+    flags: u32,
+    // reset_reg: GenericAddressStructure,
+
+    // reset_value: u8,
+    // reserved3: [u8; 3],
+}
+
+/// Have yet to find out whether we need this in 32-bit mode, currently only used
+/// as a 12-byte placeholder in `FADT`.
+#[allow(unused)]
+#[repr(C, packed)]
+struct GenericAddressStructure {
+    address_space: u8,
+    bit_width: u8,
+    bit_offset: u8,
+    access_size: u8,
+    address: u64,
+}
+
+/// Searches for the Root System Description Pointer in memory and returns a pointer
+/// to the struct.
+///
 /// https://wiki.osdev.org/RSDP#Detecting_the_RSDP
 /// https://wiki.osdev.org/Memory_Map_(x86)#Extended_BIOS_Data_Area_(EBDA)
 fn get_rsdp() -> *mut RSDP {
@@ -56,6 +143,46 @@ fn get_rsdp() -> *mut RSDP {
     panic!()
 }
 
+fn validate_table(header: &SDTHeader) -> bool {
+    let ptr = header as *const SDTHeader as *const u8;
+    let mut sum: u8 = 0;
+
+    for i in 0..header.length {
+        sum = sum.wrapping_add(unsafe { *ptr.add(i as usize) });
+    }
+
+    sum == 0
+}
+
+fn get_fadt(rsdt_address: u32) -> *mut FADT {
+    let rsdt = rsdt_address as *const RSDT;
+    let header = unsafe { &(*rsdt).h };
+
+    if !validate_table(header) {
+        panic!()
+    }
+
+    let entries = (header.length as usize - size_of::<SDTHeader>()) / 4;
+    let entries_ptr = (rsdt as usize + size_of::<SDTHeader>()) as *const u32;
+
+    for i in 0..entries {
+        let entry_addr = unsafe { *entries_ptr.add(i) };
+        let entry_hdr = unsafe { &*(entry_addr as *const SDTHeader) };
+
+        if &entry_hdr.signature == b"FACP" {
+            if validate_table(entry_hdr) {
+                return entry_addr as *mut FADT;
+            }
+        }
+    }
+
+    panic!()
+}
+
+fn has_ps2_controller(fadt: &FADT) -> bool {
+    (fadt.boot_architecture_flags & 0x2) != 0
+}
+
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 /// https://wiki.osdev.org/ACPI
 pub fn init() -> Result<(), &'static str> {
@@ -66,12 +193,19 @@ pub fn init() -> Result<(), &'static str> {
     for byte in 0..size_of::<RSDP>() {
         checksum += unsafe { *(rsdp_ptr as *const u8).add(byte) as u16 };
     }
+
     assert_eq!(checksum & 0xFF, 0);
     rsdp.checksum = 0;
 
     assert_eq!(&rsdp.signature, b"RSD PTR ");
-    // rspd.revision defines the ACPI version, which will always be 0 in 32-bit mode.
     assert_eq!(rsdp.revision, 0);
+
+    let fadt_ptr = get_fadt(rsdp.rsdt_address);
+    let fadt = unsafe { &*fadt_ptr };
+
+    if !has_ps2_controller(fadt) {
+        return Err("PS/2 controller does not exist on this system");
+    }
 
     send_command(Command::DisableFirstPort);
     send_command(Command::DisableSecondPort);
