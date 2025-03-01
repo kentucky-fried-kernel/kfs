@@ -1,7 +1,6 @@
-use super::{
-    ps2::Key,
-    vga::{Color, Entry},
-};
+use crate::ps2::Key;
+
+use super::vga::{Color, Entry};
 
 pub const BUFFER_SIZE: usize = 50000;
 

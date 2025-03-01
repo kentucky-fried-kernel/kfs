@@ -1,12 +1,13 @@
 #![no_std]
 
 use gdt::set_gdt;
-use terminal::{Screen, ps2};
+use terminal::Screen;
 
 mod conv;
 mod gdt;
 mod panic;
 mod print;
+mod ps2;
 mod shell;
 mod terminal;
 

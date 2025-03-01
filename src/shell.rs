@@ -2,11 +2,8 @@ use core::arch::asm;
 
 use crate::{
     conv::hextou,
-    terminal::{
-        Screen,
-        ps2::{self, Key, read_if_ready},
-        vga::Buffer,
-    },
+    ps2::{self, Key, read_if_ready},
+    terminal::{Screen, vga::Buffer},
 };
 
 const PROMPT_MAX_LENGTH: usize = 1000;

@@ -2,7 +2,7 @@ use core::ptr::{read_volatile, write_volatile};
 
 use super::{
     cursor::Cursor,
-    screen::{Screen, BUFFER_SIZE},
+    screen::{BUFFER_SIZE, Screen},
 };
 
 /// The `width` of the viewable area of the VGA Buffer in chars
