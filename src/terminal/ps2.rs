@@ -26,7 +26,7 @@ enum Status {
 }
 
 #[repr(C, packed)]
-struct RSDP {
+struct Rsdp {
     signature: [u8; 8], // "RSD PTR "
     checksum: u8,
     oemid: [u8; 6],
@@ -51,14 +51,14 @@ struct SDTHeader {
 }
 
 #[repr(C, packed)]
-struct RSDT {
+struct Rsdt {
     h: SDTHeader,
     // std_ptr: [u32; (h.length - size_of::<SDTHeader>()) / 4],
 }
 
 /// https://wiki.osdev.org/FADT
 #[repr(C, packed)]
-struct FADT {
+struct Fadt {
     h: SDTHeader,
     firmware_ctrl: u32,
     dsdt: u32,
@@ -119,7 +119,7 @@ struct GenericAddressStructure {
 ///
 /// https://wiki.osdev.org/RSDP#Detecting_the_RSDP
 /// https://wiki.osdev.org/Memory_Map_(x86)#Extended_BIOS_Data_Area_(EBDA)
-fn get_rsdp() -> *mut RSDP {
+fn get_rsdp() -> *mut Rsdp {
     let ebda_addr: usize = unsafe { *(0x40E as *const u16) as usize } << 4;
 
     let target = b"RSD PTR ";
@@ -128,7 +128,7 @@ fn get_rsdp() -> *mut RSDP {
         let loc_ptr = loc as *const u8;
         let mut matches = true;
 
-        for i in 0..8 {
+        for (i, _) in target.iter().enumerate() {
             if unsafe { *loc_ptr.add(i) } != target[i] {
                 matches = false;
                 break;
@@ -136,7 +136,7 @@ fn get_rsdp() -> *mut RSDP {
         }
 
         if matches {
-            return loc as *mut RSDP;
+            return loc as *mut Rsdp;
         }
     }
 
@@ -144,7 +144,7 @@ fn get_rsdp() -> *mut RSDP {
         let loc_ptr = loc as *const u8;
         let mut matches = true;
 
-        for i in 0..8 {
+        for (i, _) in target.iter().enumerate() {
             if unsafe { *loc_ptr.add(i) } != target[i] {
                 matches = false;
                 break;
@@ -152,7 +152,7 @@ fn get_rsdp() -> *mut RSDP {
         }
 
         if matches {
-            return loc as *mut RSDP;
+            return loc as *mut Rsdp;
         }
     }
 
@@ -170,8 +170,8 @@ fn validate_table(header: &SDTHeader) -> bool {
     sum == 0
 }
 
-fn get_fadt(rsdt_address: u32) -> *mut FADT {
-    let rsdt = rsdt_address as *const RSDT;
+fn get_fadt(rsdt_address: u32) -> *mut Fadt {
+    let rsdt = rsdt_address as *const Rsdt;
     let header = unsafe { &(*rsdt).h };
 
     if !validate_table(header) {
@@ -187,7 +187,7 @@ fn get_fadt(rsdt_address: u32) -> *mut FADT {
 
         if &entry_hdr.signature == b"FACP" {
             if validate_table(entry_hdr) {
-                return entry_addr as *mut FADT;
+                return entry_addr as *mut Fadt;
             } else {
                 panic!("FADT checsum invalid")
             }
@@ -203,14 +203,14 @@ fn get_fadt(rsdt_address: u32) -> *mut FADT {
 /// is not present.
 ///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
-fn has_ps2_controller(fadt: &FADT, rsdp: &RSDP) -> bool {
+fn has_ps2_controller(fadt: &Fadt, rsdp: &Rsdp) -> bool {
     rsdp.revision < 2 || (fadt.boot_architecture_flags & 0x2) != 0
 }
 
-fn validate_rsdp(rsdp_ptr: *mut RSDP) -> bool {
+fn validate_rsdp(rsdp_ptr: *mut Rsdp) -> bool {
     let mut sum: u8 = 0;
 
-    for i in 0..size_of::<RSDP>() {
+    for i in 0..size_of::<Rsdp>() {
         sum = sum.wrapping_add(unsafe { *(rsdp_ptr as *const u8).add(i) });
     }
 
@@ -234,7 +234,7 @@ fn is_dual_channel_controller() -> bool {
 /// https://wiki.osdev.org/ACPI
 pub fn init() -> Result<(), &'static str> {
     let rsdp_ptr = get_rsdp();
-    let rsdp: &mut RSDP = unsafe { &mut *rsdp_ptr };
+    let rsdp: &mut Rsdp = unsafe { &mut *rsdp_ptr };
 
     assert!(validate_rsdp(rsdp_ptr));
     assert_eq!(&rsdp.signature, b"RSD PTR ");
@@ -299,9 +299,8 @@ pub fn init() -> Result<(), &'static str> {
 
     send_data(0xFF);
     for _ in 0..2 {
-        match wait_for_data() {
-            0xFC => return Err("PS/2 controller self test failed"),
-            _ => {}
+        if wait_for_data() == 0xFC {
+            return Err("PS/2 controller self test failed");
         }
     }
 
@@ -346,7 +345,6 @@ static mut LAST_KEY: Option<u8> = None;
 /// if let Some(c) = read_if_ready() == KeyScanCode::A {
 ///     v.write_char(b'a');
 /// }
-
 pub fn read_if_ready() -> Option<Key> {
     if !is_ps2_data_available() {
         return None;
