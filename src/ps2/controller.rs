@@ -231,6 +231,8 @@ fn is_dual_channel_controller() -> bool {
     config >> 5 & 1 == 1
 }
 
+/// Initializes the PS/2 buffer.
+///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#PS/2_Controller_Configuration_Byte
 /// https://wiki.osdev.org/ACPI
