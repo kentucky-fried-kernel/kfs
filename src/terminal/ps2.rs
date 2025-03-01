@@ -1,8 +1,78 @@
+/// https://wiki.osdev.org/%228042%22_PS/2_Controller
 use core::arch::asm;
 
-pub const PS2_DATA_PORT: u16 = 0x60;
-pub const PS2_STATUS_PORT: u16 = 0x64;
-pub const PS2_OUTPUT_BUFFER_STATUS_BIT: u8 = 1;
+const DATA_PORT: u16 = 0x60;
+const STATUS_PORT: u16 = 0x64;
+const COMMAND_PORT: u16 = 0x64;
+const OUTPUT_BUFFER_STATUS_BIT: u8 = 1;
+
+#[repr(u8)]
+enum Command {
+    DisableFirstPort = 0xAD,
+    DisableSecondPort = 0xA7,
+    EnableFirstPort = 0xAE,
+    ReadConfig = 0x20,
+    WriteConfig = 0x60,
+    SelfTest = 0xAA,
+}
+
+#[repr(u8)]
+enum Status {
+    OutputFull = 0x01,
+    InputFull = 0x02,
+}
+
+pub fn init() -> Result<(), &'static str> {
+    send_command(Command::DisableFirstPort);
+    send_command(Command::DisableSecondPort);
+
+    flush_output_buffer();
+
+    send_command(Command::ReadConfig);
+    let config = unsafe { read(DATA_PORT) };
+
+    let new_config = (config | 0x03) & !0x40;
+
+    send_command(Command::WriteConfig);
+    send_data(new_config);
+
+    send_command(Command::SelfTest);
+    let test_result = wait_for_data();
+    if test_result != 0x55 {
+        return Err("PS/2 controller failed self-test");
+    }
+
+    send_command(Command::WriteConfig);
+    send_data(new_config);
+
+    send_command(Command::EnableFirstPort);
+
+    Ok(())
+}
+
+fn send_command(cmd: Command) {
+    while unsafe { read(STATUS_PORT) } & Status::InputFull as u8 != 0 {}
+
+    unsafe { write(COMMAND_PORT, cmd as u8) };
+}
+
+fn send_data(data: u8) {
+    while unsafe { read(STATUS_PORT) } & Status::InputFull as u8 != 0 {}
+
+    unsafe { write(DATA_PORT, data) };
+}
+
+fn wait_for_data() -> u8 {
+    while unsafe { read(STATUS_PORT) } & Status::OutputFull as u8 != 0 {}
+
+    unsafe { read(DATA_PORT) }
+}
+
+fn flush_output_buffer() {
+    while unsafe { read(STATUS_PORT) } & Status::OutputFull as u8 != 0 {
+        unsafe { read(DATA_PORT) };
+    }
+}
 
 /// Reads from the PS2 data port if the PS2 status port is ready. Returns `Some(KeyScanCode)`
 /// if the converted scancode is a supported character.
@@ -19,7 +89,7 @@ pub fn read_if_ready() -> Option<Key> {
         return None;
     }
 
-    let code = unsafe { read(PS2_DATA_PORT) };
+    let code = unsafe { read(DATA_PORT) };
 
     SCANCODE_TO_KEY[code as usize]
 }
@@ -27,15 +97,15 @@ pub fn read_if_ready() -> Option<Key> {
 /// Returns `true` if the PS2 input buffer has data ready to be read,
 /// meaning the least significant bit of the PS2 status port is set.
 fn is_ps2_data_available() -> bool {
-    status() & PS2_OUTPUT_BUFFER_STATUS_BIT != 0
+    status() & OUTPUT_BUFFER_STATUS_BIT != 0
 }
 
-/// Reads from `PS2_STATUS_PORT` and returns the extracted value.
+/// Reads from `STATUS_PORT` and returns the extracted value.
 fn status() -> u8 {
     let res: u8;
 
     unsafe {
-        res = read(PS2_STATUS_PORT);
+        res = read(STATUS_PORT);
     }
 
     res
@@ -43,11 +113,11 @@ fn status() -> u8 {
 
 /// Reads from `port` and returns the extracted value.
 /// ## SAFETY:
-/// `port` is assumed to be one of `PS2_STATUS_PORT` or `PS2_DATA_PORT`. Passing another value
+/// `port` is assumed to be one of `STATUS_PORT` or `DATA_PORT`. Passing another value
 /// to this function will result in a panic.
 ///
 unsafe fn read(port: u16) -> u8 {
-    assert!(port == PS2_DATA_PORT || port == PS2_STATUS_PORT);
+    assert!(port == DATA_PORT || port == STATUS_PORT);
 
     let res: u8;
 
@@ -58,6 +128,14 @@ unsafe fn read(port: u16) -> u8 {
     );
 
     res
+}
+
+unsafe fn write(port: u16, val: u8) {
+    asm!(
+        "out dx, al",
+        in("dx") port,
+        in("al") val,
+    );
 }
 
 #[repr(u8)]
