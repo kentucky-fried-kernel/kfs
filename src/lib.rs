@@ -17,7 +17,6 @@ pub extern "C" fn kernel_main() {
     if let Err(e) = ps2::init() {
         let mut s = Screen::default();
         s.write_str(e);
-        panic!();
     }
 
     let mut s = Screen::default();
