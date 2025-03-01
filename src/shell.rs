@@ -3,9 +3,9 @@ use core::arch::asm;
 use crate::{
     conv::hextou,
     terminal::{
-        ps2::{self, read_if_ready, Key},
-        vga::Buffer,
         Screen,
+        ps2::{self, Key, read_if_ready},
+        vga::Buffer,
     },
 };
 
@@ -160,7 +160,7 @@ fn print_stack_slice(addr: usize, s: &mut Screen) {
     s.write_str("\n1024 bytes displayed by rows of 16. Zeroed out rows omitted.\n");
 }
 
-extern "C" {
+unsafe extern "C" {
     static stack_top: u8;
 }
 

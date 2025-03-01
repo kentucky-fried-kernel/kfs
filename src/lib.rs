@@ -1,7 +1,7 @@
 #![no_std]
 
 use gdt::set_gdt;
-use terminal::{ps2, Screen};
+use terminal::{Screen, ps2};
 
 mod conv;
 mod gdt;
@@ -10,12 +10,14 @@ mod print;
 mod shell;
 mod terminal;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
     set_gdt();
 
     if let Err(e) = ps2::init() {
-        panic!("{}", );
+        let mut s = Screen::default();
+        s.write_str(e);
+        panic!();
     }
 
     let mut s = Screen::default();
