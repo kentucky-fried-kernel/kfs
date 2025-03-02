@@ -2,6 +2,7 @@ use core::arch::asm;
 
 use crate::{
     conv::hextou,
+    printk,
     terminal::{
         ps2::{self, read_if_ready, Key},
         vga::Buffer,
@@ -106,11 +107,7 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             return;
         }
     }
-    s.write_str("'");
-    for byte in &cmd[..cmd_end] {
-        s.write(*byte);
-    }
-    s.write_str("': command not found\n");
+    unsafe { printk!("'{}': command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
 }
 
 #[allow(unused)]
@@ -147,6 +144,7 @@ fn print_stack_slice(addr: usize, s: &mut Screen) {
         }
 
         if contains_non_null(&bytes) {
+            unsafe { printk!("0x{:#01x}", addr + row_idx) };
             s.write_str("0x");
             s.write_hex((addr + row_idx) as u32);
             s.write_str("-0x");
