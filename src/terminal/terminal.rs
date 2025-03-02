@@ -1,4 +1,6 @@
-use super::{ps2::Key, screen::Screen};
+use crate::ps2::Key;
+
+use super::screen::Screen;
 
 pub const NBR_OF_SCREENS_PER_TERMINAL: usize = 2;
 

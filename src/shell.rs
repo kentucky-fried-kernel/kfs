@@ -2,18 +2,15 @@ use core::arch::asm;
 
 use crate::{
     printk,
-    terminal::{
-        ps2::{self, read_if_ready, Key},
-        vga::Buffer,
-        Screen,
-    },
+    ps2::{self, Key, read_if_ready},
+    terminal::{Screen, vga::Buffer},
 };
 
 const PROMPT_MAX_LENGTH: usize = 1000;
 
 /// This is a temporary fix until we have a better allocator. It is only
 /// meant for use in `launch`.
-#[link_section = ".data"]
+#[unsafe(link_section = ".data")]
 static mut PROMPT: [u8; PROMPT_MAX_LENGTH] = [0; PROMPT_MAX_LENGTH];
 
 pub fn launch(s: &mut Screen) {
@@ -125,7 +122,7 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("    help                 display this help message\n\n");
 }
 
-extern "C" {
+unsafe extern "C" {
     static stack_top: u8;
 }
 

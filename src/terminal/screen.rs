@@ -1,7 +1,6 @@
-use super::{
-    ps2::Key,
-    vga::{Color, Entry},
-};
+use crate::ps2::Key;
+
+use super::vga::{Color, Entry};
 
 pub const BUFFER_SIZE: usize = 50000;
 
@@ -14,7 +13,7 @@ pub struct Screen {
 }
 
 /// This is a temporary fix until we have an allocator.
-#[link_section = ".data"]
+#[unsafe(link_section = ".data")]
 pub static mut SCREEN: Screen = Screen::default();
 
 impl Screen {

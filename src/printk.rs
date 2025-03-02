@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::terminal::{vga::Buffer, Screen, SCREEN};
+use crate::terminal::{SCREEN, Screen, vga::Buffer};
 
 const BUFFER_SIZE: usize = 1024;
 
@@ -42,7 +42,7 @@ impl PrintkWriter {
     }
 }
 
-#[link_section = ".data"]
+#[unsafe(link_section = ".data")]
 pub static mut PRINTK_WRITER: PrintkWriter = PrintkWriter::new();
 
 impl fmt::Write for PrintkWriter {
