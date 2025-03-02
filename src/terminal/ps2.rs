@@ -123,8 +123,9 @@ pub enum Key {
 }
 
 use Key::*;
+#[link_section = ".rodata"]
 /// Conversion table for all characters currently supported by our kernel for PS2 input.
-const SCANCODE_TO_KEY: [Option<Key>; 256] = [
+static SCANCODE_TO_KEY: [Option<Key>; 256] = [
     None,
     Some(Escape),
     Some(N1),

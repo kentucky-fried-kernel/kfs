@@ -2,8 +2,12 @@ use core::fmt;
 
 use crate::terminal::{vga::Buffer, Screen, SCREEN};
 
+const BUFFER_SIZE: usize = 1024;
+
 pub struct PrintkWriter {
     screen: &'static mut Screen,
+    buffer: [u8; BUFFER_SIZE],
+    position: usize,
 }
 
 impl PrintkWriter {
@@ -11,20 +15,41 @@ impl PrintkWriter {
         Self {
             #[allow(static_mut_refs)]
             screen: unsafe { &mut SCREEN },
+            buffer: [0; BUFFER_SIZE],
+            position: 0,
         }
     }
 
-    pub fn flush(&self) {
+    fn write_byte(&mut self, byte: u8) {
+        if self.position >= BUFFER_SIZE {
+            self.flush();
+        }
+        self.buffer[self.position] = byte;
+        self.position += 1;
+
+        if byte == b'\n' {
+            self.flush();
+        }
+    }
+
+    pub fn flush(&mut self) {
         let b = Buffer::from_screen(self.screen);
+        for byte in &self.buffer[..self.position] {
+            self.screen.write(*byte);
+        }
         b.flush();
+        self.position = 0;
     }
 }
 
+#[link_section = ".data"]
 pub static mut PRINTK_WRITER: PrintkWriter = PrintkWriter::new();
 
 impl fmt::Write for PrintkWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.screen.write_str(s);
+        for byte in s.bytes() {
+            self.write_byte(byte);
+        }
         Ok(())
     }
 }
@@ -39,7 +64,5 @@ macro_rules! printk {
         use $crate::printk::PRINTK_WRITER;
         #[allow(static_mut_refs)]
         let _ = write!(PRINTK_WRITER, $($arg)*);
-        #[allow(static_mut_refs)]
-        PRINTK_WRITER.flush();
     }};
 }

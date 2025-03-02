@@ -1,7 +1,6 @@
 use core::arch::asm;
 
 use crate::{
-    conv::hextou,
     printk,
     terminal::{
         ps2::{self, read_if_ready, Key},
@@ -85,6 +84,10 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             func: prints_cmd,
         },
         Command { name: "help", func: help_cmd },
+        Command {
+            name: "printsb",
+            func: printsb_cmd,
+        },
     ];
 
     let cmd_end = match prompt.iter().position(|&c| c == b' ' || c == 0) {
@@ -117,60 +120,16 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the kernel execution\n");
     s.write_str("    reboot:              reboot the kernel\n");
-    s.write_str("    prints <address>:    display 1024 bytes of memory starting from <address>\n");
-    s.write_str("    prints               display the kernel stack boundaries\n");
+    s.write_str("    prints               display the kernel stack from %esp to the top\n");
+    s.write_str("    printsb              display the kernel stack boundaries\n");
     s.write_str("    help                 display this help message\n\n");
-}
-
-fn contains_non_null(bytes: &[u8]) -> bool {
-    for byte in bytes {
-        if *byte != 0 {
-            return true;
-        }
-    }
-    false
-}
-
-fn print_stack_slice(addr: usize, s: &mut Screen) {
-    let ptr: *const u8 = addr as *const u8;
-
-    for row_idx in (addr..(addr + 1024)).step_by(16) {
-        let mut bytes: [u8; 16] = [0u8; 16];
-
-        #[allow(clippy::needless_range_loop)]
-        for byte_idx in 0..16 {
-            let byte = unsafe { *ptr.add(row_idx + byte_idx) };
-            bytes[byte_idx] = byte;
-        }
-
-        if contains_non_null(&bytes) {
-            unsafe { printk!("0x{:#01x}", addr + row_idx) };
-            s.write_str("0x");
-            s.write_hex((addr + row_idx) as u32);
-            s.write_str("-0x");
-            s.write_hex((addr + row_idx + 15) as u32);
-            s.write_str(": ");
-
-            for word in bytes.chunks(4) {
-                s.write_str("0x");
-                for b in word {
-                    s.write_hex_byte(*b);
-                }
-                s.write_str(" ");
-            }
-            s.write_str("\n");
-            flush(s);
-        }
-    }
-
-    s.write_str("\n1024 bytes displayed by rows of 16. Zeroed out rows omitted.\n");
 }
 
 extern "C" {
     static stack_top: u8;
 }
 
-fn prints_cmd(args: &[u8], s: &mut Screen) {
+fn get_stack_pointer() -> u32 {
     let sp: usize;
     #[cfg(not(test))]
     unsafe {
@@ -187,23 +146,39 @@ fn prints_cmd(args: &[u8], s: &mut Screen) {
         )
     }
 
-    if args.is_empty() || args.iter().all(|&c| c == b' ' || c == 0) {
-        s.write_str("ESP: 0x");
-        s.write_hex(sp as u32);
-        s.write_str(" STACK_TOP: 0x");
+    sp as u32
+}
+
+fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
+    unsafe { printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), &stack_top as *const u8 as u32) };
+}
+
+fn prints_cmd(_args: &[u8], s: &mut Screen) {
+    printsb_cmd(_args, s);
+    let sp_addr = get_stack_pointer();
+    let st = unsafe { &stack_top as *const u8 as u32 };
+    let mut bytes: [u8; 16];
+
+    assert!(sp_addr <= st);
+
+    for row_idx in (sp_addr..st).step_by(16) {
+        let ptr = row_idx as *const u8;
+        bytes = unsafe { *(ptr as *const [u8; 16]) };
+
         unsafe {
-            s.write_hex(&stack_top as *const u8 as u32);
-        }
-        s.write_str("\n");
-    } else {
-        let addr = match hextou(args) {
-            Some(a) => a,
-            None => {
-                s.write_str("No valid hex found in input\n");
-                return;
+            printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
+            for word in bytes.chunks(4) {
+                // Reminder to future self: casting to u32 prints the bytes in little-endian.
+                for byte in word {
+                    printk!("{:02x}", byte);
+                }
+                printk!(" ")
             }
+            for byte in bytes {
+                printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
+            }
+            printk!("\n");
         };
-        print_stack_slice(addr, s);
     }
 }
 
@@ -214,10 +189,7 @@ fn echo_cmd(args: &[u8], s: &mut Screen) {
         None => args.len(),
     };
 
-    for byte in &args[..args_len] {
-        s.write(*byte);
-    }
-    s.write_str("\n");
+    unsafe { printk!("{}\n", core::str::from_utf8_unchecked(&args[..args_len])) };
 }
 
 fn reboot_cmd(args: &[u8], s: &mut Screen) {
