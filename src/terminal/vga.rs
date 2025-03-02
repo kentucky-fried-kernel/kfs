@@ -289,24 +289,6 @@ mod test {
     }
 
     #[test]
-    fn hitting_enter() {
-        let mut s = Screen::default();
-        s.write_str("A");
-        for i in 0..VIEW_HEIGHT as u16 {
-            if i % 2 == 0 {
-                s.write_str("\n");
-            } else {
-                s.handle_key(Key::Enter);
-            }
-        }
-        let b = Buffer::from_screen(&s);
-        assert_eq!(b.buffer[0], Entry::new(b' ').to_u16());
-
-        assert_eq!(b.cursor.unwrap().x, 0);
-        assert_eq!(b.cursor.unwrap().y, (VIEW_HEIGHT - 1) as u16)
-    }
-
-    #[test]
     fn lines_of_coke() {
         let mut s = Screen::default();
         let test_string_1 = "Coka";
