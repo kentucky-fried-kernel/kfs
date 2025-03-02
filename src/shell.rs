@@ -81,6 +81,10 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             func: prints_cmd,
         },
         Command { name: "help", func: help_cmd },
+        Command {
+            name: "printsb",
+            func: printsb_cmd,
+        },
     ];
 
     let cmd_end = match prompt.iter().position(|&c| c == b' ' || c == 0) {
@@ -117,12 +121,43 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("    panic:               trigger a kernel panic\n");
     s.write_str("    halt:                halt the kernel execution\n");
     s.write_str("    reboot:              reboot the kernel\n");
-    s.write_str("    prints <address>:    display 1024 bytes of memory starting from <address>\n");
-    s.write_str("    prints               display the kernel stack boundaries\n");
+    s.write_str("    prints               display the kernel stack\n");
+    s.write_str("    printsb              display the kernel stack boundaries\n");
     s.write_str("    help                 display this help message\n\n");
 }
 
-fn print_stack(addr: usize, s: &mut Screen) {
+extern "C" {
+    static stack_top: u8;
+}
+
+fn printsb_cmd(_args: &[u8], s: &mut Screen) {
+    let sp: usize;
+    #[cfg(not(test))]
+    unsafe {
+        asm!(
+            "mov {0}, esp",
+            out(reg) sp,
+        )
+    }
+    #[cfg(test)]
+    unsafe {
+        asm!(
+            "mov {0}, rsp",
+            out(reg) sp,
+        )
+    }
+
+    s.write_str("ESP: 0x");
+    s.write_hex(sp as u32);
+    s.write_str(" STACK_TOP: 0x");
+    unsafe {
+        s.write_hex(&stack_top as *const u8 as u32);
+    }
+    s.write_str("\n");
+}
+
+fn prints_cmd(_args: &[u8], s: &mut Screen) {
+    let addr: usize = unsafe { &stack_top as *const u8 as usize };
     let ptr: *const u8 = addr as *const u8;
     let mut bytes: [u8; 16];
 
@@ -146,9 +181,8 @@ fn print_stack(addr: usize, s: &mut Screen) {
             }
             s.write_str(" ");
         }
-        s.write_str(" | ");
         for byte in bytes {
-            if byte < 32 || byte > 127 {
+            if !(32..127).contains(&byte) {
                 s.write(b'.');
             } else {
                 s.write(byte);
@@ -156,40 +190,6 @@ fn print_stack(addr: usize, s: &mut Screen) {
         }
         s.write_str("\n");
         flush(s);
-    }
-}
-
-extern "C" {
-    static stack_top: u8;
-}
-
-fn prints_cmd(args: &[u8], s: &mut Screen) {
-    let sp: usize;
-    #[cfg(not(test))]
-    unsafe {
-        asm!(
-            "mov {0}, esp",
-            out(reg) sp,
-        )
-    }
-    #[cfg(test)]
-    unsafe {
-        asm!(
-            "mov {0}, rsp",
-            out(reg) sp,
-        )
-    }
-
-    if args.is_empty() || args.iter().all(|&c| c == b' ' || c == 0) {
-        s.write_str("ESP: 0x");
-        s.write_hex(sp as u32);
-        s.write_str(" STACK_TOP: 0x");
-        unsafe {
-            s.write_hex(&stack_top as *const u8 as u32);
-        }
-        s.write_str("\n");
-    } else {
-        print_stack(unsafe { &stack_top as *const u8 as usize }, s);
     }
 }
 
