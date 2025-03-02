@@ -5,6 +5,7 @@ use crate::ps2::{
 };
 
 #[repr(u8)]
+#[derive(PartialEq)]
 pub enum Command {
     DisableFirstPort = 0xAD,
     DisableSecondPort = 0xA7,
@@ -117,7 +118,7 @@ struct GenericAddressStructure {
 
 /// Searches for the [RSDP](https://wiki.osdev.org/RSDP#Detecting_the_RSDP),
 /// first in the [EBDA](https://wiki.osdev.org/Memory_Map_(x86)#Extended_BIOS_Data_Area_(EBDA)),
-///  then in the main BIOS area.
+/// then in the main BIOS area.
 fn get_rsdp() -> *mut Rsdp {
     let ebda_addr: usize = unsafe { *(0x40E as *const u16) as usize } << 4;
 
@@ -125,6 +126,7 @@ fn get_rsdp() -> *mut Rsdp {
         let rsdp = unsafe { &*(loc as *const Rsdp) };
 
         if &rsdp.signature == b"RSD PTR " {
+            assert!(validate_checksum(loc as *const u8, size_of::<Rsdp>() as u32), "invalid RSDP");
             return loc as *mut Rsdp;
         }
     }
@@ -133,6 +135,7 @@ fn get_rsdp() -> *mut Rsdp {
         let rsdp = unsafe { &*(loc as *const Rsdp) };
 
         if &rsdp.signature == b"RSD PTR " {
+            assert!(validate_checksum(loc as *const u8, size_of::<Rsdp>() as u32), "invalid RSDP");
             return loc as *mut Rsdp;
         }
     }
@@ -140,11 +143,10 @@ fn get_rsdp() -> *mut Rsdp {
     panic!("RSDP not found");
 }
 
-fn validate_table(header: &SDTHeader) -> bool {
-    let ptr = header as *const SDTHeader as *const u8;
+fn validate_checksum(ptr: *const u8, len: u32) -> bool {
     let mut sum: u8 = 0;
 
-    for i in 0..header.length {
+    for i in 0..len {
         sum = sum.wrapping_add(unsafe { *ptr.add(i as usize) });
     }
 
@@ -155,7 +157,7 @@ fn get_fadt(rsdt_address: u32) -> *mut Fadt {
     let rsdt = rsdt_address as *const Rsdt;
     let header = unsafe { &(*rsdt).h };
 
-    if !validate_table(header) {
+    if !validate_checksum(header as *const SDTHeader as *const u8, header.length) {
         panic!("STD header is not valid")
     }
 
@@ -167,35 +169,21 @@ fn get_fadt(rsdt_address: u32) -> *mut Fadt {
         let entry_hdr = unsafe { &*(entry_addr as *const SDTHeader) };
 
         if &entry_hdr.signature == b"FACP" {
-            if validate_table(entry_hdr) {
-                return entry_addr as *mut Fadt;
-            } else {
-                panic!("FADT checsum invalid")
-            }
+            assert!(validate_checksum(entry_addr as *const u8, entry_hdr.length), "invalid FADT header");
+            return entry_addr as *mut Fadt;
         }
     }
 
     panic!("FADT not found")
 }
 
-/// If we are under ACPI 1.0, the PS/2 controller is assumed to be here and does not need any
-/// further configuration.
+/// If we are under ACPI 1.0, a PS/2 controller is assumed to be present.
 /// Else if we are under 2.0+ and the "8042" flag is not set, we can assume the PS/2 controller
 /// is not present.
 ///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 fn has_ps2_controller(fadt: &Fadt, rsdp: &Rsdp) -> bool {
     rsdp.revision < 2 || (fadt.boot_architecture_flags & 0x2) != 0
-}
-
-fn validate_rsdp(rsdp_ptr: *mut Rsdp) -> bool {
-    let mut sum: u8 = 0;
-
-    for i in 0..size_of::<Rsdp>() {
-        sum = sum.wrapping_add(unsafe { *(rsdp_ptr as *const u8).add(i) });
-    }
-
-    sum == 0
 }
 
 /// Checks whether we have a dual channel PS/2 controller by trying to enable the second port
@@ -210,7 +198,23 @@ fn is_dual_channel_controller() -> bool {
     config >> 5 & 1 == 1
 }
 
-/// Initializes the PS/2 buffer.
+fn test_ps2_port(cmd: Command) -> Result<(), &'static str> {
+    assert!(cmd == Command::TestFirstPort || cmd == Command::TestSecondPort);
+
+    send_command(cmd);
+    match wait_for_data() {
+        0x01 => return Err("clock line stuck low"),
+        0x02 => return Err("clock line stuck high"),
+        0x03 => return Err("data line stuck low"),
+        0x04 => return Err("data line stuck high"),
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// Initializes the PS/2 controller. Note that verifying the existence of the PS/2 controller
+/// is not strictly necessary, since it is assumed to be there in i386, but it was fun.
 ///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#PS/2_Controller_Configuration_Byte
@@ -219,7 +223,6 @@ pub fn init() -> Result<(), &'static str> {
     let rsdp_ptr = get_rsdp();
     let rsdp: &mut Rsdp = unsafe { &mut *rsdp_ptr };
 
-    assert!(validate_rsdp(rsdp_ptr));
     assert_eq!(&rsdp.signature, b"RSD PTR ");
 
     let fadt_ptr = get_fadt(rsdp.rsdt_address);
@@ -257,23 +260,13 @@ pub fn init() -> Result<(), &'static str> {
         send_data(new_config);
     }
 
-    send_command(Command::TestFirstPort);
-    match wait_for_data() {
-        0x01 => return Err("clock line stuck low"),
-        0x02 => return Err("clock line stuck high"),
-        0x03 => return Err("data line stuck low"),
-        0x04 => return Err("data line stuck high"),
-        _ => {}
+    if let Err(e) = test_ps2_port(Command::TestFirstPort) {
+        return Err(e);
     }
 
     if is_dual_controller {
-        send_command(Command::TestSecondPort);
-        match wait_for_data() {
-            0x01 => return Err("clock line stuck low"),
-            0x02 => return Err("clock line stuck high"),
-            0x03 => return Err("data line stuck low"),
-            0x04 => return Err("data line stuck high"),
-            _ => {}
+        if let Err(e) = test_ps2_port(Command::TestSecondPort) {
+            return Err(e);
         }
     }
 
