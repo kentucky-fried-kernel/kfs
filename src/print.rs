@@ -48,7 +48,7 @@ mod u32_to_base_test {
     use super::*;
 
     #[test]
-    fn test_normal_functionality_base_16_ff() {
+    fn normal_functionality_base_16_ff() {
         let num = 255u32;
 
         let res = match u32_to_base(num, 16) {
@@ -64,7 +64,7 @@ mod u32_to_base_test {
     }
 
     #[test]
-    fn test_normal_functionality_base_16_ffff() {
+    fn normal_functionality_base_16_ffff() {
         let num = 65535u32;
 
         let res = match u32_to_base(num, 16) {
@@ -80,7 +80,7 @@ mod u32_to_base_test {
     }
 
     #[test]
-    fn test_normal_functionality_base_16_ffffff() {
+    fn normal_functionality_base_16_ffffff() {
         let num = 16777215u32;
 
         let res = match u32_to_base(num, 16) {
@@ -96,7 +96,7 @@ mod u32_to_base_test {
     }
 
     #[test]
-    fn test_normal_functionality_base_16_ffffffff() {
+    fn normal_functionality_base_16_ffffffff() {
         let num = 4294967295u32;
 
         let res = match u32_to_base(num, 16) {
