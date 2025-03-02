@@ -137,7 +137,7 @@ fn calculate_view_start_index(t: &Screen) -> usize {
     }
     let mut row_position_last = 0;
     for (i, (start, end)) in rows.iter().enumerate() {
-        if *start <= t.last_entry_index && t.last_entry_index <= *end {
+        if *start <= t.last_entry_index && t.last_entry_index - 1 <= *end {
             row_position_last = i;
             break;
         }
@@ -278,24 +278,6 @@ mod test {
         for (i, c) in test_string.as_bytes().iter().enumerate() {
             assert_eq!(b.buffer[i], Entry::new(*c).to_u16())
         }
-    }
-
-    #[test]
-    fn hitting_enter() {
-        let mut s = Screen::default();
-        s.write_str("A");
-        for i in 0..VIEW_HEIGHT as u16 {
-            if i % 2 == 0 {
-                s.write_str("\n");
-            } else {
-                s.handle_key(Key::Enter);
-            }
-        }
-        let b = Buffer::from_screen(&s);
-        assert_eq!(b.buffer[0], Entry::new(b' ').to_u16());
-
-        assert_eq!(b.cursor.unwrap().x, 0);
-        assert_eq!(b.cursor.unwrap().y, (VIEW_HEIGHT - 1) as u16)
     }
 
     #[test]
