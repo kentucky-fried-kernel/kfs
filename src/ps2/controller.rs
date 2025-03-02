@@ -365,9 +365,9 @@ pub fn read_if_ready() -> Option<Key> {
 
     if code == 0xE0 {
         while !is_ps2_data_available() {}
-        let extended_code = unsafe { read(DATA_PORT) };
-        unsafe { LAST_KEY = Some(extended_code) };
-        return SCANCODE_TO_KEY[extended_code as usize].1;
+        let _ = unsafe { read(DATA_PORT) };
+        unsafe { LAST_KEY = None };
+        return None;
     }
 
     unsafe { LAST_KEY = Some(code) };
