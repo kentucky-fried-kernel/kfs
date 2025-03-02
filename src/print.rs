@@ -4,7 +4,7 @@ use core::str;
 pub struct ParseError;
 
 #[allow(unused)]
-pub fn slice_to_str((slice, len): (&[u8; 65], usize)) -> Result<&str, ParseError> {
+pub fn slice_to_str((slice, len): (&[u8; 33], usize)) -> Result<&str, ParseError> {
     let real_part = &slice[65 - len..65];
 
     match str::from_utf8(real_part) {
@@ -13,16 +13,16 @@ pub fn slice_to_str((slice, len): (&[u8; 65], usize)) -> Result<&str, ParseError
     }
 }
 #[allow(unused)]
-pub fn u32_to_base(mut addr: u32, base: u8) -> Result<([u8; 32], usize), ()> {
+pub fn u32_to_base(mut addr: u32, base: u8) -> Result<([u8; 33], usize), ()> {
     if !(2..=16).contains(&base) {
         return Err(());
     }
 
-    let mut buf: [u8; 32] = [0; 32];
+    let mut buf: [u8; 33] = [0; 33];
     let digits: &[u8; 16] = b"0123456789ABCDEF";
 
     if addr == 0 {
-        buf[64] = b'0';
+        buf[32] = b'0';
         return Ok((buf, 1));
     }
 
@@ -49,14 +49,14 @@ mod u32_to_base_test {
 
     #[test]
     fn test_normal_functionality_base_16_ff() {
-        let num = 255u64;
+        let num = 255u32;
 
         let res = match u32_to_base(num, 16) {
             Ok((len, buf)) => (len, buf),
-            _ => ([0u8; 65], 0),
+            _ => ([0u8; 33], 0),
         };
 
-        let result_slice = &res.0[65 - res.1..];
+        let result_slice = &res.0[33 - res.1..];
 
         let result_str = core::str::from_utf8(result_slice).unwrap();
 
@@ -65,14 +65,14 @@ mod u32_to_base_test {
 
     #[test]
     fn test_normal_functionality_base_16_ffff() {
-        let num = 65535u64;
+        let num = 65535u32;
 
         let res = match u32_to_base(num, 16) {
             Ok((len, buf)) => (len, buf),
-            _ => ([0u8; 65], 0),
+            _ => ([0u8; 33], 0),
         };
 
-        let result_slice = &res.0[65 - res.1..];
+        let result_slice = &res.0[33 - res.1..];
 
         let result_str = core::str::from_utf8(result_slice).unwrap();
 
@@ -81,14 +81,14 @@ mod u32_to_base_test {
 
     #[test]
     fn test_normal_functionality_base_16_ffffff() {
-        let num = 16777215u64;
+        let num = 16777215u32;
 
         let res = match u32_to_base(num, 16) {
             Ok((len, buf)) => (len, buf),
-            _ => ([0u8; 65], 0),
+            _ => ([0u8; 33], 0),
         };
 
-        let result_slice = &res.0[65 - res.1..];
+        let result_slice = &res.0[33 - res.1..];
 
         let result_str = core::str::from_utf8(result_slice).unwrap();
 
@@ -97,14 +97,14 @@ mod u32_to_base_test {
 
     #[test]
     fn test_normal_functionality_base_16_ffffffff() {
-        let num = 4294967295u64;
+        let num = 4294967295u32;
 
         let res = match u32_to_base(num, 16) {
             Ok((len, buf)) => (len, buf),
-            _ => ([0u8; 65], 0),
+            _ => ([0u8; 33], 0),
         };
 
-        let result_slice = &res.0[65 - res.1..];
+        let result_slice = &res.0[33 - res.1..];
 
         let result_str = core::str::from_utf8(result_slice).unwrap();
 
