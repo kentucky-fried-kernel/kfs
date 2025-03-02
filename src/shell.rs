@@ -174,13 +174,13 @@ fn prints_cmd(_args: &[u8], s: &mut Screen) {
         s.write_str("-");
         s.write_hex((addr + row_idx + 15) as u32);
         s.write_str(" ");
-
         for word in bytes.chunks(4) {
             for b in word {
                 s.write_hex_byte(*b);
             }
             s.write_str(" ");
         }
+
         for byte in bytes {
             if !(32..127).contains(&byte) {
                 s.write(b'.');
