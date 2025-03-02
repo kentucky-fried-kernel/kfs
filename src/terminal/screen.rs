@@ -13,6 +13,7 @@ pub struct Screen {
     pub rows_scrolled: usize,
 }
 
+/// This is a temporary fix until we have an allocator.
 #[link_section = ".data"]
 pub static mut SCREEN: Screen = Screen::default();
 

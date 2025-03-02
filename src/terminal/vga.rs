@@ -108,6 +108,8 @@ impl Buffer {
     }
 }
 
+/// This is a temporary fix until we have an allocator. It is only meant to be
+/// used insed of `calculate_view_index`.
 #[link_section = ".data"]
 static mut ROWS: [(usize, usize); BUFFER_SIZE] = [(0, 0); BUFFER_SIZE];
 

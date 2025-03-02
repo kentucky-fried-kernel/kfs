@@ -11,6 +11,8 @@ use crate::{
 
 const PROMPT_MAX_LENGTH: usize = 1000;
 
+/// This is a temporary fix until we have a better allocator. It is only
+/// meant for use in `launch`.
 #[link_section = ".data"]
 static mut PROMPT: [u8; PROMPT_MAX_LENGTH] = [0; PROMPT_MAX_LENGTH];
 
