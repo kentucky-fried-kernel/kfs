@@ -56,6 +56,8 @@ impl fmt::Write for PrintkWriter {
 
 /// Prints the formatted arguments to the screen. This macro needs to be wrapped in an unsafe
 /// block, as we could inadvertedly run unchecked code through it otherwise.
+///
+/// `printk!` flushes when the buffer (`1KB`) fills up or when encountering a `\n`.
 #[macro_export]
 macro_rules! printk {
     ($($arg:tt)*) => {{
