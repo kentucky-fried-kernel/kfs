@@ -5,7 +5,7 @@ pub struct ParseError;
 
 #[allow(unused)]
 pub fn slice_to_str((slice, len): (&[u8; 33], usize)) -> Result<&str, ParseError> {
-    let real_part = &slice[65 - len..65];
+    let real_part = &slice[33 - len..33];
 
     match str::from_utf8(real_part) {
         Ok(s) => Ok(s),
