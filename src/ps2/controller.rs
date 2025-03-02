@@ -356,19 +356,19 @@ pub fn read_if_ready() -> Option<Key> {
 
     let code = unsafe { read(DATA_PORT) };
 
-    if code == 0xF0 {
+    if code == 0xF0 || code == 0xE0 {
         while !is_ps2_data_available() {}
         let _ = unsafe { read(DATA_PORT) };
         unsafe { LAST_KEY = None };
         return None;
     }
 
-    if code == 0xE0 {
-        while !is_ps2_data_available() {}
-        let _ = unsafe { read(DATA_PORT) };
-        unsafe { LAST_KEY = None };
-        return None;
-    }
+    // if code == 0xE0 {
+    //     while !is_ps2_data_available() {}
+    //     let _ = unsafe { read(DATA_PORT) };
+    //     unsafe { LAST_KEY = None };
+    //     return None;
+    // }
 
     unsafe { LAST_KEY = Some(code) };
     SCANCODE_TO_KEY[code as usize].1

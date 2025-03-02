@@ -107,19 +107,21 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             return;
         }
     }
-    unsafe { printk!("'{}': command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
+    unsafe { printk!("{}: command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
 }
 
 #[allow(unused)]
 fn help_cmd(args: &[u8], s: &mut Screen) {
-    s.write_str("\nAvailable commands:\n\n");
-    s.write_str("    echo:                echoes input to the console\n");
-    s.write_str("    panic:               trigger a kernel panic\n");
-    s.write_str("    halt:                halt the kernel execution\n");
-    s.write_str("    reboot:              reboot the kernel\n");
-    s.write_str("    prints               display the kernel stack from %esp to the top\n");
-    s.write_str("    printsb              display the kernel stack boundaries\n");
-    s.write_str("    help                 display this help message\n\n");
+    unsafe {
+        printk!("\nAvailable commands:\n\n");
+        printk!("    echo:                echoes input to the console\n");
+        printk!("    panic:               trigger a kernel panic\n");
+        printk!("    halt:                halt the kernel execution\n");
+        printk!("    reboot:              reboot the kernel\n");
+        printk!("    prints               display the kernel stack from %esp to the top\n");
+        printk!("    printsb              display the kernel stack boundaries\n");
+        printk!("    help                 display this help message\n\n");
+    }
 }
 
 unsafe extern "C" {
