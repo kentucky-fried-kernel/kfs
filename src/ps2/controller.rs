@@ -27,6 +27,9 @@ enum Status {
     InputFull = 0x02,
 }
 
+/// [Root System Description Pointer](https://wiki.osdev.org/RSDP).
+///
+/// Stores a pointer to the [Root System Description Table](https://wiki.osdev.org/RSDT).
 #[repr(C, packed)]
 struct Rsdp {
     signature: [u8; 8], // "RSD PTR "
@@ -36,9 +39,9 @@ struct Rsdp {
     rsdt_address: u32,
 }
 
-/// https://wiki.osdev.org/RSDT
-///
-/// No need for handling 2.0 since we are building for 32-bit.
+/// Header used by [RSDT](https://wiki.osdev.org/RSDT) entries. The first 4 bytes
+/// hold the [signature](https://wiki.osdev.org/RSDT#Defined_by_ACPI) used to
+/// identify which system desciptor entry we are dealing with.
 #[repr(C, packed)]
 struct SDTHeader {
     signature: [u8; 4],
@@ -116,44 +119,24 @@ struct GenericAddressStructure {
     address: u64,
 }
 
-/// Searches for the Root System Description Pointer, first in the Extended BIOS Data Area,
-/// then in the main BIOS area.
-///
-/// https://wiki.osdev.org/RSDP#Detecting_the_RSDP
-/// https://wiki.osdev.org/Memory_Map_(x86)#Extended_BIOS_Data_Area_(EBDA)
+/// Searches for the [RSDP](https://wiki.osdev.org/RSDP#Detecting_the_RSDP),
+/// first in the [EBDA](https://wiki.osdev.org/Memory_Map_(x86)#Extended_BIOS_Data_Area_(EBDA)),
+///  then in the main BIOS area.
 fn get_rsdp() -> *mut Rsdp {
     let ebda_addr: usize = unsafe { *(0x40E as *const u16) as usize } << 4;
 
-    let target = b"RSD PTR ";
-
     for loc in (ebda_addr..(ebda_addr + 0x400)).step_by(16) {
-        let loc_ptr = loc as *const u8;
-        let mut matches = true;
+        let rsdp = unsafe { &*(loc as *const Rsdp) };
 
-        for (i, _) in target.iter().enumerate() {
-            if unsafe { *loc_ptr.add(i) } != target[i] {
-                matches = false;
-                break;
-            }
-        }
-
-        if matches {
+        if &rsdp.signature == b"RSD PTR " {
             return loc as *mut Rsdp;
         }
     }
 
     for loc in (0x000E0000..0x000FFFFF).step_by(16) {
-        let loc_ptr = loc as *const u8;
-        let mut matches = true;
+        let rsdp = unsafe { &*(loc as *const Rsdp) };
 
-        for (i, _) in target.iter().enumerate() {
-            if unsafe { *loc_ptr.add(i) } != target[i] {
-                matches = false;
-                break;
-            }
-        }
-
-        if matches {
+        if &rsdp.signature == b"RSD PTR " {
             return loc as *mut Rsdp;
         }
     }
