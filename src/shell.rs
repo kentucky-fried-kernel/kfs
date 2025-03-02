@@ -1,12 +1,9 @@
 use core::arch::asm;
 
-use crate::{
-    conv::hextou,
-    terminal::{
-        ps2::{self, read_if_ready, Key},
-        vga::Buffer,
-        Screen,
-    },
+use crate::terminal::{
+    ps2::{self, read_if_ready, Key},
+    vga::Buffer,
+    Screen,
 };
 
 const PROMPT_MAX_LENGTH: usize = 1000;
@@ -125,20 +122,12 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     s.write_str("    help                 display this help message\n\n");
 }
 
-fn contains_non_null(bytes: &[u8]) -> bool {
-    for byte in bytes {
-        if *byte != 0 {
-            return true;
-        }
-    }
-    false
-}
-
-fn print_stack_slice(addr: usize, s: &mut Screen) {
+fn print_stack(addr: usize, s: &mut Screen) {
     let ptr: *const u8 = addr as *const u8;
+    let mut bytes: [u8; 16];
 
-    for row_idx in (addr..(addr + 1024)).step_by(16) {
-        let mut bytes: [u8; 16] = [0u8; 16];
+    for row_idx in (0..8192).step_by(16) {
+        bytes = [0u8; 16];
 
         #[allow(clippy::needless_range_loop)]
         for byte_idx in 0..16 {
@@ -146,26 +135,28 @@ fn print_stack_slice(addr: usize, s: &mut Screen) {
             bytes[byte_idx] = byte;
         }
 
-        if contains_non_null(&bytes) {
-            s.write_str("0x");
-            s.write_hex((addr + row_idx) as u32);
-            s.write_str("-0x");
-            s.write_hex((addr + row_idx + 15) as u32);
-            s.write_str(": ");
+        s.write_hex((addr + row_idx) as u32);
+        s.write_str("-");
+        s.write_hex((addr + row_idx + 15) as u32);
+        s.write_str(" ");
 
-            for word in bytes.chunks(4) {
-                s.write_str("0x");
-                for b in word {
-                    s.write_hex_byte(*b);
-                }
-                s.write_str(" ");
+        for word in bytes.chunks(4) {
+            for b in word {
+                s.write_hex_byte(*b);
             }
-            s.write_str("\n");
-            flush(s);
+            s.write_str(" ");
         }
+        s.write_str(" | ");
+        for byte in bytes {
+            if byte < 32 || byte > 127 {
+                s.write(b'.');
+            } else {
+                s.write(byte);
+            }
+        }
+        s.write_str("\n");
+        flush(s);
     }
-
-    s.write_str("\n1024 bytes displayed by rows of 16. Zeroed out rows omitted.\n");
 }
 
 extern "C" {
@@ -198,14 +189,7 @@ fn prints_cmd(args: &[u8], s: &mut Screen) {
         }
         s.write_str("\n");
     } else {
-        let addr = match hextou(args) {
-            Some(a) => a,
-            None => {
-                s.write_str("No valid hex found in input\n");
-                return;
-            }
-        };
-        print_stack_slice(addr, s);
+        print_stack(unsafe { &stack_top as *const u8 as usize }, s);
     }
 }
 
