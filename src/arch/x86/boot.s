@@ -18,7 +18,7 @@
 
 	.align 16
 	stack_bottom:
-		.skip 524288
+		.skip 4096
 	stack_top:
 
 .section .text
