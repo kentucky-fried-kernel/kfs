@@ -216,7 +216,7 @@ impl Entry {
     ///
     /// ### Parameters:
     /// - `character`: The character to be storedy.
-    pub fn new(character: u8) -> Self {
+    pub const fn new(character: u8) -> Self {
         Entry {
             color: Color::Default as u8,
             character,
@@ -244,7 +244,7 @@ impl Entry {
     ///
     /// ### Returns:
     /// A `u16` value representing this `Entry`.
-    pub fn to_u16(&self) -> u16 {
+    pub const fn to_u16(&self) -> u16 {
         ((self.color as u16) << 8) | (self.character as u16)
     }
 }

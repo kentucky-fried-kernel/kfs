@@ -13,7 +13,7 @@ impl Terminal {
     /// # Returns
     /// A `Terminal` instance with the default screen state.
     #[allow(unused)]
-    pub fn default() -> Terminal {
+    pub const fn default() -> Terminal {
         Terminal {
             active_screen_index: 0,
             screens: [Screen::default(); NBR_OF_SCREENS_PER_TERMINAL],
