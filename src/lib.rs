@@ -1,7 +1,7 @@
 #![no_std]
 
 use gdt::set_gdt;
-use terminal::Screen;
+use terminal::{Screen, vga::Buffer};
 
 mod conv;
 mod gdt;
@@ -14,12 +14,14 @@ mod terminal;
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
     set_gdt();
+    let mut s = Screen::default();
+    let b = Buffer::from_screen(&s);
 
     if let Err(e) = ps2::init() {
         let mut s = Screen::default();
         s.write_str(e);
+        b.flush();
     }
 
-    let mut s = Screen::default();
     shell::launch(&mut s);
 }
