@@ -7,6 +7,7 @@ mod conv;
 mod gdt;
 mod panic;
 mod print;
+mod printk;
 mod shell;
 mod terminal;
 
