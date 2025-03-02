@@ -1,18 +1,16 @@
 #![no_std]
-use gdt::set_gdt;
 use terminal::SCREEN;
 
+mod arch;
 mod conv;
-mod gdt;
 mod panic;
-mod print;
 mod printk;
 mod shell;
 mod terminal;
 
 #[no_mangle]
 pub extern "C" fn kernel_main() {
-    set_gdt();
+    arch::x86::set_gdt();
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut SCREEN });
 }
