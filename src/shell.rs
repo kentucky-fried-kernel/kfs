@@ -11,6 +11,11 @@ use crate::{
 
 const PROMPT_MAX_LENGTH: usize = 1000;
 
+/// This is a temporary fix until we have a better allocator. It is only
+/// meant for use in `launch`.
+#[link_section = ".data"]
+static mut PROMPT: [u8; PROMPT_MAX_LENGTH] = [0; PROMPT_MAX_LENGTH];
+
 pub fn launch(s: &mut Screen) {
     let mut prompt_start: usize;
 
@@ -24,13 +29,16 @@ pub fn launch(s: &mut Screen) {
             if let Some(key) = ps2::read_if_ready() {
                 match key {
                     Key::Enter => {
-                        let mut prompt: [u8; PROMPT_MAX_LENGTH] = [0; PROMPT_MAX_LENGTH];
-                        s.move_cursor_to_end();
-                        for (place, data) in prompt.iter_mut().zip(s.buffer[prompt_start..s.cursor].iter()) {
-                            *place = (*data & 0xFF) as u8
-                        }
-                        s.handle_key(key);
-                        prompt_execute(&prompt, s);
+                        #[allow(static_mut_refs)]
+                        unsafe {
+                            PROMPT = [0; PROMPT_MAX_LENGTH];
+                            s.move_cursor_to_end();
+                            for (place, data) in PROMPT.iter_mut().zip(s.buffer[prompt_start..s.cursor].iter()) {
+                                *place = (*data & 0xFF) as u8
+                            }
+                            s.handle_key(key);
+                            prompt_execute(&PROMPT, s);
+                        };
                         break;
                     }
                     Key::ArrowLeft | Key::Backspace => {

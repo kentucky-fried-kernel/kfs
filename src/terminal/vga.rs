@@ -108,49 +108,57 @@ impl Buffer {
     }
 }
 
-fn calculate_view_start_index(t: &Screen) -> usize {
-    let mut rows: [(usize, usize); BUFFER_SIZE] = [(0, 0); BUFFER_SIZE];
-    let mut index_rows = 0;
+/// This is a temporary fix until we have an allocator. It is only meant to be
+/// used insed of `calculate_view_index`.
+#[link_section = ".data"]
+static mut ROWS: [(usize, usize); BUFFER_SIZE] = [(0, 0); BUFFER_SIZE];
 
-    let mut current_line = (0, 0);
-    for (i, e) in t.buffer.iter().enumerate() {
-        if current_line == (0, 0) {
-            current_line.0 = i;
-        }
-        if current_line.1 >= current_line.0 && (current_line.1 - current_line.0) == (VIEW_WIDTH - 1) {
-            rows[index_rows] = current_line;
-            index_rows += 1;
-            current_line = (0, 0);
-            continue;
-        }
-        match (e & 0xFF) as u8 {
-            b'\n' => {
-                current_line.1 = i;
-                rows[index_rows] = current_line;
+fn calculate_view_start_index(t: &Screen) -> usize {
+    unsafe {
+        ROWS = [(0, 0); BUFFER_SIZE];
+        let mut index_rows = 0;
+
+        let mut current_line = (0, 0);
+        for (i, e) in t.buffer.iter().enumerate() {
+            if current_line == (0, 0) {
+                current_line.0 = i;
+            }
+            if current_line.1 >= current_line.0 && (current_line.1 - current_line.0) == (VIEW_WIDTH - 1) {
+                ROWS[index_rows] = current_line;
                 index_rows += 1;
                 current_line = (0, 0);
+                continue;
             }
-            _ => {
-                current_line.1 = i;
+            match (e & 0xFF) as u8 {
+                b'\n' => {
+                    current_line.1 = i;
+                    ROWS[index_rows] = current_line;
+                    index_rows += 1;
+                    current_line = (0, 0);
+                }
+                _ => {
+                    current_line.1 = i;
+                }
             }
         }
-    }
-    let mut row_position_last = 0;
-    for (i, (start, end)) in rows.iter().enumerate() {
-        if *start <= t.last_entry_index && t.last_entry_index <= *end {
-            row_position_last = i;
-            break;
+        let mut row_position_last = 0;
+        #[allow(static_mut_refs)]
+        for (i, (start, end)) in ROWS.iter().enumerate() {
+            if *start <= t.last_entry_index && t.last_entry_index <= *end {
+                row_position_last = i;
+                break;
+            }
         }
-    }
-    if row_position_last < t.rows_scrolled {
-        row_position_last = 0;
-    } else {
-        row_position_last -= t.rows_scrolled;
-    }
-    if row_position_last < VIEW_HEIGHT {
-        0
-    } else {
-        rows[row_position_last - (VIEW_HEIGHT - 1)].0
+        if row_position_last < t.rows_scrolled {
+            row_position_last = 0;
+        } else {
+            row_position_last -= t.rows_scrolled;
+        }
+        if row_position_last < VIEW_HEIGHT {
+            0
+        } else {
+            ROWS[row_position_last - (VIEW_HEIGHT - 1)].0
+        }
     }
 }
 
@@ -216,7 +224,7 @@ impl Entry {
     ///
     /// ### Parameters:
     /// - `character`: The character to be storedy.
-    pub fn new(character: u8) -> Self {
+    pub const fn new(character: u8) -> Self {
         Entry {
             color: Color::Default as u8,
             character,
@@ -244,7 +252,7 @@ impl Entry {
     ///
     /// ### Returns:
     /// A `u16` value representing this `Entry`.
-    pub fn to_u16(&self) -> u16 {
+    pub const fn to_u16(&self) -> u16 {
         ((self.color as u16) << 8) | (self.character as u16)
     }
 }

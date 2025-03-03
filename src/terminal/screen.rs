@@ -13,8 +13,12 @@ pub struct Screen {
     pub rows_scrolled: usize,
 }
 
+/// This is a temporary fix until we have an allocator.
+#[link_section = ".data"]
+pub static mut SCREEN: Screen = Screen::default();
+
 impl Screen {
-    pub fn default() -> Self {
+    pub const fn default() -> Self {
         Screen {
             buffer: [Entry::new(b' ').to_u16(); BUFFER_SIZE],
             cursor: 0,
