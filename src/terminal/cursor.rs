@@ -35,8 +35,10 @@ impl Cursor {
 
         let pos = self.y * VIEW_WIDTH as u16 + self.x;
 
-        Self::update(Cursor::LOCATION_REG_LOW, (pos & 0xFF) as u8);
-        Self::update(Cursor::LOCATION_REG_HIGH, ((pos >> 8) & 0xFF) as u8);
+        unsafe {
+            Self::update(Cursor::LOCATION_REG_LOW, (pos & 0xFF) as u8);
+            Self::update(Cursor::LOCATION_REG_HIGH, ((pos >> 8) & 0xFF) as u8);
+        }
     }
 
     /// Resizes the cursor by updating the [cursor end & start register](http://www.osdever.net/FreeVGA/vga/crtcreg.htm#0A)
@@ -48,8 +50,10 @@ impl Cursor {
     ///
     /// 2.  `resize` may cause undefined behavior if called with `start` or `end` values outside of the range `0x00..=0x0F`.
     pub unsafe fn resize(start: u8, end: u8) {
-        Self::update(Cursor::REG_START, start);
-        Self::update(Cursor::REG_END, end);
+        unsafe {
+            Self::update(Cursor::REG_START, start);
+            Self::update(Cursor::REG_END, end);
+        }
     }
 
     /// Abstraction for the ugliness behind updating the cursor.
@@ -65,18 +69,20 @@ impl Cursor {
     /// This writes to the VGA buffer directly, running this in a non-bare-metal environment
     /// will result in invalid memory access.
     unsafe fn update(index: u8, value: u8) {
-        asm!(
-            "mov dx, 0x3D4",
-            "mov al, {index}",
-            "out dx, al",
-            "inc dx",
-            "mov al, {value}",
-            "out dx, al",
-            index = in(reg_byte) (index),
-            value = in(reg_byte) (value),
-            out("dx") _,
-            out("al") _,
-        )
+        unsafe {
+            asm!(
+                "mov dx, 0x3D4",
+                "mov al, {index}",
+                "out dx, al",
+                "inc dx",
+                "mov al, {value}",
+                "out dx, al",
+                index = in(reg_byte) (index),
+                value = in(reg_byte) (value),
+                out("dx") _,
+                out("al") _,
+            )
+        }
     }
 
     pub fn show() {

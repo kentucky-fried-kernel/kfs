@@ -1,17 +1,21 @@
 #![no_std]
-use gdt::set_gdt;
 use terminal::SCREEN;
 
+mod arch;
 mod conv;
-mod gdt;
 mod panic;
-mod print;
+mod printk;
+mod ps2;
 mod shell;
 mod terminal;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
-    set_gdt();
+    if let Err(e) = ps2::init() {
+        panic!("could not initialize PS/2: {}", e);
+    }
+
+    arch::x86::set_gdt();
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut SCREEN });
 }

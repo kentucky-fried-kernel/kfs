@@ -1,16 +1,16 @@
 use core::arch::asm;
 
-use crate::terminal::{
-    ps2::{self, read_if_ready, Key},
-    vga::Buffer,
-    Screen,
+use crate::{
+    printk,
+    ps2::{self, Key, read_if_ready},
+    terminal::{Screen, vga::Buffer},
 };
 
 const PROMPT_MAX_LENGTH: usize = 1000;
 
 /// This is a temporary fix until we have a better allocator. It is only
 /// meant for use in `launch`.
-#[link_section = ".data"]
+#[unsafe(link_section = ".data")]
 static mut PROMPT: [u8; PROMPT_MAX_LENGTH] = [0; PROMPT_MAX_LENGTH];
 
 pub fn launch(s: &mut Screen) {
@@ -107,26 +107,24 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             return;
         }
     }
-    s.write_str("'");
-    for byte in &cmd[..cmd_end] {
-        s.write(*byte);
-    }
-    s.write_str("': command not found\n");
+    unsafe { printk!("{}: command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
 }
 
 #[allow(unused)]
 fn help_cmd(args: &[u8], s: &mut Screen) {
-    s.write_str("\nAvailable commands:\n\n");
-    s.write_str("    echo:                echoes input to the console\n");
-    s.write_str("    panic:               trigger a kernel panic\n");
-    s.write_str("    halt:                halt the kernel execution\n");
-    s.write_str("    reboot:              reboot the kernel\n");
-    s.write_str("    prints               display the kernel stack\n");
-    s.write_str("    printsb              display the kernel stack boundaries\n");
-    s.write_str("    help                 display this help message\n\n");
+    unsafe {
+        printk!("\nAvailable commands:\n\n");
+        printk!("    echo:                echoes input to the console\n");
+        printk!("    panic:               trigger a kernel panic\n");
+        printk!("    halt:                halt the kernel execution\n");
+        printk!("    reboot:              reboot the kernel\n");
+        printk!("    prints               display the kernel stack from %esp to the top\n");
+        printk!("    printsb              display the kernel stack boundaries\n");
+        printk!("    help                 display this help message\n\n");
+    }
 }
 
-extern "C" {
+unsafe extern "C" {
     static stack_top: u8;
 }
 
@@ -150,54 +148,47 @@ fn get_stack_pointer() -> u32 {
     sp as u32
 }
 
-fn printsb_cmd(_args: &[u8], s: &mut Screen) {
-    s.write_str("ESP: 0x");
-    s.write_hex(get_stack_pointer());
-    s.write_str(" STACK_TOP: 0x");
-    unsafe {
-        s.write_hex(&stack_top as *const u8 as u32);
-    }
-    s.write_str("\n");
+fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
+    unsafe { printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), &stack_top as *const u8 as u32) };
 }
 
+/// Dumps a row of 16 bytes in the following format:
+///
+/// ```
+/// 001c503c-001c504b 20077007 72076907 6e077407 73072007  .p.r.i.n.t.s. .`
+/// ^                 ^                                    ^
+/// address range     hexdump                              ASCII dump
+/// ```
+fn dump_row(row: [u8; 16], ptr: *const u8) {
+    unsafe {
+        printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
+        for word in row.chunks(4) {
+            // Reminder to future self: casting to u32 prints the bytes in little-endian.
+            for byte in word {
+                printk!("{:02x}", byte);
+            }
+            printk!(" ")
+        }
+        for byte in row {
+            printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
+        }
+        printk!("\n");
+    };
+}
+
+/// Prints the stack from %esp to the stack top.
 fn prints_cmd(_args: &[u8], s: &mut Screen) {
     printsb_cmd(_args, s);
     let sp_addr = get_stack_pointer();
     let st = unsafe { &stack_top as *const u8 as u32 };
-    let mut bytes: [u8; 16];
+    let mut row: [u8; 16];
 
     assert!(sp_addr <= st);
 
     for row_idx in (sp_addr..st).step_by(16) {
         let ptr = row_idx as *const u8;
-        bytes = [0u8; 16];
-
-        #[allow(clippy::needless_range_loop)]
-        for byte_idx in 0..16 {
-            let byte = unsafe { *ptr.add(byte_idx) };
-            bytes[byte_idx] = byte;
-        }
-
-        s.write_hex(ptr as u32);
-        s.write_str("-");
-        s.write_hex(ptr as u32 + 15);
-        s.write_str(" ");
-        for word in bytes.chunks(4) {
-            for b in word {
-                s.write_hex_byte(*b);
-            }
-            s.write_str(" ");
-        }
-
-        for byte in bytes {
-            if !(32..127).contains(&byte) {
-                s.write(b'.');
-            } else {
-                s.write(byte);
-            }
-        }
-        s.write_str("\n");
-        flush(s);
+        row = unsafe { *(ptr as *const [u8; 16]) };
+        dump_row(row, ptr);
     }
 }
 
@@ -208,10 +199,7 @@ fn echo_cmd(args: &[u8], s: &mut Screen) {
         None => args.len(),
     };
 
-    for byte in &args[..args_len] {
-        s.write(*byte);
-    }
-    s.write_str("\n");
+    unsafe { printk!("{}\n", core::str::from_utf8_unchecked(&args[..args_len])) };
 }
 
 fn reboot_cmd(args: &[u8], s: &mut Screen) {

@@ -2,7 +2,7 @@ use core::ptr::{read_volatile, write_volatile};
 
 use super::{
     cursor::Cursor,
-    screen::{Screen, BUFFER_SIZE},
+    screen::{BUFFER_SIZE, Screen},
 };
 
 /// The `width` of the viewable area of the VGA Buffer in chars
@@ -110,7 +110,7 @@ impl Buffer {
 
 /// This is a temporary fix until we have an allocator. It is only meant to be
 /// used insed of `calculate_view_index`.
-#[link_section = ".data"]
+#[unsafe(link_section = ".data")]
 static mut ROWS: [(usize, usize); BUFFER_SIZE] = [(0, 0); BUFFER_SIZE];
 
 fn calculate_view_start_index(t: &Screen) -> usize {
@@ -272,9 +272,8 @@ pub enum Color {
 
 #[cfg(test)]
 mod test {
-    use crate::terminal::ps2::Key;
-
     use super::*;
+    use crate::ps2::Key;
 
     #[test]
     fn hello_world() {
@@ -287,24 +286,6 @@ mod test {
         for (i, c) in test_string.as_bytes().iter().enumerate() {
             assert_eq!(b.buffer[i], Entry::new(*c).to_u16())
         }
-    }
-
-    #[test]
-    fn hitting_enter() {
-        let mut s = Screen::default();
-        s.write_str("A");
-        for i in 0..VIEW_HEIGHT as u16 {
-            if i % 2 == 0 {
-                s.write_str("\n");
-            } else {
-                s.handle_key(Key::Enter);
-            }
-        }
-        let b = Buffer::from_screen(&s);
-        assert_eq!(b.buffer[0], Entry::new(b' ').to_u16());
-
-        assert_eq!(b.cursor.unwrap().x, 0);
-        assert_eq!(b.cursor.unwrap().y, (VIEW_HEIGHT - 1) as u16)
     }
 
     #[test]

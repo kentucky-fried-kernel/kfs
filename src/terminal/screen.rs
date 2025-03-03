@@ -1,7 +1,6 @@
-use super::{
-    ps2::Key,
-    vga::{Color, Entry},
-};
+use crate::ps2::Key;
+
+use super::vga::{Color, Entry};
 
 pub const BUFFER_SIZE: usize = 50000;
 
@@ -14,7 +13,7 @@ pub struct Screen {
 }
 
 /// This is a temporary fix until we have an allocator.
-#[link_section = ".data"]
+#[unsafe(link_section = ".data")]
 pub static mut SCREEN: Screen = Screen::default();
 
 impl Screen {
@@ -111,23 +110,5 @@ impl Screen {
             self.handle_key(Key::ArrowRight);
         }
         self.rows_scrolled = 0;
-    }
-
-    /// Writes a single byte in hexadecimal notation (little-endian).
-    pub fn write_hex_byte(&mut self, byte: u8) {
-        let high_nibble = (byte >> 4) & 0xF;
-        let low_nibble = byte & 0xF;
-
-        self.write(if high_nibble < 10 { b'0' + high_nibble } else { b'a' + (high_nibble - 10) });
-        self.write(if low_nibble < 10 { b'0' + low_nibble } else { b'a' + (low_nibble - 10) });
-    }
-
-    /// Writes `value` in hexadecimal notation, left-padded with zeros.
-    pub fn write_hex(&mut self, val: u32) {
-        let mut nibble;
-        for i in (0..8).rev() {
-            nibble = ((val >> (i * 4)) & 0xF) as u8;
-            self.write(if nibble < 10 { b'0' + nibble } else { b'a' + (nibble - 10) });
-        }
     }
 }
