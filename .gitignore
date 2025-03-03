@@ -5,4 +5,5 @@ iso/boot/kernel
 *.o
 kernel
 build
-a.outmem.txt
+a.out
+mem.txt
