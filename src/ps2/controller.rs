@@ -55,7 +55,6 @@ struct SDTHeader {
 #[repr(C, packed)]
 struct Rsdt {
     h: SDTHeader,
-    // std_ptr: [u32; (h.length - size_of::<SDTHeader>()) / 4],
 }
 
 /// https://wiki.osdev.org/FADT
@@ -102,18 +101,6 @@ struct Fadt {
 
     reserved_2: u8,
     flags: u32,
-}
-
-/// Have yet to find out whether we need this in 32-bit mode, currently only used
-/// as a 12-byte placeholder in `FADT`.
-#[allow(unused)]
-#[repr(C, packed)]
-struct GenericAddressStructure {
-    address_space: u8,
-    bit_width: u8,
-    bit_offset: u8,
-    access_size: u8,
-    address: u64,
 }
 
 fn validate_checksum(ptr: *const u8, len: u32) -> bool {
@@ -221,7 +208,7 @@ fn has_ps2_controller() -> Result<(), &'static str> {
     let fadt_ptr = get_fadt(header, rsdt)?;
     let fadt = unsafe { &*fadt_ptr };
     if !validate_checksum(fadt_ptr as *const u8, unsafe { (*(fadt as *const Fadt as *const SDTHeader)).length }) {
-        return Err("FADT checsum verification failed");
+        return Err("FADT checksum verification failed");
     }
 
     // If we are under ACPI 1.0, a PS/2 controller is assumed to be present.
