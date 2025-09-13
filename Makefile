@@ -40,7 +40,7 @@ iso: all
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
 
 run: iso
-	qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d
+	qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04
 
 debug-iso: all
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
