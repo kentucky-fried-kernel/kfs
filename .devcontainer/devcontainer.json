@@ -1,9 +1,18 @@
 {
     "name": "kfs",
     "dockerFile": "Dockerfile",
+    "build": {
+        "args": {
+            "USER_UID": "${localEnv:UID}",
+            "USER_GID": "${localEnv:UID}",
+            "USER": "${localEnv:USER}"
+        }
+    },
+    "containerUser": "${localEnv:USER}",
+    "remoteUser": "${localEnv:USER}",
     "mounts": [
-        "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached",
-        "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached"
+        "source=${localEnv:HOME}/.ssh,target=/home/${localEnv:USER}/.ssh,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitconfig,target=/home/${localEnv:USER}/.gitconfig,type=bind,consistency=cached"
     ],
     "customizations": {
         "vscode": {
