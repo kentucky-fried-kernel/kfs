@@ -4,8 +4,10 @@ use terminal::SCREEN;
 mod arch;
 mod conv;
 mod panic;
+mod port;
 mod printk;
 mod ps2;
+mod qemu;
 mod shell;
 mod terminal;
 

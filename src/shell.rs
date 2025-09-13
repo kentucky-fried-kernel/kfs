@@ -3,6 +3,7 @@ use core::arch::asm;
 use crate::{
     printk,
     ps2::{self, Key, read_if_ready},
+    qemu::{QemuExitCode, exit_qemu},
     terminal::{Screen, vga::Buffer},
 };
 
@@ -85,6 +86,7 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             name: "printsb",
             func: printsb_cmd,
         },
+        Command { name: "exit", func: exit_cmd },
     ];
 
     let cmd_end = match prompt.iter().position(|&c| c == b' ' || c == 0) {
@@ -108,6 +110,11 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
         }
     }
     unsafe { printk!("{}: command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
+}
+
+#[allow(unused)]
+fn exit_cmd(args: &[u8], s: &mut Screen) {
+    unsafe { exit_qemu(QemuExitCode::Success) };
 }
 
 #[allow(unused)]
