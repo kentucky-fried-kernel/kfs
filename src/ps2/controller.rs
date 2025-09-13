@@ -1,7 +1,10 @@
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller
-use crate::ps2::{
-    DATA_PORT,
-    io::{flush_output_buffer, read, send_command, send_data, wait_for_data},
+use crate::{
+    port::Port,
+    ps2::{
+        DATA_PORT,
+        io::{flush_output_buffer, send_command, send_data, wait_for_data},
+    },
 };
 
 #[repr(u8)]
@@ -164,7 +167,8 @@ fn is_dual_channel_controller() -> bool {
     send_command(Command::EnableSecondPort);
     send_command(Command::ReadConfig);
 
-    let config = unsafe { read(DATA_PORT) };
+    let data_port = Port::new(DATA_PORT);
+    let config = unsafe { data_port.read() };
 
     config >> 5 & 1 == 1
 }
@@ -225,7 +229,9 @@ fn has_ps2_controller() -> Result<(), &'static str> {
 /// with `new_config` and updates it.
 fn update_config(new_config: u8) {
     send_command(Command::ReadConfig);
-    let config = unsafe { read(DATA_PORT) };
+
+    let data_port = Port::new(DATA_PORT);
+    let config = unsafe { data_port.read() };
 
     let new_config = config & new_config;
 

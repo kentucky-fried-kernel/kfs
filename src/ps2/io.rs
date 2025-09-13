@@ -1,4 +1,4 @@
-use core::arch::asm;
+use crate::port::Port;
 
 use super::{
     COMMAND_PORT, DATA_PORT, Key, OUTPUT_BUFFER_STATUS_BIT, STATUS_PORT,
@@ -7,28 +7,32 @@ use super::{
 };
 
 pub fn send_command(cmd: Command) {
-    while unsafe { read(STATUS_PORT) } & Status::InputFull as u8 != 0 {}
+    let status_port = Port::new(STATUS_PORT);
+    while unsafe { status_port.read() } & Status::InputFull as u8 != 0 {}
 
-    unsafe { write(COMMAND_PORT, cmd as u8) };
+    unsafe { Port::new(COMMAND_PORT).write(cmd as u32) };
 }
 
 pub fn send_data(data: u8) {
-    while unsafe { read(STATUS_PORT) } & Status::InputFull as u8 != 0 {}
+    let status_port = Port::new(STATUS_PORT);
+    while unsafe { status_port.read() } & Status::InputFull as u8 != 0 {}
 
-    unsafe { write(DATA_PORT, data) };
+    unsafe { Port::new(DATA_PORT).write(data.into()) };
 }
 
 pub fn wait_for_data() -> u8 {
-    while unsafe { read(STATUS_PORT) } & Status::OutputFull as u8 == 0 {}
+    let status_port = Port::new(STATUS_PORT);
+    while unsafe { status_port.read() } & Status::OutputFull as u8 == 0 {}
 
-    unsafe { read(DATA_PORT) }
+    unsafe { Port::new(DATA_PORT).read() }
 }
 
 /// Reads all data from the output buffer, flushing it. Note that this will
 /// go into an endless loop if called without disabling the ports first.
 pub fn flush_output_buffer() {
-    while unsafe { read(STATUS_PORT) } & Status::OutputFull as u8 != 0 {
-        unsafe { read(DATA_PORT) };
+    let status_port = Port::new(STATUS_PORT);
+    while unsafe { status_port.read() } & Status::OutputFull as u8 != 0 {
+        unsafe { Port::new(DATA_PORT).read() };
     }
 }
 
@@ -48,12 +52,12 @@ pub fn read_if_ready() -> Option<Key> {
     if !is_ps2_data_available() {
         return None;
     }
-
-    let code = unsafe { read(DATA_PORT) };
+    let data_port = Port::new(DATA_PORT);
+    let code = unsafe { data_port.read() };
 
     if code == 0xF0 || code == 0xE0 {
         while !is_ps2_data_available() {}
-        let _ = unsafe { read(DATA_PORT) };
+        let _ = unsafe { data_port.read() };
         unsafe { LAST_KEY = None };
         return None;
     }
@@ -65,43 +69,6 @@ pub fn read_if_ready() -> Option<Key> {
 /// Returns `true` if the PS2 input buffer has data ready to be read,
 /// meaning the least significant bit of the PS2 status port is set.
 fn is_ps2_data_available() -> bool {
-    status() & OUTPUT_BUFFER_STATUS_BIT != 0
-}
-
-/// Reads from `STATUS_PORT` and returns the extracted value.
-fn status() -> u8 {
-    let res: u8;
-
-    unsafe {
-        res = read(STATUS_PORT);
-    }
-
-    res
-}
-
-/// Reads from `port` and returns the extracted value.
-pub unsafe fn read(port: u16) -> u8 {
-    assert!(port == DATA_PORT || port == STATUS_PORT);
-
-    let res: u8;
-
-    unsafe {
-        asm!(
-            "in al, dx",
-            in("dx") port,
-            out("al") res,
-        );
-    }
-
-    res
-}
-
-unsafe fn write(port: u16, val: u8) {
-    unsafe {
-        asm!(
-            "out dx, al",
-            in("dx") port,
-            in("al") val,
-        );
-    }
+    let status_port = Port::new(STATUS_PORT);
+    unsafe { status_port.read() & OUTPUT_BUFFER_STATUS_BIT != 0 }
 }

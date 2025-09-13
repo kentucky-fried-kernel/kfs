@@ -1,0 +1,35 @@
+use core::arch::asm;
+
+pub struct Port {
+    port: u16,
+}
+
+impl Port {
+    pub fn new(port: u16) -> Self {
+        Self { port }
+    }
+
+    pub unsafe fn write(&self, val: u32) {
+        unsafe {
+            asm!(
+                "out dx, al",
+                in("dx") self.port,
+                in("eax") val,
+            );
+        }
+    }
+
+    pub unsafe fn read(&self) -> u8 {
+        let res: u8;
+
+        unsafe {
+            asm!(
+                "in al, dx",
+                in("dx") self.port,
+                out("al") res,
+            );
+        }
+
+        res
+    }
+}
