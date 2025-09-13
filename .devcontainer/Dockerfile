@@ -1,7 +1,5 @@
-# Use an official lightweight base image
-FROM --platform=linux/amd64 rust:1.70-bullseye
+FROM --platform=linux/amd64 rust:1.89-bullseye
 
-# Install necessary tools
 RUN apt-get update && apt-get install -y \
 	build-essential \
 	curl \
@@ -19,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 	qemu \
 	qemu-system-x86 \
 	zsh \
-	&& rm -rf /var/lib/apt/lists/* 
+	&& rm -rf /var/lib/apt/lists/*
 
 
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -y
