@@ -21,8 +21,6 @@ RUN apt-get update && apt-get install -y \
 	zsh \
 	&& rm -rf /var/lib/apt/lists/*
 
-
-
 COPY .zshrc /home/$USER/.zshrc
 
 RUN rustup target add x86_64-unknown-none
@@ -46,3 +44,5 @@ RUN groupadd --gid $USER_GID $USER && \
 USER $USER
 
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -y
+
+COPY --chown=$USER_UID:$USER_GID .zshrc /home/$USER/

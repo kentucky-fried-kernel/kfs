@@ -11,3 +11,5 @@ zstyle ':omz:plugins:alias-finder' exact yes
 zstyle ':omz:plugins:alias-finder' cheaper yes
 
 source $ZSH/oh-my-zsh.sh
+
+export PS1="(devcontainer) $PS1"
