@@ -1,9 +1,7 @@
 #![allow(static_mut_refs)]
+#![allow(unused)]
 
-use crate::panic;
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
-
-type InterruptHandler = extern "x86-interrupt" fn(_: InterruptStackFrame);
 
 #[repr(C)]
 struct InterruptStackFrame {
@@ -24,8 +22,8 @@ struct InterruptDescriptor {
     offset_2: u16,
 }
 
-#[repr(packed)]
-struct IDTR {
+#[repr(C, packed)]
+struct InterruptDescriptorTableRegister {
     pub size: u16,
     pub offset: u32,
 }
@@ -33,7 +31,7 @@ struct IDTR {
 #[repr(C, align(16))]
 struct InterruptDescriptorTable {
     pub entries: [InterruptDescriptor; MAX_INTERRUPT_DESCRIPTORS],
-    pub idtr: IDTR,
+    pub idtr: InterruptDescriptorTableRegister,
 }
 
 #[repr(u8)]
@@ -52,7 +50,7 @@ fn build_type_attributes(present: u8, privilege_level: u8, gate_type: GateType) 
 }
 
 impl InterruptDescriptor {
-    pub fn new(offset: u32, selector: u16, type_attributes: u8) -> Self {
+    pub fn new(offset: usize, selector: u16, type_attributes: u8) -> Self {
         Self {
             offset_1: (offset & 0xFFFF) as u16,
             selector,
@@ -72,7 +70,7 @@ impl InterruptDescriptorTable {
     pub fn new() -> Self {
         let mut idt = Self {
             entries: [InterruptDescriptor::new(0, 0, 0); MAX_INTERRUPT_DESCRIPTORS],
-            idtr: IDTR { offset: 0, size: 0 },
+            idtr: InterruptDescriptorTableRegister { offset: 0, size: 0 },
         };
 
         idt.idtr.offset = idt.entries.as_ptr() as u32;
@@ -158,131 +156,131 @@ pub fn set_idt() {
         IDT = InterruptDescriptorTable::new();
         IDT.set_descriptor(
             0,
-            InterruptDescriptor::new(isr_no_err_stub0 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub0 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             1,
-            InterruptDescriptor::new(isr_no_err_stub1 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub1 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             2,
-            InterruptDescriptor::new(isr_no_err_stub2 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub2 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             3,
-            InterruptDescriptor::new(isr_no_err_stub3 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub3 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             4,
-            InterruptDescriptor::new(isr_no_err_stub4 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub4 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             5,
-            InterruptDescriptor::new(isr_no_err_stub5 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub5 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             6,
-            InterruptDescriptor::new(isr_no_err_stub6 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub6 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             7,
-            InterruptDescriptor::new(isr_no_err_stub7 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub7 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             8,
-            InterruptDescriptor::new(isr_err_stub8 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub8 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             9,
-            InterruptDescriptor::new(isr_no_err_stub9 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub9 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             10,
-            InterruptDescriptor::new(isr_err_stub10 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub10 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             11,
-            InterruptDescriptor::new(isr_err_stub11 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub11 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             12,
-            InterruptDescriptor::new(isr_err_stub12 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub12 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             13,
-            InterruptDescriptor::new(isr_err_stub13 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub13 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             14,
-            InterruptDescriptor::new(isr_err_stub14 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub14 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             15,
-            InterruptDescriptor::new(isr_no_err_stub15 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub15 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             16,
-            InterruptDescriptor::new(isr_no_err_stub16 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub16 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             17,
-            InterruptDescriptor::new(isr_err_stub17 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub17 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             18,
-            InterruptDescriptor::new(isr_no_err_stub18 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub18 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             19,
-            InterruptDescriptor::new(isr_no_err_stub19 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub19 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             20,
-            InterruptDescriptor::new(isr_no_err_stub20 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub20 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             21,
-            InterruptDescriptor::new(isr_no_err_stub21 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub21 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             22,
-            InterruptDescriptor::new(isr_no_err_stub22 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub22 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             23,
-            InterruptDescriptor::new(isr_no_err_stub23 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub23 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             24,
-            InterruptDescriptor::new(isr_no_err_stub24 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub24 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             25,
-            InterruptDescriptor::new(isr_no_err_stub25 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub25 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             26,
-            InterruptDescriptor::new(isr_no_err_stub26 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub26 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             27,
-            InterruptDescriptor::new(isr_no_err_stub27 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub27 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             28,
-            InterruptDescriptor::new(isr_no_err_stub28 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub28 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             29,
-            InterruptDescriptor::new(isr_no_err_stub29 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub29 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             30,
-            InterruptDescriptor::new(isr_err_stub30 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_err_stub30 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
         IDT.set_descriptor(
             31,
-            InterruptDescriptor::new(isr_no_err_stub31 as u32, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(isr_no_err_stub31 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
         );
 
         IDT.load();
