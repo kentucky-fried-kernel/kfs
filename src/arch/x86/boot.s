@@ -35,11 +35,7 @@
         push %eax
         push %ebx
 		cli
-
-		call setup_paging
-		call enable_paging
 		call kernel_main
-
 		hang:
 			cli
 			hlt
