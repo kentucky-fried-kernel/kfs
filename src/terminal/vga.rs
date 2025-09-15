@@ -109,51 +109,48 @@ impl Buffer {
 }
 
 fn calculate_view_start_index(t: &Screen) -> usize {
-    unsafe {
-        ROWS = [(0, 0); BUFFER_SIZE];
-        let mut index_rows = 0;
+    let mut rows: [(u16, u16); BUFFER_SIZE] = [(0, 0); BUFFER_SIZE];
+    let mut index_rows = 0;
 
-        let mut current_line = (0, 0);
-        for (i, e) in t.buffer.iter().enumerate() {
-            if current_line == (0, 0) {
-                current_line.0 = i;
-            }
-            if current_line.1 >= current_line.0 && (current_line.1 - current_line.0) == (VIEW_WIDTH - 1) {
-                ROWS[index_rows] = current_line;
+    let mut current_line: (u16, u16) = (0, 0);
+    for (i, e) in t.buffer.iter().enumerate() {
+        if current_line == (0, 0) {
+            current_line.0 = i as u16;
+        }
+        if current_line.1 >= current_line.0 && (current_line.1 - current_line.0) == (VIEW_WIDTH - 1) as u16 {
+            rows[index_rows] = current_line;
+            index_rows += 1;
+            current_line = (0, 0);
+            continue;
+        }
+        match (e & 0xFF) as u8 {
+            b'\n' => {
+                current_line.1 = i as u16;
+                rows[index_rows] = current_line;
                 index_rows += 1;
                 current_line = (0, 0);
-                continue;
             }
-            match (e & 0xFF) as u8 {
-                b'\n' => {
-                    current_line.1 = i;
-                    ROWS[index_rows] = current_line;
-                    index_rows += 1;
-                    current_line = (0, 0);
-                }
-                _ => {
-                    current_line.1 = i;
-                }
+            _ => {
+                current_line.1 = i as u16;
             }
         }
-        let mut row_position_last = 0;
-        #[allow(static_mut_refs)]
-        for (i, (start, end)) in ROWS.iter().enumerate() {
-            if *start <= t.last_entry_index && t.last_entry_index <= *end {
-                row_position_last = i;
-                break;
-            }
+    }
+    let mut row_position_last = 0;
+    for (i, (start, end)) in rows.iter().enumerate() {
+        if *start <= t.last_entry_index as u16 && t.last_entry_index as u16 <= *end {
+            row_position_last = i;
+            break;
         }
-        if row_position_last < t.rows_scrolled {
-            row_position_last = 0;
-        } else {
-            row_position_last -= t.rows_scrolled;
-        }
-        if row_position_last < VIEW_HEIGHT {
-            0
-        } else {
-            ROWS[row_position_last - (VIEW_HEIGHT - 1)].0
-        }
+    }
+    if row_position_last < t.rows_scrolled {
+        row_position_last = 0;
+    } else {
+        row_position_last -= t.rows_scrolled;
+    }
+    if row_position_last < VIEW_HEIGHT {
+        0
+    } else {
+        rows[row_position_last - (VIEW_HEIGHT - 1)].0 as usize
     }
 }
 
