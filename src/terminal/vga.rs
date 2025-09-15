@@ -108,11 +108,6 @@ impl Buffer {
     }
 }
 
-/// This is a temporary fix until we have an allocator. It is only meant to be
-/// used insed of `calculate_view_index`.
-#[unsafe(link_section = ".data")]
-static mut ROWS: [(usize, usize); BUFFER_SIZE] = [(0, 0); BUFFER_SIZE];
-
 fn calculate_view_start_index(t: &Screen) -> usize {
     unsafe {
         ROWS = [(0, 0); BUFFER_SIZE];
