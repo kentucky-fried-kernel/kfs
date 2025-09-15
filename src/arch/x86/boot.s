@@ -21,12 +21,6 @@
 		.skip 2 << 20
 	stack_top:
 
-	.align 4096
-	page_directory:
-		.skip 4096
-	page_table1:
-		.skip 4096
-
 .section .text
 
 	_start:
