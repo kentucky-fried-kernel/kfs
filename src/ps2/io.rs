@@ -10,7 +10,7 @@ pub fn send_command(cmd: Command) {
     let status_port = Port::new(STATUS_PORT);
     while unsafe { status_port.read() } & Status::InputFull as u8 != 0 {}
 
-    unsafe { Port::new(COMMAND_PORT).write(cmd as u32) };
+    unsafe { Port::new(COMMAND_PORT).write(cmd as u8) };
 }
 
 pub fn send_data(data: u8) {
