@@ -11,6 +11,6 @@ pub enum QemuExitCode {
 pub unsafe fn exit_qemu(exit_code: QemuExitCode) {
     unsafe {
         let port = Port::new(0xf4);
-        port.write(exit_code as u32);
+        port.write(exit_code as u8);
     }
 }

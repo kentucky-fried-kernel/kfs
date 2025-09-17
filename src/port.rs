@@ -9,12 +9,12 @@ impl Port {
         Self { port }
     }
 
-    pub unsafe fn write(&self, val: u32) {
+    pub unsafe fn write(&self, val: u8) {
         unsafe {
             asm!(
                 "out dx, al",
                 in("dx") self.port,
-                in("eax") val,
+                in("al") val,
             );
         }
     }
