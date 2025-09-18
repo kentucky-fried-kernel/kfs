@@ -1,26 +1,17 @@
 #![allow(static_mut_refs)]
 #![allow(unused)]
 
-use crate::port::Port;
+use crate::printk;
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
-
-#[repr(C)]
-struct InterruptStackFrame {
-    ip: u32,
-    cs: u32,
-    flags: u32,
-    sp: u32,
-    ss: u32,
-}
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 struct InterruptDescriptor {
     isr_low: u16,
-    selector: u16,
+    kernel_cs: u16,
     zero: u8,
-    type_attributes: u8,
+    attributes: u8,
     isr_high: u16,
 }
 
@@ -30,7 +21,7 @@ struct InterruptDescriptorTableRegister {
     pub base: usize,
 }
 
-#[repr(C, align(16))]
+#[repr(C, align(0x10))]
 struct InterruptDescriptorTable {
     pub entries: [InterruptDescriptor; MAX_INTERRUPT_DESCRIPTORS],
     pub idtr: InterruptDescriptorTableRegister,
@@ -45,19 +36,17 @@ enum GateType {
     TrapGate32 = 0b1111,
 }
 
-struct TypeAttribute(u8);
-
-fn build_type_attributes(present: u8, privilege_level: u8, gate_type: GateType) -> u8 {
+fn build_attributes(present: u8, privilege_level: u8, gate_type: GateType) -> u8 {
     (present << 7) | (privilege_level << 5) | gate_type as u8
 }
 
 impl InterruptDescriptor {
-    pub fn new(offset: usize, selector: u16, type_attributes: u8) -> Self {
+    pub fn new(offset: usize, kernel_cs: u16, attributes: u8) -> Self {
         Self {
             isr_low: (offset & 0xFFFF) as u16,
-            selector,
+            kernel_cs,
             zero: 0,
-            type_attributes,
+            attributes,
             isr_high: ((offset >> 16) & 0xFFFF) as u16,
         }
     }
@@ -83,7 +72,12 @@ impl InterruptDescriptorTable {
 
     pub fn load(&self) {
         unsafe {
-            core::arch::asm!("lidt [{}]", in(reg) &self.idtr, options(readonly, nostack, preserves_flags));
+            let idtr = InterruptDescriptorTableRegister {
+                base: self.entries.as_ptr() as usize,
+                limit: (core::mem::size_of::<[InterruptDescriptor; MAX_INTERRUPT_DESCRIPTORS]>() - 1) as u16,
+            };
+
+            core::arch::asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags));
             core::arch::asm!("sti")
         }
     }
@@ -93,21 +87,15 @@ impl InterruptDescriptorTable {
     }
 }
 
-#[unsafe(no_mangle)]
 #[unsafe(naked)]
+#[unsafe(no_mangle)]
 extern "C" fn exception_handler() {
-    unsafe { core::arch::naked_asm!("cli; hlt") };
+    core::arch::naked_asm!("pusha", "call handle_exception", "popa", "iret")
 }
 
-macro_rules! isr_err_stub {
-    ($func: ident, $nb: expr) => {
-        #[unsafe(naked)]
-        #[unsafe(no_mangle)]
-        unsafe extern "C" fn $func() {
-            // panic!("???");
-            core::arch::naked_asm!("call exception_handler", "iret")
-        }
-    };
+#[unsafe(no_mangle)]
+extern "C" fn handle_exception() {
+    // panic!("FUCK");
 }
 
 macro_rules! isr_no_err_stub {
@@ -115,221 +103,201 @@ macro_rules! isr_no_err_stub {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            // panic!("???");
-            core::arch::naked_asm!("call exception_handler", "iret")
+            core::arch::naked_asm!(
+            	"pusha",
+                "push {}",
+                "call handle_interrupt",
+                "add esp, 4",
+                "popa",
+                "iret",
+                const $nb
+            )
         }
     };
 }
 
-isr_no_err_stub!(isr_no_err_stub_0, 0);
-isr_no_err_stub!(isr_no_err_stub_1, 1);
-isr_no_err_stub!(isr_no_err_stub_2, 2);
-isr_no_err_stub!(isr_no_err_stub_3, 3);
-isr_no_err_stub!(isr_no_err_stub_4, 4);
-isr_no_err_stub!(isr_no_err_stub_5, 5);
-isr_no_err_stub!(isr_no_err_stub_6, 6);
-isr_no_err_stub!(isr_no_err_stub_7, 7);
-isr_err_stub!(isr_err_stub_8, 8);
-isr_no_err_stub!(isr_no_err_stub_9, 9);
-isr_err_stub!(isr_err_stub_10, 10);
-isr_err_stub!(isr_err_stub_11, 11);
-isr_err_stub!(isr_err_stub_12, 12);
-isr_err_stub!(isr_err_stub_13, 13);
-isr_err_stub!(isr_err_stub_14, 14);
-isr_no_err_stub!(isr_no_err_stub_15, 15);
-isr_no_err_stub!(isr_no_err_stub_16, 16);
-isr_err_stub!(isr_err_stub_17, 17);
-isr_no_err_stub!(isr_no_err_stub_18, 18);
-isr_no_err_stub!(isr_no_err_stub_19, 19);
-isr_no_err_stub!(isr_no_err_stub_20, 20);
-isr_no_err_stub!(isr_no_err_stub_21, 21);
-isr_no_err_stub!(isr_no_err_stub_22, 22);
-isr_no_err_stub!(isr_no_err_stub_23, 23);
-isr_no_err_stub!(isr_no_err_stub_24, 24);
-isr_no_err_stub!(isr_no_err_stub_25, 25);
-isr_no_err_stub!(isr_no_err_stub_26, 26);
-isr_no_err_stub!(isr_no_err_stub_27, 27);
-isr_no_err_stub!(isr_no_err_stub_28, 28);
-isr_no_err_stub!(isr_no_err_stub_29, 29);
-isr_err_stub!(isr_err_stub_30, 30);
-isr_no_err_stub!(isr_no_err_stub_31, 31);
+macro_rules! isr_err_stub {
+    ($func: ident, $nb: expr) => {
+        #[unsafe(naked)]
+        #[unsafe(no_mangle)]
+        unsafe extern "C" fn $func() {
+            core::arch::naked_asm!(
+                "pusha",
+                "push {}",
+                "call handle_interrupt",
+                "add esp, 4",
+                "popa",
+                "add esp, 4",
+                "iret",
+                const $nb
+            )
+        }
+    };
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn handle_interrupt(interrupt_number: usize) {
+    panic!("Got an interrupt and I don't know what to do");
+}
+
+isr_no_err_stub!(isr_stub_0, 0);
+isr_no_err_stub!(isr_stub_1, 1);
+isr_no_err_stub!(isr_stub_2, 2);
+isr_no_err_stub!(isr_stub_3, 3);
+isr_no_err_stub!(isr_stub_4, 4);
+isr_no_err_stub!(isr_stub_5, 5);
+isr_no_err_stub!(isr_stub_6, 6);
+isr_no_err_stub!(isr_stub_7, 7);
+isr_err_stub!(isr_stub_8, 8);
+isr_no_err_stub!(isr_stub_9, 9);
+isr_err_stub!(isr_stub_10, 10);
+isr_err_stub!(isr_stub_11, 11);
+isr_err_stub!(isr_stub_12, 12);
+isr_err_stub!(isr_stub_13, 13);
+isr_err_stub!(isr_stub_14, 14);
+isr_no_err_stub!(isr_stub_15, 15);
+isr_no_err_stub!(isr_stub_16, 16);
+isr_err_stub!(isr_stub_17, 17);
+isr_no_err_stub!(isr_stub_18, 18);
+isr_no_err_stub!(isr_stub_19, 19);
+isr_no_err_stub!(isr_stub_20, 20);
+isr_no_err_stub!(isr_stub_21, 21);
+isr_no_err_stub!(isr_stub_22, 22);
+isr_no_err_stub!(isr_stub_23, 23);
+isr_no_err_stub!(isr_stub_24, 24);
+isr_no_err_stub!(isr_stub_25, 25);
+isr_no_err_stub!(isr_stub_26, 26);
+isr_no_err_stub!(isr_stub_27, 27);
+isr_no_err_stub!(isr_stub_28, 28);
+isr_no_err_stub!(isr_stub_29, 29);
+isr_err_stub!(isr_stub_30, 30);
+isr_no_err_stub!(isr_stub_31, 31);
+isr_no_err_stub!(isr_stub_32, 32);
+isr_no_err_stub!(isr_stub_33, 33);
+isr_no_err_stub!(isr_stub_34, 34);
+isr_no_err_stub!(isr_stub_35, 35);
+isr_no_err_stub!(isr_stub_36, 36);
+isr_no_err_stub!(isr_stub_37, 37);
+isr_no_err_stub!(isr_stub_38, 38);
+isr_no_err_stub!(isr_stub_39, 39);
+isr_no_err_stub!(isr_stub_40, 40);
+isr_no_err_stub!(isr_stub_41, 41);
+isr_no_err_stub!(isr_stub_42, 42);
+isr_no_err_stub!(isr_stub_43, 43);
+isr_no_err_stub!(isr_stub_44, 44);
+isr_no_err_stub!(isr_stub_45, 45);
+isr_no_err_stub!(isr_stub_46, 46);
+isr_no_err_stub!(isr_stub_47, 47);
+
+macro_rules! isr_stubs {
+    () => {
+        &[
+            isr_stub_0 as usize,
+            isr_stub_1 as usize,
+            isr_stub_2 as usize,
+            isr_stub_3 as usize,
+            isr_stub_4 as usize,
+            isr_stub_5 as usize,
+            isr_stub_6 as usize,
+            isr_stub_7 as usize,
+            isr_stub_8 as usize,
+            isr_stub_9 as usize,
+            isr_stub_10 as usize,
+            isr_stub_11 as usize,
+            isr_stub_12 as usize,
+            isr_stub_13 as usize,
+            isr_stub_14 as usize,
+            isr_stub_15 as usize,
+            isr_stub_16 as usize,
+            isr_stub_17 as usize,
+            isr_stub_18 as usize,
+            isr_stub_19 as usize,
+            isr_stub_20 as usize,
+            isr_stub_21 as usize,
+            isr_stub_22 as usize,
+            isr_stub_23 as usize,
+            isr_stub_24 as usize,
+            isr_stub_25 as usize,
+            isr_stub_26 as usize,
+            isr_stub_27 as usize,
+            isr_stub_28 as usize,
+            isr_stub_29 as usize,
+            isr_stub_30 as usize,
+            isr_stub_31 as usize,
+            isr_stub_32 as usize,
+            isr_stub_33 as usize,
+            isr_stub_34 as usize,
+            isr_stub_35 as usize,
+            isr_stub_36 as usize,
+            isr_stub_37 as usize,
+            isr_stub_38 as usize,
+            isr_stub_39 as usize,
+            isr_stub_40 as usize,
+            isr_stub_41 as usize,
+            isr_stub_42 as usize,
+            isr_stub_43 as usize,
+            isr_stub_44 as usize,
+            isr_stub_45 as usize,
+            isr_stub_46 as usize,
+            isr_stub_47 as usize,
+        ]
+    };
+}
 
 pub fn remap_pic() {
-    let pic1_command = Port::new(0x20);
-    let pic1_data = Port::new(0x21);
-    let pic2_command = Port::new(0xA0);
-    let pic2_data = Port::new(0xA1);
+    const PIC1_CMD: u16 = 0x20;
+    const PIC1_DATA: u16 = 0x21;
+    const PIC2_CMD: u16 = 0xA0;
+    const PIC2_DATA: u16 = 0xA1;
 
     const ICW1_INIT: u8 = 0x10;
     const ICW1_ICW4: u8 = 0x01;
     const ICW4_8086: u8 = 0x01;
 
     unsafe {
-        let a1 = pic1_data.read();
-        let a2 = pic2_data.read();
+        use crate::port::Port;
 
-        // Start initialization
-        pic1_command.write(ICW1_INIT | ICW1_ICW4);
-        pic2_command.write(ICW1_INIT | ICW1_ICW4);
+        _ = Port::new(PIC1_DATA).read();
+        _ = Port::new(PIC2_DATA).read();
 
-        // Set vector offsets
-        pic1_data.write(0x20); // IRQ0–7 -> INT 32–39
-        pic2_data.write(0x28); // IRQ8–15 -> INT 40–47
+        Port::new(PIC1_CMD).write(ICW1_INIT | ICW1_ICW4);
+        Port::new(PIC2_CMD).write(ICW1_INIT | ICW1_ICW4);
 
-        // Tell PICs how they are wired
-        pic1_data.write(4);
-        pic2_data.write(2);
+        Port::new(PIC1_DATA).write(0x20);
+        Port::new(PIC2_DATA).write(0x28);
 
-        // Set 8086 mode
-        pic1_data.write(ICW4_8086);
-        pic2_data.write(ICW4_8086);
+        Port::new(PIC1_DATA).write(4);
+        Port::new(PIC2_DATA).write(2);
 
-        // Restore saved masks
-        pic1_data.write(a1);
-        pic2_data.write(a2);
+        Port::new(PIC1_DATA).write(ICW4_8086);
+        Port::new(PIC2_DATA).write(ICW4_8086);
+
+        Port::new(PIC1_DATA).write(0xFF);
+        Port::new(PIC2_DATA).write(0xFF);
     }
 }
 
-static mut IDT: InterruptDescriptorTable = unsafe { core::mem::zeroed() };
+static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn set_idt() {
     unsafe {
-        IDT = InterruptDescriptorTable::new();
-        IDT.set_descriptor(
-            0,
-            InterruptDescriptor::new(isr_no_err_stub_0 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            1,
-            InterruptDescriptor::new(isr_no_err_stub_1 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            2,
-            InterruptDescriptor::new(isr_no_err_stub_2 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            3,
-            InterruptDescriptor::new(isr_no_err_stub_3 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            4,
-            InterruptDescriptor::new(isr_no_err_stub_4 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            5,
-            InterruptDescriptor::new(isr_no_err_stub_5 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            6,
-            InterruptDescriptor::new(isr_no_err_stub_6 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            7,
-            InterruptDescriptor::new(isr_no_err_stub_7 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            8,
-            InterruptDescriptor::new(isr_err_stub_8 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            9,
-            InterruptDescriptor::new(isr_no_err_stub_9 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            10,
-            InterruptDescriptor::new(isr_err_stub_10 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            11,
-            InterruptDescriptor::new(isr_err_stub_11 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            12,
-            InterruptDescriptor::new(isr_err_stub_12 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            13,
-            InterruptDescriptor::new(isr_err_stub_13 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            14,
-            InterruptDescriptor::new(isr_err_stub_14 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            15,
-            InterruptDescriptor::new(isr_no_err_stub_15 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            16,
-            InterruptDescriptor::new(isr_no_err_stub_16 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            17,
-            InterruptDescriptor::new(isr_err_stub_17 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            18,
-            InterruptDescriptor::new(isr_no_err_stub_18 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            19,
-            InterruptDescriptor::new(isr_no_err_stub_19 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            20,
-            InterruptDescriptor::new(isr_no_err_stub_20 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            21,
-            InterruptDescriptor::new(isr_no_err_stub_21 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            22,
-            InterruptDescriptor::new(isr_no_err_stub_22 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            23,
-            InterruptDescriptor::new(isr_no_err_stub_23 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            24,
-            InterruptDescriptor::new(isr_no_err_stub_24 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            25,
-            InterruptDescriptor::new(isr_no_err_stub_25 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            26,
-            InterruptDescriptor::new(isr_no_err_stub_26 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            27,
-            InterruptDescriptor::new(isr_no_err_stub_27 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            28,
-            InterruptDescriptor::new(isr_no_err_stub_28 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            29,
-            InterruptDescriptor::new(isr_no_err_stub_29 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            30,
-            InterruptDescriptor::new(isr_err_stub_30 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        IDT.set_descriptor(
-            31,
-            InterruptDescriptor::new(isr_no_err_stub_31 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
-        );
-        for i in 31..48 {
-            IDT.set_descriptor(
-                i as u8,
-                InterruptDescriptor::new(isr_no_err_stub_31 as usize, 0x08, build_type_attributes(1, 0, GateType::InterruptGate32)),
+        let stubs = isr_stubs!();
+        let mut idt = InterruptDescriptorTable::new();
+
+        for (index, stub) in stubs.iter().enumerate() {
+            idt.set_descriptor(
+                index as u8,
+                InterruptDescriptor::new(*stub, 0x08, build_attributes(1, 0, GateType::InterruptGate32)),
             );
         }
+        IDT = Some(idt);
+
         remap_pic();
-        IDT.load();
+
+        if let Some(ref idt) = IDT {
+            idt.load();
+        }
+
+        core::arch::asm!("int 32");
     }
 }
