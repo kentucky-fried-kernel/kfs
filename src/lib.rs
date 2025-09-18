@@ -17,6 +17,7 @@ pub extern "C" fn kernel_main() {
         panic!("could not initialize PS/2: {}", e);
     }
     arch::x86::set_gdt();
+    #[cfg(not(test))]
     arch::x86::set_idt();
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut SCREEN });
