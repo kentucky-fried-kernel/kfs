@@ -299,6 +299,6 @@ pub fn set_idt() {
             idt.load();
         }
 
-        core::arch::asm!("int 32");
+        // core::arch::asm!("int 32");
     }
 }
