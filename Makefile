@@ -45,7 +45,7 @@ $(BUILD_DIR)/$(GDT_OBJ): $(GDT) | $(BUILD_DIR)
 	$(AS) --32 -o $@ $<
 
 $(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
-	cargo build-kernel
+	cargo build --release
 	touch $(LIB)
 
 $(BUILD_DIR):
