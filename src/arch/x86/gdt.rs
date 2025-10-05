@@ -28,7 +28,7 @@ static GDTR: Gdtr = Gdtr { limit: 0x37, base: 0x800 };
 
 #[unsafe(no_mangle)]
 #[unsafe(naked)]
-pub unsafe extern "C" fn flush_gdt_registers() {
+unsafe extern "C" fn flush_gdt_registers() {
     core::arch::naked_asm!(
         "mov eax, offset GDTR",
         "lgdt [eax]",
@@ -47,7 +47,7 @@ pub unsafe extern "C" fn flush_gdt_registers() {
     );
 }
 
-pub fn set_gdt() {
+pub fn init() {
     let mut gdt: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
     gdt[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
     gdt[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
