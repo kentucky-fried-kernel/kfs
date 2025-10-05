@@ -4,13 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["staticlib"]
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-
-[dependencies]
-spin = "0.9.8"
+crate-type = ["staticlib", "rlib"]
+test = false
