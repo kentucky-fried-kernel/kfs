@@ -3,7 +3,7 @@ use core::arch::asm;
 use crate::{
     printk,
     ps2::{self, Key, read_if_ready},
-    qemu::{QemuExitCode, exit_qemu},
+    qemu::{ExitCode, exit},
     terminal::{Screen, vga::Buffer},
 };
 
@@ -114,7 +114,7 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
 
 #[allow(unused)]
 fn exit_cmd(args: &[u8], s: &mut Screen) {
-    unsafe { exit_qemu(QemuExitCode::Success) };
+    unsafe { exit(ExitCode::Success) };
 }
 
 #[allow(unused)]
