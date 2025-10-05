@@ -1,2 +1,5 @@
 [alias]
 build-kernel = "build -Zbuild-std=core,alloc --target=.cargo/i386-unknown-none.json --release"
+
+[build]
+target = ".cargo/i386-unknown-none.json"
