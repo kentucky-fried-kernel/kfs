@@ -1,9 +1,27 @@
+UNAME := $(shell uname -s)
+
+ifeq ($(UNAME),Linux)
+	OS := linux
+else ifeq ($(UNAME),Darwin)
+	OS := macos
+else
+	exit 1
+endif
+
 SRC_DIR := src
 OBJ_DIR := obj
 BUILD_DIR := build
 NAME := kernel
 BINARY := $(NAME).bin
 ISO := $(NAME).iso
+
+ifeq ($(OS),macos)
+	AS=i386-elf-as
+	LD=i386-elf-ld
+else ifeq (($OS),linux)
+	AS=as
+	LD=ld
+endif
 
 MULTIBOOT_HEADER := src/arch/x86/boot.s
 MULTIBOOT_HEADER_OBJ := boot.o
@@ -18,13 +36,13 @@ CARGO_TOML := Cargo.toml
 all: $(BUILD_DIR)/$(BINARY)
 
 $(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(BUILD_DIR)/$(GDT_OBJ) $(LIB)
-	ld -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
+	$(LD) -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
 
 $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
-	as --32 -o $@ $<
+	$(AS) --32 -o $@ $<
 
 $(BUILD_DIR)/$(GDT_OBJ): $(GDT) | $(BUILD_DIR)
-	as --32 -o $@ $<
+	$(AS) --32 -o $@ $<
 
 $(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
 	cargo build-kernel
