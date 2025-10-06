@@ -1,17 +1,20 @@
 name: cargo fmt -- --check
 
 on:
-  push:
-  pull_request:
+    push:
+    pull_request:
 
-env: 
-  CARGO_TERM_COLOR: always
+env:
+    CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Rust project - latest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: rustup component add rustfmt
-      - run: cargo fmt -- --check
+    build_and_test:
+        name: Rust project - latest
+        runs-on: ubuntu-latest
+        container: ghcr.io/kentucky-fried-kernel/kfs-test-runner
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+            - run: rustup component add rustfmt
+            - run: cargo fmt -- --check
