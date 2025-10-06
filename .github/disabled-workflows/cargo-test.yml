@@ -1,3 +1,4 @@
+# disabled until #49 is solved
 name: cargo build-kernel && cargo test
 
 on:
