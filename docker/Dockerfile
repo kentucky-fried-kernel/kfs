@@ -5,9 +5,8 @@ RUN apt update && \
 	qemu-system-x86-64 && \
 	rm -rf /var/lib/apt/lists/*
 
-RUN rustup default nightly && \
-	rustup update nightly && \
-	rustup target add i686-unknown-none && \
+RUN rustup target add x86_64-unknown-none && \
+	rustup default nightly && \
 	rustup component add rust-src && \
 	rustup component add clippy && \
 	rustup component add rustfmt
