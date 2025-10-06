@@ -7,7 +7,7 @@ RUN apt update && \
 
 RUN rustup default nightly && \
 	rustup update nightly && \
-	rustup target add i386-unknown-none && \
+	rustup target add i686-unknown-none && \
 	rustup component add rust-src && \
 	rustup component add clippy && \
 	rustup component add rustfmt
