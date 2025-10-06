@@ -8,6 +8,6 @@ RUN apt update && \
 RUN rustup default nightly && \
 	rustup update nightly && \
 	rustup target add i386-unknown-none && \
-	rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu && \
+	rustup component add rust-src && \
 	rustup component add clippy && \
 	rustup component add rustfmt
