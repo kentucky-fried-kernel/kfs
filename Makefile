@@ -25,8 +25,6 @@ endif
 
 MULTIBOOT_HEADER := src/arch/x86/boot.s
 MULTIBOOT_HEADER_OBJ := boot.o
-GDT := src/arch/x86/gdt.s
-GDT_OBJ := gdt.o
 
 LIB := target/i386-unknown-none/release/libkfs.a
 
@@ -35,7 +33,7 @@ CARGO_TOML := Cargo.toml
 
 all: $(BUILD_DIR)/$(BINARY)
 
-$(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(BUILD_DIR)/$(GDT_OBJ) $(LIB)
+$(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(LIB)
 	$(LD) -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
 
 $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
@@ -45,7 +43,7 @@ $(BUILD_DIR)/$(GDT_OBJ): $(GDT) | $(BUILD_DIR)
 	$(AS) --32 -o $@ $<
 
 $(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
-	cargo build-kernel
+	cargo build --release
 	touch $(LIB)
 
 $(BUILD_DIR):

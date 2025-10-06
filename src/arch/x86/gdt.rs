@@ -17,11 +17,37 @@ fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
 const GDT_SIZE: usize = 7;
 const GDT_ADDRESS: *mut u64 = 0x00000800 as *mut u64;
 
-unsafe extern "C" {
-    unsafe fn flush_gdt_registers() -> u32;
+#[repr(C, packed)]
+struct Gdtr {
+    limit: u16,
+    base: u32,
 }
 
-pub fn set_gdt() {
+#[unsafe(no_mangle)]
+static GDTR: Gdtr = Gdtr { limit: 0x37, base: 0x800 };
+
+#[unsafe(no_mangle)]
+#[unsafe(naked)]
+unsafe extern "C" fn flush_gdt_registers() {
+    core::arch::naked_asm!(
+        "mov eax, offset GDTR",
+        "lgdt [eax]",
+        "mov eax, cr0",
+        "or eax, 1",
+        "mov cr0, eax",
+        "jmp 0x08, offset flush",
+        "flush:",
+        "mov ax, 0x10",
+        "mov ds, ax",
+        "mov es, ax",
+        "mov fs, ax",
+        "mov gs, ax",
+        "mov ss, ax",
+        "ret",
+    );
+}
+
+pub fn init() {
     let mut gdt: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
     gdt[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
     gdt[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
