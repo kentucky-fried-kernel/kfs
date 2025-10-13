@@ -1,24 +1,21 @@
 name: cargo clippy -- -D warnings
 
 on:
-  push:
-  pull_request:
+    push:
+    pull_request:
 
-env: 
-  CARGO_TERM_COLOR: always
+env:
+    CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Rust project - latest
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        toolchain:
-          - nightly
-    steps:
-      - uses: actions/checkout@v4
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - run: rustup component add rust-src
-      - run: rustup component add clippy
-      - run: cargo build-kernel
-      - run: cargo clippy -- -D warnings
+    build_and_test:
+        name: Rust project - latest
+        runs-on: ubuntu-latest
+        container: ghcr.io/kentucky-fried-kernel/kfs-test-runner
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+            - run: rustup component add rust-src
+            - run: rustup component add clippy
+            - run: cargo clippy -- -D warnings
