@@ -21,7 +21,6 @@ qemu-system-i386 -cdrom build/kernel.iso -boot d -device isa-debug-exit,iobase=0
 
 if [ $? -eq 33 ]
 then
-	echo "All tests passed"
 	exit 0
 else
 	exit 1

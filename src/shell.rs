@@ -1,3 +1,4 @@
+#![cfg(not(test))]
 use core::arch::asm;
 
 use crate::{

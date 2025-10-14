@@ -4,6 +4,7 @@
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+#[cfg(not(test))]
 use terminal::SCREEN;
 
 mod arch;
