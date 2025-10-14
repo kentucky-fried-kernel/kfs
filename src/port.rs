@@ -9,6 +9,9 @@ impl Port {
         Self { port }
     }
 
+    /// # Safety
+    /// This function interacts with hardware directly and can
+    /// therefore not be checked by the compiler.
     pub unsafe fn write(&self, val: u8) {
         unsafe {
             asm!(
@@ -19,6 +22,9 @@ impl Port {
         }
     }
 
+    /// # Safety
+    /// This function interacts with hardware directly and can
+    /// therefore not be checked by the compiler.
     pub unsafe fn read(&self) -> u8 {
         let res: u8;
 
