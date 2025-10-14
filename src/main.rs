@@ -4,22 +4,6 @@
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-#[cfg(not(test))]
-use terminal::SCREEN;
-
-mod arch;
-mod conv;
-mod macros;
-mod panic;
-mod port;
-mod printk;
-mod ps2;
-mod qemu;
-mod serial;
-mod shell;
-mod terminal;
-mod tester;
-
 #[test_case]
 fn foo() -> Result<(), &'static str> {
     Ok(())
@@ -30,9 +14,23 @@ fn bar() -> Result<(), &'static str> {
     Ok(())
 }
 
+pub mod arch;
+pub mod conv;
+pub mod macros;
+pub mod panic;
+pub mod port;
+pub mod printk;
+pub mod ps2;
+pub mod qemu;
+pub mod serial;
+pub mod shell;
+pub mod terminal;
+pub mod tester;
+
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
+    use crate::terminal;
     if let Err(e) = ps2::init() {
         panic!("could not initialize PS/2: {}", e);
     }
@@ -40,7 +38,7 @@ pub extern "C" fn kernel_main() {
     #[cfg(not(test))]
     arch::x86::set_idt();
     #[allow(static_mut_refs)]
-    shell::launch(unsafe { &mut SCREEN });
+    shell::launch(unsafe { &mut terminal::SCREEN });
 }
 
 #[cfg(test)]
