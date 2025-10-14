@@ -34,12 +34,9 @@ CARGO_TOML := Cargo.toml
 all: $(BUILD_DIR)/$(BINARY)
 
 $(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(LIB)
-	$(LD) -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
+	# $(LD) -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
 
 $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
-	$(AS) --32 -o $@ $<
-
-$(BUILD_DIR)/$(GDT_OBJ): $(GDT) | $(BUILD_DIR)
 	$(AS) --32 -o $@ $<
 
 $(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
@@ -52,7 +49,8 @@ $(BUILD_DIR):
 iso: all
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
 	cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
-	cp $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/iso/boot/
+	# cp target/i386-unknown-none/release/kfs $(BUILD_DIR)/iso/boot/grub
+	cp target/i386-unknown-none/release/kfs $(BUILD_DIR)/iso/boot/kernel.bin
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
 
 run: iso
