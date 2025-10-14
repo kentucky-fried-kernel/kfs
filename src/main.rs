@@ -1,4 +1,6 @@
 #![no_std]
+#![no_main]
+
 use terminal::SCREEN;
 
 mod arch;
