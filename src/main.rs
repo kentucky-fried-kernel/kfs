@@ -4,16 +4,6 @@
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-#[test_case]
-fn foo() -> Result<(), &'static str> {
-    Ok(())
-}
-
-#[test_case]
-fn bar() -> Result<(), &'static str> {
-    Ok(())
-}
-
 pub mod arch;
 pub mod conv;
 pub mod macros;
