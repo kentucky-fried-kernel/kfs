@@ -8,17 +8,19 @@ use terminal::SCREEN;
 
 mod arch;
 mod conv;
+mod macros;
 mod panic;
 mod port;
 mod printk;
 mod ps2;
 mod qemu;
+mod serial;
 mod shell;
 mod terminal;
 
 #[cfg(test)]
 pub fn test_runner(tests: &[&dyn Fn()]) {
-    unsafe { printk!("Running {} tests", tests.len()) };
+    serial_println!("Running {} tests", tests.len());
     for test in tests {
         test();
     }
