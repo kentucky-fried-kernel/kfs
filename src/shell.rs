@@ -137,17 +137,9 @@ unsafe extern "C" {
 
 fn get_stack_pointer() -> u32 {
     let sp: usize;
-    #[cfg(not(test))]
     unsafe {
         asm!(
             "mov {0}, esp",
-            out(reg) sp,
-        )
-    }
-    #[cfg(test)]
-    unsafe {
-        asm!(
-            "mov {0}, rsp",
             out(reg) sp,
         )
     }
