@@ -20,10 +20,15 @@ mod terminal;
 
 #[cfg(test)]
 pub fn test_runner(tests: &[&dyn Fn()]) {
-    serial_println!("Running {} tests", tests.len());
+    serial_println!("Running {} test(s)", tests.len());
     for test in tests {
         test();
     }
+}
+
+#[test_case]
+fn foo() {
+    serial_println!("this is a test");
 }
 
 #[cfg(not(test))]
