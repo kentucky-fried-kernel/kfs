@@ -69,11 +69,7 @@ crash: debug-iso
 	qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -d int -no-reboot -no-shutdown
 
 test: all
-	mkdir -p $(BUILD_DIR)/iso/boot/grub
-	cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
-	cp $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/iso/boot/
-	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
-	qemu-system-i386 -s -S -kernel build/kernel.bin -append "root=/dev/hda"
+	./run-tests.sh
 
 fclean:
 	cargo clean
