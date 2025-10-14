@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::fmt;
 
 enum SendError {

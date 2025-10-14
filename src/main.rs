@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(crate::test_runner)]
+#![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 use terminal::SCREEN;
@@ -17,18 +17,16 @@ mod qemu;
 mod serial;
 mod shell;
 mod terminal;
+mod tester;
 
-#[cfg(test)]
-pub fn test_runner(tests: &[&dyn Fn()]) {
-    serial_println!("Running {} test(s)", tests.len());
-    for test in tests {
-        test();
-    }
+#[test_case]
+fn foo() -> Result<(), &'static str> {
+    Ok(())
 }
 
 #[test_case]
-fn foo() {
-    serial_println!("this is a test");
+fn bar() -> Result<(), &'static str> {
+    Ok(())
 }
 
 #[cfg(not(test))]
@@ -48,15 +46,5 @@ pub extern "C" fn kernel_main() {
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
     test_main();
-    unsafe {
-        qemu::exit(qemu::ExitCode::Success);
-    }
-    // if let Err(e) = ps2::init() {
-    //     panic!("could not initialize PS/2: {}", e);
-    // }
-    // arch::x86::gdt::init();
-    // #[cfg(not(test))]
-    // arch::x86::set_idt();
-    // #[allow(static_mut_refs)]
-    // shell::launch(unsafe { &mut SCREEN });
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
 }
