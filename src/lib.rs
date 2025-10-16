@@ -7,7 +7,6 @@
 pub mod arch;
 pub mod conv;
 pub mod macros;
-pub mod panic;
 pub mod port;
 pub mod printk;
 pub mod ps2;

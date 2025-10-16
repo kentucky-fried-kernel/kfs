@@ -4,6 +4,8 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+mod panic;
+
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
