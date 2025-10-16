@@ -30,4 +30,5 @@ jobs:
             - run: apt install -y grub-efi-amd64-bin
             - run: apt install -y xorriso
             - run: apt install -y mtools
+            - run: cp $(which ld) /usr/bin/i386-elf-ld
             - run: make test
