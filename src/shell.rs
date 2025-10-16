@@ -120,16 +120,14 @@ fn exit_cmd(args: &[u8], s: &mut Screen) {
 
 #[allow(unused)]
 fn help_cmd(args: &[u8], s: &mut Screen) {
-    unsafe {
-        printk!("\nAvailable commands:\n\n");
-        printk!("    echo:                echoes input to the console\n");
-        printk!("    panic:               trigger a kernel panic\n");
-        printk!("    halt:                halt the kernel execution\n");
-        printk!("    reboot:              reboot the kernel\n");
-        printk!("    prints               display the kernel stack from %esp to the top\n");
-        printk!("    printsb              display the kernel stack boundaries\n");
-        printk!("    help                 display this help message\n\n");
-    }
+    printk!("\nAvailable commands:\n\n");
+    printk!("    echo:                echoes input to the console\n");
+    printk!("    panic:               trigger a kernel panic\n");
+    printk!("    halt:                halt the kernel execution\n");
+    printk!("    reboot:              reboot the kernel\n");
+    printk!("    prints               display the kernel stack from %esp to the top\n");
+    printk!("    printsb              display the kernel stack boundaries\n");
+    printk!("    help                 display this help message\n\n");
 }
 
 unsafe extern "C" {
@@ -149,7 +147,9 @@ fn get_stack_pointer() -> u32 {
 }
 
 fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
-    unsafe { printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), &stack_top as *const u8 as u32) };
+    printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), unsafe {
+        &stack_top as *const u8 as u32
+    });
 }
 
 /// Dumps a row of 16 bytes in the following format:
@@ -160,20 +160,18 @@ fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
 /// address range     hexdump                              ASCII dump
 /// ```
 fn dump_row(row: [u8; 16], ptr: *const u8) {
-    unsafe {
-        printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
-        for word in row.chunks(4) {
-            // Reminder to future self: casting to u32 prints the bytes in little-endian.
-            for byte in word {
-                printk!("{:02x}", byte);
-            }
-            printk!(" ")
+    printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
+    for word in row.chunks(4) {
+        // Reminder to future self: casting to u32 prints the bytes in little-endian.
+        for byte in word {
+            printk!("{:02x}", byte);
         }
-        for byte in row {
-            printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
-        }
-        printk!("\n");
-    };
+        printk!(" ")
+    }
+    for byte in row {
+        printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
+    }
+    printk!("\n");
 }
 
 /// Prints the stack from %esp to the stack top.
@@ -199,7 +197,7 @@ fn echo_cmd(args: &[u8], s: &mut Screen) {
         None => args.len(),
     };
 
-    unsafe { printk!("{}\n", core::str::from_utf8_unchecked(&args[..args_len])) };
+    printk!("{}\n", unsafe { core::str::from_utf8_unchecked(&args[..args_len]) });
 }
 
 fn reboot_cmd(args: &[u8], s: &mut Screen) {
