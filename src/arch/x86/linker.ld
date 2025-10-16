@@ -24,6 +24,8 @@ SECTIONS
 
 	.bss : ALIGN(4K)
 	{
+	    _bss_start = .;
 		*(.bss)			/* Heap + Stack */
+		_bss_end = .;
 	}
 }
