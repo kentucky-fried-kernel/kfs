@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
 
 mkdir -p build/iso/boot/grub
-i386-elf-as --32 -o build/boot.o src/arch/x86/boot.s
 
 path=$(python3 testbuild.py)
+path="/Users/arthur/kfs/target/i386-unknown-none/release/deps/kfs-a3c2d027e22e0133"
+# path="target/i386-unknown-none/release/deps/kfs-0e0ed5f61b3dd37e"
+# path="target/i386-unknown-none/release/deps/foo-54206ce26b02d34f"
+# path="target/i386-unknown-none/release/deps/kfs-9e129a6664934c12"
 
 if [ $? -eq 0 ]
 then
