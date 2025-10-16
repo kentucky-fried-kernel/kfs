@@ -17,4 +17,9 @@ macro_rules! kassert_eq {
             return Err(stringify!($c));
         }
     };
+    ($a:expr, $b:expr) => {
+        if $a != $b {
+            return Err(concat!("Assertion failed: ", stringify!($a), " != ", stringify!($b)));
+        }
+    };
 }
