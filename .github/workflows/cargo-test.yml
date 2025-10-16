@@ -1,4 +1,3 @@
-# disabled until #49 is solved
 name: cargo build-kernel && cargo test
 
 on:
@@ -20,6 +19,7 @@ jobs:
             - run: rustup target add x86_64-unknown-none
             - run: rustup default nightly
             - run: rustup component add rust-src
+            - run: apt update
             - run: apt install make
             - run: apt install build-essential
             - run: apt install gcc-multilib
