@@ -281,58 +281,61 @@ mod test {
         Ok(())
     }
 
-    // #[test_case]
-    // fn lines_of_coke() -> Result<(), &'static str> {
-    //     let mut s = Screen::default();
-    //     let test_string_1 = "Coka";
-    //     let test_string_2 = "Cola";
+    #[test_case]
+    fn lines_of_coke() -> Result<(), &'static str> {
+        let mut s = Screen::default();
+        let test_string_1 = "Coka";
+        let test_string_2 = "Cola";
 
-    //     s.write_str(&test_string_1);
-    //     s.handle_key(Key::Enter);
-    //     s.write_str(&test_string_2);
+        s.write_str(&test_string_1);
+        s.handle_key(crate::ps2::Key::Enter);
+        s.write_str(&test_string_2);
 
-    //     let b = Buffer::from_screen(&s);
+        let b = Buffer::from_screen(&s);
 
-    //     for (i, c) in test_string_1.as_bytes().iter().enumerate() {
-    //         assert_eq!(b.buffer[i], Entry::new(*c).to_u16());
-    //     }
-    //     for (i, c) in test_string_2.as_bytes().iter().enumerate() {
-    //         assert_eq!(b.buffer[VIEW_WIDTH + i], Entry::new(*c).to_u16());
-    //     }
+        for (i, c) in test_string_1.as_bytes().iter().enumerate() {
+            kassert_eq!(b.buffer[i], Entry::new(*c).to_u16());
+        }
+        for (i, c) in test_string_2.as_bytes().iter().enumerate() {
+            kassert_eq!(b.buffer[VIEW_WIDTH + i], Entry::new(*c).to_u16());
+        }
 
-    //     assert_eq!(b.cursor.unwrap().x, test_string_2.len() as u16);
-    //     assert_eq!(b.cursor.unwrap().y, 1);
-    // }
+        kassert_eq!(b.cursor.unwrap().x, test_string_2.len() as u16);
+        kassert_eq!(b.cursor.unwrap().y, 1);
+        Ok(())
+    }
 
-    // #[test_case]
-    // fn a_long_line() {
-    //     let mut s = Screen::default();
-    //     for _ in 0..VIEW_WIDTH {
-    //         s.handle_key(Key::A);
-    //     }
+    #[test_case]
+    fn a_long_line() -> Result<(), &'static str> {
+        let mut s = Screen::default();
+        for _ in 0..VIEW_WIDTH {
+            s.handle_key(crate::ps2::Key::A);
+        }
 
-    //     let b = Buffer::from_screen(&s);
-    //     assert_eq!(b.cursor.unwrap().x, 0);
-    //     assert_eq!(b.cursor.unwrap().y, 1);
-    // }
+        let b = Buffer::from_screen(&s);
+        kassert_eq!(b.cursor.unwrap().x, 0);
+        kassert_eq!(b.cursor.unwrap().y, 1);
+        Ok(())
+    }
 
-    // #[test_case]
-    // fn backspacing() {
-    //     let mut s = Screen::default();
-    //     let test_string = "123";
-    //     s.write_str(&test_string);
-    //     s.handle_key(Key::Backspace);
+    #[test_case]
+    fn backspacing() -> Result<(), &'static str> {
+        let mut s = Screen::default();
+        let test_string = "123";
+        s.write_str(&test_string);
+        s.handle_key(crate::ps2::Key::Backspace);
 
-    //     let b = Buffer::from_screen(&s);
+        let b = Buffer::from_screen(&s);
 
-    //     for (i, c) in test_string.as_bytes().iter().enumerate() {
-    //         if test_string.len() - 1 == i {
-    //             break;
-    //         }
-    //         assert_eq!(b.buffer[i], Entry::new(*c).to_u16());
-    //     }
+        for (i, c) in test_string.as_bytes().iter().enumerate() {
+            if test_string.len() - 1 == i {
+                break;
+            }
+            kassert_eq!(b.buffer[i], Entry::new(*c).to_u16());
+        }
 
-    //     assert_eq!(b.cursor.unwrap().x, test_string.len() as u16 - 1);
-    //     assert_eq!(b.cursor.unwrap().y, 0);
-    // }
+        kassert_eq!(b.cursor.unwrap().x, test_string.len() as u16 - 1);
+        kassert_eq!(b.cursor.unwrap().y, 0);
+        Ok(())
+    }
 }
