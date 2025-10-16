@@ -4,8 +4,9 @@ RUN apt update && \
     apt install -y \
     build-essential \
     gcc-multilib \
-    qemu-system \
+    qemu-system-x86 \
     qemu \
+    qemu-utils \
     grub-common \
     grub-pc-bin \
     grub-efi-amd64-bin \
@@ -18,7 +19,7 @@ RUN apt update && \
 RUN cp $(which ld) /usr/bin/i386-elf-ld && \
     cp $(which as) /usr/bin/i386-elf-as
 
-RUN rustup target add x86_64-unknown-none && \
+RUN rustup target add i386-unknown-none && \
     rustup default nightly && \
     rustup component add rust-src && \
     rustup component add clippy && \
