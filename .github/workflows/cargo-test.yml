@@ -24,8 +24,10 @@ jobs:
             - run: apt install -y build-essential
             - run: apt install -y gcc-multilib
             - run: apt install -y qemu-system
+            - run: apt install -y qemu
             - run: apt install -y grub-common
+            - run: apt install -y grub-pc-bin
+            - run: apt install -y grub-efi-amd64-bin
             - run: apt install -y xorriso
             - run: apt install -y mtools
-            - run: grub-install
             - run: make test
