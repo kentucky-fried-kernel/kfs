@@ -2,15 +2,15 @@ FROM --platform=linux/amd64 rust:1.90-bullseye
 
 RUN apt update && \
     apt install -y \
-    build-essential && \
-    gcc-multilib && \
-    qemu-system && \
-    qemu && \
-    grub-common && \
-    grub-pc-bin && \
-    grub-efi-amd64-bin && \
-    xorriso && \
-    mtools && \
+    build-essential \
+    gcc-multilib \
+    qemu-system \
+    qemu \
+    grub-common \
+    grub-pc-bin \
+    grub-efi-amd64-bin \
+    xorriso \
+    mtools \
     rm -rf /var/lib/apt/lists/*
 
 # We cannot use 'ld' directly in the build process, since MacOS has a different
