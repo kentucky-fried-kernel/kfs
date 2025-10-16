@@ -1,10 +1,11 @@
 name: docker build & push
 on:
     push:
-        branches: ["*"]
-        paths:
-            - docker/Dockerfile
-            - .github/workflows/docker.yml
+    pull_request:
+        # branches: ["*"]
+        # paths:
+        #     - docker/Dockerfile
+        #     - .github/workflows/docker.yml
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}-test-runner
