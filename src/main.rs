@@ -1,26 +1,13 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(crate::tester::test_runner)]
+#![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
-
-pub mod arch;
-pub mod conv;
-pub mod macros;
-pub mod panic;
-pub mod port;
-pub mod printk;
-pub mod ps2;
-pub mod qemu;
-pub mod serial;
-pub mod shell;
-pub mod terminal;
-pub mod tester;
 
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
-    use crate::terminal;
+    use kfs::{arch, ps2, shell, terminal};
     if let Err(e) = ps2::init() {
         panic!("could not initialize PS/2: {}", e);
     }
@@ -34,6 +21,7 @@ pub extern "C" fn kernel_main() {
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
+    use kfs::qemu;
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };
 }
