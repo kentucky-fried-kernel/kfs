@@ -1,4 +1,4 @@
-name: Clippy
+name: Run Clippy
 
 on:
     push: &on_config
