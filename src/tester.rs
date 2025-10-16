@@ -1,3 +1,5 @@
+use core::panic::PanicInfo;
+
 use crate::{serial_print, serial_println};
 
 pub trait Testable {
@@ -30,4 +32,12 @@ pub fn test_runner(tests: &[&dyn Testable]) {
         test.run();
     }
     unsafe { qemu::exit(qemu::ExitCode::Success) };
+}
+
+pub fn panic_handler(info: &PanicInfo) -> ! {
+    use crate::qemu;
+    serial_println!("[failed]\n");
+    serial_println!("Error: {}\n", info);
+    unsafe { qemu::exit(qemu::ExitCode::Failed) };
+    loop {}
 }

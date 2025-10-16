@@ -20,10 +20,5 @@ fn panic(_info: &PanicInfo) -> ! {
 #[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    use kfs::{qemu, serial_println};
-
-    serial_println!("[failed]\n");
-    serial_println!("Error: {}\n", info);
-    unsafe { qemu::exit(qemu::ExitCode::Failed) };
-    loop {}
+    kfs::tester::panic_handler(info);
 }
