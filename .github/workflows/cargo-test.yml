@@ -20,9 +20,9 @@ jobs:
             - run: rustup target add x86_64-unknown-none
             - run: rustup default nightly
             - run: rustup component add rust-src
-            - run: sudo apt install make
-            - run: sudo apt install build-essential
-            - run: sudo apt install gcc-multilib
-            - run: sudo apt install qemu-system
-            - run: sudo grub-install
+            - run: apt install make
+            - run: apt install build-essential
+            - run: apt install gcc-multilib
+            - run: apt install qemu-system
+            - run: grub-install
             - run: make test
