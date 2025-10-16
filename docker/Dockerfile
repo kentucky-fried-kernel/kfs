@@ -10,7 +10,7 @@ RUN apt update && \
     grub-pc-bin \
     grub-efi-amd64-bin \
     xorriso \
-    mtools \
+    mtools && \
     rm -rf /var/lib/apt/lists/*
 
 # We cannot use 'ld' directly in the build process, since MacOS has a different
