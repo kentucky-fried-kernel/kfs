@@ -19,7 +19,7 @@ RUN apt update && \
 RUN cp $(which ld) /usr/bin/i386-elf-ld && \
     cp $(which as) /usr/bin/i386-elf-as
 
-RUN rustup target add i386-unknown-none && \
+RUN rustup target add x86_64-unknown-none && \
     rustup default nightly && \
     rustup component add rust-src && \
     rustup component add clippy && \
