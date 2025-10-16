@@ -49,7 +49,6 @@ $(BUILD_DIR):
 iso: all
 	mkdir -p $(BUILD_DIR)/iso/boot/grub
 	cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
-	# cp target/i386-unknown-none/release/kfs $(BUILD_DIR)/iso/boot/grub
 	cp target/i386-unknown-none/release/kfs $(BUILD_DIR)/iso/boot/kernel.bin
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
 
