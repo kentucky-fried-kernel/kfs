@@ -14,9 +14,15 @@ else
 fi
 
 cp grub/grub.cfg build/iso/boot/grub
-cp $path build/iso/boot/kernel.bin
-grub-mkrescue -v -o build/kernel.iso build/iso --locale-directory=/dev/null --fonts=ascii
+echo "Successfully copied grub.cfg to build/iso/boot/grub"
 
+cp $path build/iso/boot/kernel.bin
+echo "Successfully copied $path to build/iso/boot/kernel.bin"
+
+grub-mkrescue -o build/kernel.iso build/iso --locale-directory=/dev/null --fonts=ascii
+echo "Successfully created build/kernel.iso from the build/iso/ directory"
+
+echo "Running tests in QEMU"
 qemu-system-i386 -cdrom build/kernel.iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none
 
 if [ $? -eq 33 ]
