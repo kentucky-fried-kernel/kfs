@@ -1,4 +1,4 @@
-name: docker build & push
+name: Build kfs-test-runner
 
 on:
     push: &on_config

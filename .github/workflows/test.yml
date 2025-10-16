@@ -1,4 +1,4 @@
-name: Clippy
+name: Tests
 
 on:
     push: &on_config
@@ -8,7 +8,7 @@ on:
             - tests/**
             - Cargo.toml
             - Cargo.lock
-            - .github/workflows/clippy.yml
+            - .github/workflows/test.yml
             - "*.py"
             - "*.sh"
 
@@ -27,6 +27,4 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   submodules: recursive
-            - run: rustup component add rust-src
-            - run: rustup component add clippy
-            - run: cargo clippy -- -D warnings
+            - run: make test
