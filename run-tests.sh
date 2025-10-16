@@ -15,7 +15,7 @@ fi
 
 cp grub/grub.cfg build/iso/boot/grub
 cp $path build/iso/boot/kernel.bin
-grub-mkrescue -v -o build/kernel.iso build/iso --locale-directory=/dev/null --fonts=ascii > /dev/null 2>&1
+grub-mkrescue -v -o build/kernel.iso build/iso --locale-directory=/dev/null --fonts=ascii
 
 qemu-system-i386 -cdrom build/kernel.iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none
 
