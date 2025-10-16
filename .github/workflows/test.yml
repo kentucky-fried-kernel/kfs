@@ -27,4 +27,8 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   submodules: recursive
+            # We cannot use 'ld' directly in the build process, since MacOS has a different
+            # version of 'ld' and needs to install a port called 'i386-elf-ld'.
+            - run: cp $(which ld) /usr/bin/i386-elf-ld
+            - run: cp $(which as) /usr/bin/i386-elf-as
             - run: make test
