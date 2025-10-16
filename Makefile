@@ -34,7 +34,6 @@ CARGO_TOML := Cargo.toml
 all: $(BUILD_DIR)/$(BINARY)
 
 $(BUILD_DIR)/$(BINARY): $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ) $(LIB)
-	# $(LD) -m elf_i386 -T src/arch/x86/linker.ld -o $@ $^
 
 $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
 	$(AS) --32 -o $@ $<
