@@ -4,7 +4,6 @@ target = ".cargo/i386-unknown-none.json"
 [target.i386-unknown-none]
 rustflags = [
 	"-C", "link-arg=-Tsrc/arch/x86/linker.ld",
-	"-C", "link-arg=build/boot.o"
 ]
 
 [unstable]

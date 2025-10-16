@@ -4,9 +4,11 @@ SECTIONS
 {
 	. = 1M;				/* Skip the first MegaByte of memory because addresses that are needed for hardware access leave there*/
 
+
 	.text : ALIGN(4K)	/* Section for executable code - aligned by 4K bytes*/
 	{
-		*(.multiboot)	/* Puts the boot.s code here */
+	    . = ALIGN(8);
+		KEEP(*(.multiboot))	/* Puts the boot.s code here */
 		*(.text)		/* Puts the lib.rs / kernel_code here */
 	}
 

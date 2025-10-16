@@ -35,8 +35,7 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 }
 
 // This panic handler is not marked as `#[panic_handler]` to make it
-// importable by integration tests, who need to define their own
-// panic handler.
+// importable by integration tests, who need to define their own.
 // Marking this as `#[panic_handler]` would result in two panic handlers
 // being compiled into the executable, which would of course fail.
 pub fn panic_handler(info: &PanicInfo) -> ! {
