@@ -20,9 +20,9 @@ jobs:
             - run: rustup default nightly
             - run: rustup component add rust-src
             - run: apt update
-            - run: apt install make
-            - run: apt install build-essential
-            - run: apt install gcc-multilib
-            - run: apt install qemu-system
+            - run: apt install -y make
+            - run: apt install -y build-essential
+            - run: apt install -y gcc-multilib
+            - run: apt install -y qemu-system
             - run: grub-install
             - run: make test
