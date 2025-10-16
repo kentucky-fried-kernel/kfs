@@ -31,4 +31,5 @@ jobs:
             - run: apt install -y xorriso
             - run: apt install -y mtools
             - run: cp $(which ld) /usr/bin/i386-elf-ld
+            - run: cp $(which as) /usr/bin/i386-elf-as
             - run: make test
