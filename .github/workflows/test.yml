@@ -32,8 +32,4 @@ jobs:
             # version of 'ld' and needs to install a port called 'i386-elf-ld'.
             - run: cp $(which ld) /usr/bin/i386-elf-ld
             - run: cp $(which as) /usr/bin/i386-elf-as
-            - run: apt update
-            - run: apt install -y grub-common
-            - run: apt install -y grub-pc-bin
-            - run: apt install -y grub-efi-amd64-bin
             - run: make test
