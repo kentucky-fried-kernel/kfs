@@ -1,4 +1,5 @@
 name: docker build & push
+
 on:
     push: &on_config
         branches: ["*"]
