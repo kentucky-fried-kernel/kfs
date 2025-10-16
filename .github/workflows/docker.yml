@@ -1,8 +1,13 @@
 name: docker build & push
 
 on:
-    push:
+    push: &on_config
+        branches: ["**"]
+        paths:
+            - docker/Dockerfile
+            - .github/workflows/docker.yml
     pull_request:
+        <<: *on_config
 
 env:
     REGISTRY: ghcr.io
