@@ -27,8 +27,3 @@ pub extern "C" fn kernel_main() {
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };
 }
-
-#[test_case]
-fn foor() -> Result<(), &'static str> {
-    Ok(())
-}
