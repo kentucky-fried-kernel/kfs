@@ -105,6 +105,7 @@ impl Screen {
         self.buffer[index] = Entry::new(b' ').to_u16();
     }
 
+    #[allow(unused)]
     pub fn move_cursor_to_end(&mut self) {
         for _ in 0..BUFFER_SIZE {
             self.handle_key(Key::ArrowRight);
