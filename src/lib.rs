@@ -44,9 +44,11 @@ struct MultibootHeader {
 static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
     magic: 0x1badb002,
     flags: 0,
-    checksum: (0usize.wrapping_sub(0x1badb002 + 0)),
+    checksum: (0usize.wrapping_sub(0x1badb002)),
 };
 
+/// # Safety
+/// This function marks the entrypoint of our kernel executable.
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".boot")]
