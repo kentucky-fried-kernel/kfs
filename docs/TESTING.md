@@ -21,7 +21,7 @@ Luckily, creating our own `test` crate is not that hard.
 
 ## Creating our own `test` crate
 
-The first thing we need to do is tell `rustc` to stop yelling at us and let us cook. In order to communicate that we will have our own test runner, we add the following attributes to our [lib.rs](/src/lib.rs) and/or [main.rs](/src/main.rs):
+The first thing we need to do is tell `rustc` to stop yelling at us, and let us cook. In order to communicate that, we will have our own test runner, we add the following attributes to our [lib.rs](/src/lib.rs) and/or [main.rs](/src/main.rs):
 
 ```rust
 // /src/main.rs
@@ -40,6 +40,7 @@ We can do this by conditionally compiling our `kernel_main` function based on th
 
 ```rust
 // /src/main.rs
+
 #[cfg(not(test))]
 pub extern "C" fn kernel_main() {
     // Run normally
@@ -79,13 +80,15 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
 }
 ```
 
-We still need to decide what to do when we panic. In order to communicate to QEMU that we want to exit, we need to run it with a device called `isa-debug-exit` by adding the following to our QEMU command line `-device isa-debug-exit,iobase=0xf4,iosize=0x04`.
+We still need to decide what to do when we panic. In order to communicate to QEMU that we want to exit, we need to run it with a device called `isa-debug-exit` by adding the following to our QEMU command line: `-device isa-debug-exit,iobase=0xf4,iosize=0x04`.
 
 We can now [write an exit code to `0xf4`](/src/qemu.rs), which will make QEMU exit.
 
 Putting everything together, we get something like this:
 
 ```rust
+#![no_std]
+#![no_main]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
@@ -140,7 +143,7 @@ If you need to run all tests, either run the script once with each of the option
 
 ## Unit Tests
 
-By Unit Tests, I mean a test that runs in the same QEMU instance as all other Unit Tests. It is defined directly in a module, by giving the test function the #[test_case] attribute.
+By Unit Tests, I mean a test that runs in the same QEMU instance as all other Unit Tests. It is defined directly in a module, by giving the test function the `#[test_case]` attribute.
 
 Example:
 
@@ -153,17 +156,17 @@ fn it_works() -> Result<(), &'static str> {
 
 Note the difference to the standard `test` crate and the example above: the test returns a `Result<(), &'static str>` instead of just panicking on failure.
 
-This is because with the above example, which was kept simple to focus on the important stuff, the first failing test would stop the whole test suite from running, since it would cause a panic and stop the process early. In order to solve this, our [`test_runner`](/src/tester.rs#L29-L44) accepts functions that conform to the [`Testable` trait](/src/tester.rs#L9-L27) by returning a `Result`.
+This is because with the above example, which was kept simple to focus on the important stuff, the first failing test would stop the whole test suite from running: It would cause a panic and stop the process early. In order to solve this, the [`test_runner`](/src/tester.rs#L29-L44) only accepts functions that conform to the [`Testable` trait](/src/tester.rs#L9-L27).
 
 This allows the `test_runner` to run all tests and aggregate their results, no matter how many of them fail.
 
 ## End-to-end Tests
 
-By E2E tests, I mean a suite of 1 or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a file in the `tests/` directory.
+By E2E tests, I mean a suite of 1 or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a Rust file in the `tests/` directory.
 
-In a lot of cases, you do not want all your tests to run in the same system, since you might be for example be doing weird stuff to trigger panics, which can mess with other unrelated tests. This is where the end-to-end tests come in. Each of them has its own binary, which runs in its own QEMU instance.
+In a lot of cases, you do not want all your tests to run in the same system, since you might be doing weird stuff to trigger panics (or other shenanigans), which can mess with other, unrelated tests. This is where the end-to-end tests come in: Each one of them runs in its own QEMU instance.
 
-To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kernel_main` functions, as well as include all global attributes.
+To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kernel_main` functions, as well as all global attributes.
 
 ```rust
 #![no_std]
