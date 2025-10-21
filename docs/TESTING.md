@@ -164,7 +164,7 @@ This allows the `test_runner` to run all tests and aggregate their results, no m
 
 By E2E tests, I mean a suite of 1 or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a Rust file in the `tests/` directory.
 
-In a lot of cases, you do not want all your tests to run in the same system, since you might be doing weird stuff to trigger panics (or other shenanigans), which can mess with other, unrelated tests. This is where the end-to-end tests come in: Each one of them runs in its own QEMU instance.
+In a lot of cases, you do not want all your tests to run in the same system, since you might be doing weird stuff to trigger panics (or other shenanigans), which can mess with other, unrelated tests. This is where the end-to-end tests come in: Each of them runs in its own QEMU instance.
 
 To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kernel_main` functions, as well as all global attributes.
 
