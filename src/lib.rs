@@ -48,7 +48,7 @@ static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
 };
 
 /// # Safety
-/// This function marks the entrypoint of our kernel executable.
+/// This function marks the entrypoint of the kernel executable.
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".boot")]
