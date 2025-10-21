@@ -23,9 +23,6 @@ else ifeq (($OS),linux)
 	LD=ld
 endif
 
-# MULTIBOOT_HEADER := src/arch/x86/boot.s
-# MULTIBOOT_HEADER_OBJ := boot.o
-
 LIB := target/i386-unknown-none/release/libkfs.a
 
 RUST_SRCS := $(shell find $(SRC_DIR) -type f -name "*.rs")
@@ -34,9 +31,6 @@ CARGO_TOML := Cargo.toml
 all: $(BUILD_DIR)/$(BINARY)
 
 $(BUILD_DIR)/$(BINARY): $(LIB)
-
-# $(BUILD_DIR)/$(MULTIBOOT_HEADER_OBJ): $(MULTIBOOT_HEADER) | $(BUILD_DIR)
-# 	$(AS) --32 -o $@ $<
 
 $(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
 	cargo build --release
