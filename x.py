@@ -25,9 +25,7 @@ def run_with_output(commandline: list[str]) -> subprocess.CompletedProcess[bytes
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Utility to build and run the kernel test suite",
-    )
+    parser = argparse.ArgumentParser(description="Utility to build and run the kernel test suite")
     group = parser.add_argument_group("Test Type").add_mutually_exclusive_group(required=True)
     _ = group.add_argument("--unit-tests", action="store_true")
     _ = group.add_argument("--end-to-end-tests", action="store_true")
@@ -93,6 +91,7 @@ def run_tests(type: typing.Literal["E2E", "Unit"]):
     ok = 0
     ko = 0
     LOGGER.info(f"Running {type} tests...")
+
     for path in test_paths:
         LOGGER.info("")
         proc = run_with_output(["./scripts/run.sh", str(path)])
