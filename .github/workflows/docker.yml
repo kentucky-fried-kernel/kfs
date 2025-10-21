@@ -1,13 +1,11 @@
 name: Build kfs-test-runner
 
 on:
-    push: &on_config
+    push:
         branches: ["**"]
         paths:
             - docker/Dockerfile
             - .github/workflows/docker.yml
-    pull_request:
-        <<: *on_config
 
 env:
     REGISTRY: ghcr.io
