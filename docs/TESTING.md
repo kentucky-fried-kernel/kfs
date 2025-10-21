@@ -7,7 +7,7 @@ This document should explain the basics of how this works, the actual implementa
 ## Table of Contents
 
 - [How does it work?](#cant-i-just-use-cargo-test)
-- [x.py](#x-py)
+- [`x.py`](#x-py)
 - [Unit Tests](#unit-tests)
 - [E2E Tests](#end-to-end-tests)
 
@@ -128,4 +128,98 @@ You should get this output:
 ```
 Running 1 test(s)
 kfs::foo...	[ok]
+```
+
+## `x.py`
+
+The process described above is very manual, especially when you have a lot of different tests in the `./tests/` directory, where each one of them is its own binary. Furthermore, the hash in the generated artifacts is subject to change, so it can be annoying to fish it out of the target directory every time you run tests.
+
+The [`x.py`](/x.py) script solves this by automating this whole process. It builds, discovers, and runs tests. This script comes with 2 mutually exclusive options: `--end-to-end-tests`, and `--unit-tests`, which build, discover, and run E2E tests, and unit tests, respectively.
+
+If you need to run all tests, either run the script once with each of the options, or run `make test`.
+
+## Unit Tests
+
+By Unit Tests, I mean a test that runs in the same QEMU instance as all other Unit Tests. It is defined directly in a module, by giving the test function the #[test_case] attribute.
+
+Example:
+
+```rust
+#[test_case]
+fn it_works() -> Result<(), &'static str> {
+    Ok(())
+}
+```
+
+Note the difference to the standard `test` crate and the example above: the test returns a `Result<(), &'static str>` instead of just panicking on failure.
+
+This is because with the above example, which was kept simple to focus on the important stuff, the first failing test would stop the whole test suite from running, since it would cause a panic and stop the process early. In order to solve this, our [`test_runner`](/src/tester.rs#L29-L44) accepts functions that conform to the [`Testable` trait](/src/tester.rs#L9-L27) by returning a `Result`.
+
+This allows the `test_runner` to run all tests and aggregate their results, no matter how many of them fail.
+
+## End-to-end Tests
+
+By E2E tests, I mean a suite of 1 or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a file in the `tests/` directory.
+
+In a lot of cases, you do not want all your tests to run in the same system, since you might be for example be doing weird stuff to trigger panics, which can mess with other unrelated tests. This is where the end-to-end tests come in. Each of them has its own binary, which runs in its own QEMU instance.
+
+To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kernel_main` functions, as well as include all global attributes.
+
+```rust
+#![no_std]
+#![no_main]
+#![feature(custom_test_frameworks)]
+#![test_runner(kfs::tester::test_runner)]
+#![reexport_test_harness_main = "test_main"]
+
+use core::panic::PanicInfo;
+
+use kfs::printkln;
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    kfs::tester::panic_handler(info)
+}
+
+#[cfg(test)]
+#[unsafe(no_mangle)]
+pub extern "C" fn kernel_main() {
+    use kfs::qemu;
+    test_main();
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
+}
+```
+
+With this approach, you can use your custom `kernel_main` as a setup function, and define as many `#[test_case]`s as you want to make assertions about the state of the system. Note that all `#[test_case]`s defined in one end-to-end test suite run in the same binary/QEMU instance, they are only separated from other end-to-end test suites.
+
+A cool use case can be checking for expected panics by defining a panic handler that exits with the success exit code, like so:
+
+```rust
+#![no_std]
+#![no_main]
+#![feature(custom_test_frameworks)]
+#![test_runner(kfs::tester::test_runner)]
+#![reexport_test_harness_main = "test_main"]
+
+use core::panic::PanicInfo;
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    use kfs::qemu;
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
+    loop {}
+}
+
+#[cfg(test)]
+#[unsafe(no_mangle)]
+pub extern "C" fn kernel_main() {
+    use kfs::qemu;
+    test_main();
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
+}
+
+#[test_case]
+fn should_panic() {
+    assert!(false);
+}
 ```
