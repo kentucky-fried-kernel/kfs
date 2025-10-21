@@ -1,12 +1,11 @@
-#![cfg(not(test))]
-use core::arch::asm;
-
 use crate::{
+    boot::{STACK, STACK_SIZE},
     printk,
     ps2::{self, Key, read_if_ready},
     qemu::{ExitCode, exit},
     terminal::{Screen, vga::Buffer},
 };
+use core::arch::asm;
 
 const PROMPT_MAX_LENGTH: usize = 1000;
 
@@ -78,15 +77,15 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             name: "reboot",
             func: reboot_cmd,
         },
-        // Command {
-        //     name: "prints",
-        //     func: prints_cmd,
-        // },
-        // Command { name: "help", func: help_cmd },
-        // Command {
-        //     name: "printsb",
-        //     func: printsb_cmd,
-        // },
+        Command {
+            name: "prints",
+            func: prints_cmd,
+        },
+        Command { name: "help", func: help_cmd },
+        Command {
+            name: "printsb",
+            func: printsb_cmd,
+        },
         Command { name: "exit", func: exit_cmd },
     ];
 
@@ -130,65 +129,63 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     printk!("    help                 display this help message\n\n");
 }
 
-// unsafe extern "C" {
-//     static stack_top: u8;
-// }
+fn get_stack_pointer() -> u32 {
+    let sp: usize;
+    unsafe {
+        asm!(
+            "mov {0}, esp",
+            out(reg) sp,
+        )
+    }
 
-// fn get_stack_pointer() -> u32 {
-//     let sp: usize;
-//     unsafe {
-//         asm!(
-//             "mov {0}, esp",
-//             out(reg) sp,
-//         )
-//     }
+    sp as u32
+}
 
-//     sp as u32
-// }
+#[allow(static_mut_refs)]
+fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
+    printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), unsafe {
+        (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32
+    });
+}
 
-// fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
-//     printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), unsafe {
-//         &stack_top as *const u8 as u32
-//     });
-// }
+/// Dumps a row of 16 bytes in the following format:
+///
+/// ```
+/// 001c503c-001c504b 20077007 72076907 6e077407 73072007  .p.r.i.n.t.s. .`
+/// ^                 ^                                    ^
+/// address range     hexdump                              ASCII dump
+/// ```
+fn dump_row(row: [u8; 16], ptr: *const u8) {
+    printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
+    for word in row.chunks(4) {
+        // Reminder to future self: casting to u32 prints the bytes in little-endian.
+        for byte in word {
+            printk!("{:02x}", byte);
+        }
+        printk!(" ")
+    }
+    for byte in row {
+        printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
+    }
+    printk!("\n");
+}
 
-// /// Dumps a row of 16 bytes in the following format:
-// ///
-// /// ```
-// /// 001c503c-001c504b 20077007 72076907 6e077407 73072007  .p.r.i.n.t.s. .`
-// /// ^                 ^                                    ^
-// /// address range     hexdump                              ASCII dump
-// /// ```
-// fn dump_row(row: [u8; 16], ptr: *const u8) {
-//     printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
-//     for word in row.chunks(4) {
-//         // Reminder to future self: casting to u32 prints the bytes in little-endian.
-//         for byte in word {
-//             printk!("{:02x}", byte);
-//         }
-//         printk!(" ")
-//     }
-//     for byte in row {
-//         printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
-//     }
-//     printk!("\n");
-// }
+/// Prints the stack from %esp to the stack top.
+#[allow(static_mut_refs)]
+fn prints_cmd(_args: &[u8], s: &mut Screen) {
+    printsb_cmd(_args, s);
+    let sp_addr = get_stack_pointer();
+    let st = unsafe { (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32 };
+    let mut row: [u8; 16];
 
-// /// Prints the stack from %esp to the stack top.
-// fn prints_cmd(_args: &[u8], s: &mut Screen) {
-//     printsb_cmd(_args, s);
-//     let sp_addr = get_stack_pointer();
-//     let st = unsafe { &stack_top as *const u8 as u32 };
-//     let mut row: [u8; 16];
+    assert!(sp_addr <= st);
 
-//     assert!(sp_addr <= st);
-
-//     for row_idx in (sp_addr..st).step_by(16) {
-//         let ptr = row_idx as *const u8;
-//         row = unsafe { *(ptr as *const [u8; 16]) };
-//         dump_row(row, ptr);
-//     }
-// }
+    for row_idx in (sp_addr..st).step_by(16) {
+        let ptr = row_idx as *const u8;
+        row = unsafe { *(ptr as *const [u8; 16]) };
+        dump_row(row, ptr);
+    }
+}
 
 #[allow(unused)]
 fn echo_cmd(args: &[u8], s: &mut Screen) {

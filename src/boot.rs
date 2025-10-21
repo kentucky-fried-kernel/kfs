@@ -1,4 +1,4 @@
-const STACK_SIZE: usize = 2 << 20;
+pub const STACK_SIZE: usize = 2 << 20;
 
 #[used]
 #[unsafe(no_mangle)]
@@ -7,7 +7,14 @@ pub static mut STACK: Stack = Stack([0; STACK_SIZE]);
 
 #[allow(unused)]
 #[repr(align(4096))]
+#[allow(static_mut_refs)]
 pub struct Stack([u8; STACK_SIZE]);
+
+impl Stack {
+    pub fn as_ptr(&self) -> *const u8 {
+        self.0.as_ptr()
+    }
+}
 
 #[allow(unused)]
 #[repr(align(4))]
