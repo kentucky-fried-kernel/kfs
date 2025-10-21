@@ -66,8 +66,10 @@ debug: debug-iso
 crash: debug-iso
 	qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -d int -no-reboot -no-shutdown
 
-test: all
-	./run-tests.sh
+test:
+	@LOGLEVEL=INFO ./x.py --end-to-end-tests
+	echo
+	@LOGLEVEL=INFO ./x.py --unit-tests
 
 fclean:
 	cargo clean
