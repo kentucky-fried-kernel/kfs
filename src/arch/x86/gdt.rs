@@ -1,17 +1,37 @@
+use bitmap::{bitmap, traits::*};
 use core::ptr::write_volatile;
 
-fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
-    let mut descriptor: u64;
+#[bitmap]
+struct GdtDescriptor {
+    base_high: u8,
+    flags: u4,
+    limit_high: u4,
+    access_byte: u8,
+    base_mid: u8,
+    base_low: u16,
+    limit_low: u16,
+}
 
-    descriptor = (limit as u64) & 0x000F0000;
-    descriptor |= ((flags as u64) << 8) & 0x00F0FF00;
-    descriptor |= ((base as u64) >> 16) & 0x000000FF;
-    descriptor |= (base as u64) & 0xFF000000;
-    descriptor <<= 32;
-    descriptor |= (base as u64) << 16;
-    descriptor |= (limit as u64) & 0x0000FFFF;
+fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
+    let mut descriptor = GdtDescriptor(0);
 
     descriptor
+        .set_base_high(base.get_bits(24..32) as u64)
+        .set_flags(flags.get_bits(8..12) as u64)
+        .set_limit_high(limit.get_bits(16..20) as u64)
+        .set_access_byte(flags.get_bits(0..8) as u64)
+        .set_base_mid(base.get_bits(16..24) as u64)
+        .set_base_low(base.get_bits(0..16) as u64)
+        .set_limit_low(limit.get_bits(0..16) as u64);
+    // descriptor.0 = (limit as u64) & 0x000F0000;
+    // descriptor.0 |= ((flags as u64) << 8) & 0x00F0FF00;
+    // // descriptor.0 |= ((base as u64) >> 16) & 0x000000FF;
+    // // descriptor.0 |= (base as u64) & 0xFF000000;
+    // descriptor.0 <<= 32;
+    // // descriptor.0 |= (base as u64) << 16;
+    // // descriptor.0 |= (limit as u64) & 0x0000FFFF;
+
+    descriptor.into()
 }
 
 const GDT_SIZE: usize = 7;

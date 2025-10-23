@@ -7,3 +7,6 @@ edition = "2024"
 name = "kfs"
 test = true
 bench = false
+
+[dependencies]
+bitmap = { git = "https://github.com/winstonallo/bitmap", version = "0.1.0" }
