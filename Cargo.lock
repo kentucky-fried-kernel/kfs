@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "bitmap"
 version = "0.1.0"
-source = "git+https://github.com/winstonallo/bitmap#89d257418ee47ea7ed261e462ee8a998299281fe"
+source = "git+https://github.com/winstonallo/bitmap#aef7b6763d3290b255525afaece4f0af1f2f6c27"
 dependencies = [
  "macros",
 ]
@@ -20,7 +20,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.1.0"
-source = "git+https://github.com/winstonallo/bitmap#89d257418ee47ea7ed261e462ee8a998299281fe"
+source = "git+https://github.com/winstonallo/bitmap#aef7b6763d3290b255525afaece4f0af1f2f6c27"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,8 +1,8 @@
-#![cfg(not(test))]
 #![allow(static_mut_refs)]
 #![allow(unused)]
 
 use crate::printk;
+use bitmap::bitmap;
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
 
@@ -37,17 +37,32 @@ enum GateType {
     TrapGate32 = 0b1111,
 }
 
-fn build_attributes(present: u8, privilege_level: u8, gate_type: GateType) -> u8 {
-    (present << 7) | (privilege_level << 5) | gate_type as u8
+#[bitmap]
+struct Attributes {
+    present: u1,
+    privilege_level: u2,
+    zero: u1,
+    gate_type: u4,
+}
+
+fn build_attributes(present: u8, privilege_level: u8, gate_type: GateType) -> Attributes {
+    let mut attributes = Attributes::new(0);
+
+    attributes
+        .set_present(present)
+        .set_privilege_level(privilege_level)
+        .set_gate_type(gate_type as u8);
+
+    attributes
 }
 
 impl InterruptDescriptor {
-    pub fn new(offset: usize, kernel_cs: u16, attributes: u8) -> Self {
+    pub fn new(offset: usize, kernel_cs: u16, attributes: Attributes) -> Self {
         Self {
             isr_low: (offset & 0xFFFF) as u16,
             kernel_cs,
             zero: 0,
-            attributes,
+            attributes: attributes.into(),
             isr_high: ((offset >> 16) & 0xFFFF) as u16,
         }
     }
@@ -61,7 +76,7 @@ impl InterruptDescriptorTable {
     /// Creates a new `InterruptDescriptorTable` filled with non-present entries.
     pub fn new() -> Self {
         let mut idt = Self {
-            entries: [InterruptDescriptor::new(0, 0, 0); MAX_INTERRUPT_DESCRIPTORS],
+            entries: [InterruptDescriptor::new(0, 0, Attributes::new(0)); MAX_INTERRUPT_DESCRIPTORS],
             idtr: InterruptDescriptorTableRegister { base: 0, limit: 0 },
         };
 
