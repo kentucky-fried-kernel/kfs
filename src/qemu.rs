@@ -13,7 +13,7 @@ pub enum ExitCode {
 /// therefore not be checked by the compiler.
 pub unsafe fn exit(exit_code: ExitCode) {
     unsafe {
-        let port = Port::new(0xf4);
+        let mut port = Port::new(0xf4);
         port.write(exit_code as u8);
     }
 }
