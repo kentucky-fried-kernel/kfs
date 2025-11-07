@@ -12,7 +12,7 @@ impl Port {
     /// # Safety
     /// This function interacts with hardware directly and can
     /// therefore not be checked by the compiler.
-    pub unsafe fn write(&self, val: u8) {
+    pub unsafe fn write(&mut self, val: u8) {
         unsafe {
             asm!(
                 "out dx, al",

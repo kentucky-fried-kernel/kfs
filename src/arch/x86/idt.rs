@@ -1,7 +1,7 @@
 #![allow(static_mut_refs)]
 #![allow(unused)]
 
-use crate::printk;
+use crate::{printk, printkln, qemu, serial_println};
 use bitmap::bitmap;
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
@@ -120,13 +120,13 @@ macro_rules! isr_no_err_stub {
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
             core::arch::naked_asm!(
-            	"pusha",
-                "push {}",
+                // "pusha",
+                //    "push {}",
                 "call handle_interrupt",
-                "add esp, 4",
-                "popa",
+                // "add esp, 4",
+                // "popa",
                 "iret",
-                const $nb
+                // const $nb
             )
         }
     };
@@ -138,14 +138,14 @@ macro_rules! isr_err_stub {
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
             core::arch::naked_asm!(
-                "pusha",
-                "push {}",
+                // "pusha",
+                // "push {}",
                 "call handle_interrupt",
-                "add esp, 4",
-                "popa",
-                "add esp, 4",
+                // "add esp, 4",
+                // "popa",
+                // "add esp, 4",
                 "iret",
-                const $nb
+                // const $nb
             )
         }
     };
@@ -153,10 +153,28 @@ macro_rules! isr_err_stub {
 
 #[unsafe(no_mangle)]
 extern "C" fn handle_interrupt(interrupt_number: usize) {
-    panic!("Got an interrupt and I don't know what to do");
+    printkln!("idk what to do {}", interrupt_number);
+    // unsafe { qemu::exit(qemu::ExitCode::Success) };
 }
 
-isr_no_err_stub!(isr_stub_0, 0);
+#[unsafe(no_mangle)]
+extern "C" fn gpf(interrupt_number: usize) {
+    printkln!("GPF");
+    // unsafe { qemu::exit(qemu::ExitCode::Success) };
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn division_by_zero(interrupt_number: usize) {
+    printkln!("Division By Zero");
+    // unsafe { qemu::exit(qemu::ExitCode::Success) };
+}
+
+// isr_no_err_stub!(isr_stub_0, 0);
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+unsafe extern "C" fn isr_stub_0() {
+    core::arch::naked_asm!("call division_by_zero", "iret",)
+}
 isr_no_err_stub!(isr_stub_1, 1);
 isr_no_err_stub!(isr_stub_2, 2);
 isr_no_err_stub!(isr_stub_3, 3);
@@ -170,6 +188,11 @@ isr_err_stub!(isr_stub_10, 10);
 isr_err_stub!(isr_stub_11, 11);
 isr_err_stub!(isr_stub_12, 12);
 isr_err_stub!(isr_stub_13, 13);
+// #[unsafe(naked)]
+// #[unsafe(no_mangle)]
+// unsafe extern "C" fn isr_stub_13() {
+//     core::arch::naked_asm!("pusha", "push 13", "call gpf", "add esp, 4", "popa", "add esp, 4", "iret",)
+// }
 isr_err_stub!(isr_stub_14, 14);
 isr_no_err_stub!(isr_stub_15, 15);
 isr_no_err_stub!(isr_stub_16, 16);
@@ -188,22 +211,22 @@ isr_no_err_stub!(isr_stub_28, 28);
 isr_no_err_stub!(isr_stub_29, 29);
 isr_err_stub!(isr_stub_30, 30);
 isr_no_err_stub!(isr_stub_31, 31);
-isr_no_err_stub!(isr_stub_32, 32);
-isr_no_err_stub!(isr_stub_33, 33);
-isr_no_err_stub!(isr_stub_34, 34);
-isr_no_err_stub!(isr_stub_35, 35);
-isr_no_err_stub!(isr_stub_36, 36);
-isr_no_err_stub!(isr_stub_37, 37);
-isr_no_err_stub!(isr_stub_38, 38);
-isr_no_err_stub!(isr_stub_39, 39);
-isr_no_err_stub!(isr_stub_40, 40);
-isr_no_err_stub!(isr_stub_41, 41);
-isr_no_err_stub!(isr_stub_42, 42);
-isr_no_err_stub!(isr_stub_43, 43);
-isr_no_err_stub!(isr_stub_44, 44);
-isr_no_err_stub!(isr_stub_45, 45);
-isr_no_err_stub!(isr_stub_46, 46);
-isr_no_err_stub!(isr_stub_47, 47);
+// isr_no_err_stub!(isr_stub_32, 32);
+// isr_no_err_stub!(isr_stub_33, 33);
+// isr_no_err_stub!(isr_stub_34, 34);
+// isr_no_err_stub!(isr_stub_35, 35);
+// isr_no_err_stub!(isr_stub_36, 36);
+// isr_no_err_stub!(isr_stub_37, 37);
+// isr_no_err_stub!(isr_stub_38, 38);
+// isr_no_err_stub!(isr_stub_39, 39);
+// isr_no_err_stub!(isr_stub_40, 40);
+// isr_no_err_stub!(isr_stub_41, 41);
+// isr_no_err_stub!(isr_stub_42, 42);
+// isr_no_err_stub!(isr_stub_43, 43);
+// isr_no_err_stub!(isr_stub_44, 44);
+// isr_no_err_stub!(isr_stub_45, 45);
+// isr_no_err_stub!(isr_stub_46, 46);
+// isr_no_err_stub!(isr_stub_47, 47);
 
 macro_rules! isr_stubs {
     () => {
@@ -240,22 +263,22 @@ macro_rules! isr_stubs {
             isr_stub_29 as usize,
             isr_stub_30 as usize,
             isr_stub_31 as usize,
-            isr_stub_32 as usize,
-            isr_stub_33 as usize,
-            isr_stub_34 as usize,
-            isr_stub_35 as usize,
-            isr_stub_36 as usize,
-            isr_stub_37 as usize,
-            isr_stub_38 as usize,
-            isr_stub_39 as usize,
-            isr_stub_40 as usize,
-            isr_stub_41 as usize,
-            isr_stub_42 as usize,
-            isr_stub_43 as usize,
-            isr_stub_44 as usize,
-            isr_stub_45 as usize,
-            isr_stub_46 as usize,
-            isr_stub_47 as usize,
+            // isr_stub_32 as usize,
+            // isr_stub_33 as usize,
+            // isr_stub_34 as usize,
+            // isr_stub_35 as usize,
+            // isr_stub_36 as usize,
+            // isr_stub_37 as usize,
+            // isr_stub_38 as usize,
+            // isr_stub_39 as usize,
+            // isr_stub_40 as usize,
+            // isr_stub_41 as usize,
+            // isr_stub_42 as usize,
+            // isr_stub_43 as usize,
+            // isr_stub_44 as usize,
+            // isr_stub_45 as usize,
+            // isr_stub_46 as usize,
+            // isr_stub_47 as usize,
         ]
     };
 }
@@ -314,6 +337,6 @@ pub fn set_idt() {
             idt.load();
         }
 
-        // core::arch::asm!("int 32");
+        core::arch::asm!("mov eax, 1", "mov ecx, 0", "div ecx");
     }
 }
