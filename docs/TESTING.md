@@ -15,13 +15,13 @@ This document should explain the basics of how this works, the actual implementa
 
 God I wish it were that simple. The main issue is that the `test` crate depends on the standard library, which we do not have access to here. Simply using `#[test]` in a `no_std` enviroment will give you the error: `can't find crate for 'test'`.
 
-What one could do is build tests for a target with `std` and run them on a machine with an OS, but this would not allow testing for low-level kernel things like whether the GDT is set correctly, only high-level logic.
+What one _could_ do is build tests for a target with `std`, and run them on a machine with an OS. This would however not allow testing for low-level kernel stuff like whether the GDT is set correctly.
 
 Luckily, creating our own `test` crate is not that hard.
 
 ## Creating our own `test` crate
 
-The first thing we need to do is tell `rustc` to stop yelling at us, and let us cook. In order to communicate that, we will have our own test runner, we add the following attributes to our [lib.rs](/src/lib.rs) and/or [main.rs](/src/main.rs):
+The first thing we need to do is tell `rustc` to stop yelling at us, and let us cook. In order to communicate that we have our own test runner, we add the following attributes to our [lib.rs](/src/lib.rs) and/or [main.rs](/src/main.rs):
 
 ```rust
 // /src/main.rs
@@ -34,7 +34,7 @@ The first thing we need to do is tell `rustc` to stop yelling at us, and let us 
 #![reexport_test_harness_main = "test_main"]
 ```
 
-The next step is to create a test main, the first function that is called after setting up the stack in [`_start`](/src/boot.rs#L36-L54). Our [non-test main](/src/main.rs#L9-L21) initializes everything and runs an interactive shell, which we do not want here: It should only run the tests and exit.
+The next step is to create a test main, the first function that is called after setting up the stack in [`_start`](/src/boot.rs#L36-L54). Our [actual main](/src/main.rs#L9-L21) initializes everything and runs an interactive shell, which we do not want here: It should only run the tests and exit.
 
 We can do this by conditionally compiling our `kernel_main` function based on the `cfg(test)` attribute:
 
@@ -55,9 +55,11 @@ pub extern "C" fn kernel_main() {
 
 Next, we want to be able to run those tests in the CI, so we should not open a QEMU window. This means we need two things:
 
-1. [A println-like macro to write the test results to our console via serial ports](/src/serial.rs):
+1. [A println-like macro](/src/serial.rs) to write the test results to our console via serial ports:
 
 ```rust
+// [...]
+
 #[macro_export]
 macro_rules! serial_println {
     () => ($crate::serial_print!("\n"));
@@ -143,7 +145,7 @@ If you need to run all tests, either run the script once with each of the option
 
 ## Unit Tests
 
-By Unit Tests, I mean a test that runs in the same QEMU instance as all other Unit Tests. It is defined directly in a module, by giving the test function the `#[test_case]` attribute.
+By **unit test**, I mean a test that runs in the same QEMU instance as all other **unit tests**. It is defined directly in a module, by annotating a function with the `#[test_case]` attribute.
 
 Example:
 
@@ -156,15 +158,17 @@ fn it_works() -> Result<(), &'static str> {
 
 Note the difference to the standard `test` crate and the example above: the test returns a `Result<(), &'static str>` instead of just panicking on failure.
 
-This is because with the above example, which was kept simple to focus on the important stuff, the first failing test would stop the whole test suite from running: It would cause a panic and stop the process early. In order to solve this, the [`test_runner`](/src/tester.rs#L29-L44) only accepts functions that conform to the [`Testable` trait](/src/tester.rs#L9-L27).
+Attentive readers will have noticed that [our example from before](#creating-our-own-test-crate), which was kept simple to focus on more important stuff, would abort the whole test suite at the first failing test. This sucks! One of the most basic requirements for a tester is that if I have 200 tests, I want all of them to run, no matter how many of them fail. In order to solve this, the [`test_runner`](/src/tester.rs#L29-L44) only accepts functions that conform to the [`Testable` trait](/src/tester.rs#L9-L27).
 
 This allows the `test_runner` to run all tests and aggregate their results, no matter how many of them fail.
 
+_Sidenote: There is most likely a way to make the panic handler somehow recover to keep running the tests. I am riddled with skill issues, I may very much have missed it. If you read this and you know a better way, I would be infinitely grateful for your pointers!_
+
 ## End-to-end Tests
 
-By E2E tests, I mean a suite of 1 or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a Rust file in the `tests/` directory.
+Unit tests are convenient, however they have a critical flaw: all of them run in the same QEMU instance. This means that they are not suited for more complex tests that may interfere with the global state of the kernel, and therefore with other tests.
 
-In a lot of cases, you do not want all your tests to run in the same system, since you might be doing weird stuff to trigger panics (or other shenanigans), which can mess with other, unrelated tests. This is where the end-to-end tests come in: Each of them runs in its own QEMU instance.
+By **end-to-end** tests, I mean a suite of one or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a Rust file in the `tests/` directory.
 
 To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kernel_main` functions, as well as all global attributes.
 
