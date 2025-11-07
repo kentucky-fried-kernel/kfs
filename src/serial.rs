@@ -11,7 +11,7 @@ pub struct SerialPort {
 impl SerialPort {
     /// # Safety
     /// It is the caller's responsibility to ensure that the passed base address
-    /// points to a serial port device, and that the caller has the permission
+    /// points to a serial port device, and that the caller has the permission to
     /// perform the I/O operation.
     pub const unsafe fn new(base: u16) -> Self {
         Self { base }
