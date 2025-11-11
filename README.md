@@ -5,29 +5,56 @@ a fully functional 32-bit kernel.
 
 ## Running the Kernel
 
-`qemu` and `grub-mkrescue` are very specific about their mutual versions, so we made a [DevContainer](.devcontainer) to make it work on every Linux machine.
-
 ### Clone kfs
 
 ```sh
 git clone git@github.com:kentucky-fried-kernel/kfs.git && cd kfs
 ```
 
-#### Shell
+### Install Dependencies
 
-If you don't use `VSCode`, refer to [our devcontainers documentation](./docs/DEVCONTAINER.md).
+#### Debian/Ubuntu
 
-#### VSCode
+```sh
+sudo apt update && \
+sudo apt install \
+build-essential \
+grub2 \
+xorriso \
+qemu-system-x86 \
+gcc-multilib \
+mtools
+# For compatibility with MacPorts, the linker used by rustc
+# is named i386-elf-ld (the default MacOS ld is not compatible
+# with 32-bit ELF)
+cp $(which ld) /bin/i386-elf-ld
+```
 
-If you are in `VSCode` (🗣️💦), you can just install the [Dev Container](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension. Once installed, `VSCode` will prompt you to "Rebuild and Reopen in Container". The first time will take a while, as a whole Docker Image has to be built.
+#### MacOS
 
-_Note: If you do not get the Dev Container prompt, you can also open the `VSCode` settings (Ctrl/Cmd+Shift+P) and search for 'Dev Container: Rebuild and Reopen in Container'._
+MacOS installation may require additional steps not documented here. Please follow any error messages encountered during setup to identify missing dependencies, and it would be highly appreciated if you open an issue about it so I can fix the docs.
+
+[Install MacPorts](https://www.macports.org/install.php)
+
+Install `i386-elf-gcc`
+```sh
+sudo port install i386-elf-gcc
+```
+
+[Install GRUB](https://wiki.osdev.org/GRUB#Installing_GRUB_2_on_OS_X)
+
+Install `QEMU`
+```sh
+brew install qemu
+```
+
+#### NixOS
+
+TODO @fbruggem
 
 ---
 
-**If you have a window manager** you can now run `make run`, which will run the kernel in a `qemu` window.
-
-**If you have a headless system** you can now run `make debug`, which will run the kernel in your shell.
+You can now run `make run`, which will run the kernel in a `qemu` window.
 
 ## Requirements
 
