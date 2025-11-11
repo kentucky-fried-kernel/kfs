@@ -1,8 +1,19 @@
-name: cargo clippy -- -D warnings
+name: Run Clippy
 
 on:
-    push:
+    push: &on_config
+        branches: ["**"]
+        paths:
+            - src/**
+            - tests/**
+            - Cargo.toml
+            - Cargo.lock
+            - .github/workflows/clippy.yml
+            - "*.py"
+            - "*.sh"
+
     pull_request:
+        <<: *on_config
 
 env:
     CARGO_TERM_COLOR: always

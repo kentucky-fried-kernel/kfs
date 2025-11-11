@@ -54,17 +54,24 @@ impl fmt::Write for PrintkWriter {
     }
 }
 
-/// Prints the formatted arguments to the screen. This macro needs to be wrapped in an unsafe
-/// block, as we could inadvertedly run unchecked code through it otherwise.
-///
+#[doc(hidden)]
+#[allow(static_mut_refs)]
+pub fn _print(args: ::core::fmt::Arguments) {
+    use core::fmt::Write;
+    unsafe { PRINTK_WRITER.write_fmt(args).expect("Printing to VGA failed") };
+}
+
 /// `printk!` flushes when the buffer (`1KB`) fills up or when encountering a `\n`.
 #[macro_export]
 macro_rules! printk {
     ($($arg:tt)*) => {{
-        use core::fmt::Write;
-
-        use $crate::printk::PRINTK_WRITER;
-        #[allow(static_mut_refs)]
-        let _ = write!(PRINTK_WRITER, $($arg)*);
+        $crate::printk::_print(format_args!($($arg)*));
     }};
+}
+
+#[macro_export]
+macro_rules! printkln {
+    () => ($crate::printk!(concat!($fmt, "\n")));
+    ($fmt:expr) => ($crate::printk!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::printk!(concat!($fmt, "\n"), $($arg)*));
 }

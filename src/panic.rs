@@ -1,12 +1,13 @@
 #![allow(unused_imports)]
 use core::panic::PanicInfo;
 
-use crate::terminal::vga::Color;
-
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    use crate::terminal::{Screen, vga::Buffer};
+    use kfs::terminal::{
+        Screen,
+        vga::{Buffer, Color},
+    };
 
     let mut s = Screen::default();
     s.write_str("KERNEL PANIC\n");
@@ -14,4 +15,10 @@ fn panic(_info: &PanicInfo) -> ! {
     let b = Buffer::from_screen(&s);
     b.flush();
     loop {}
+}
+
+#[cfg(test)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    kfs::tester::panic_handler(info);
 }

@@ -1,3 +1,5 @@
 [toolchain]
 channel = "nightly"
 targets = ["i386-unknown-none"]
+profile = "minimal"
+components = ["rust-src", "clippy", "rustfmt"]

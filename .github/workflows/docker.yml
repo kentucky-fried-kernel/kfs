@@ -1,10 +1,12 @@
-name: docker build & push
+name: Build kfs-test-runner
+
 on:
     push:
-        branches: ["*"]
+        branches: ["**"]
         paths:
             - docker/Dockerfile
             - .github/workflows/docker.yml
+
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}-test-runner
@@ -37,7 +39,7 @@ jobs:
                   tags: |
                       type=ref,event=branch
                       type=ref,event=pr
-                      type=sha,prefix={{branch}}-
+                      type=sha,prefix={{branch}}-,fallback={{commit}}-
                       type=raw,value=latest,enable={{is_default_branch}}
 
             - name: Build & push Docker image
