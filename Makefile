@@ -15,13 +15,9 @@ NAME := kernel
 BINARY := $(NAME).bin
 ISO := $(NAME).iso
 
-ifeq ($(OS),macos)
-	AS=i386-elf-as
-	LD=i386-elf-ld
-else ifeq (($OS),linux)
-	AS=as
-	LD=ld
-endif
+LD_SCRIPT := ./src/arch/x86/linker.ld
+TARGET_CONFIG := ./src/arch/x86/i386-unknown-none.json
+
 
 LIB := target/i386-unknown-none/release/libkfs.a
 

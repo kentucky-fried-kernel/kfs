@@ -1,0 +1,16 @@
+{
+	"llvm-target": "i386-unknown-none",
+	"arch": "x86",
+	"data-layout": "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
+	"target-endian": "little",
+	"target-pointer-width": 32,
+	"target-c-int-width": 32,
+	"os": "none",
+	"features": "-mmx,-sse",
+	"linker": "i386-elf-ld",
+	"linker-flavor": "ld",
+	"pre-link-args": {
+		"ld": ["-melf_i386"]
+	},
+	"panic-strategy": "abort"
+}

@@ -1,5 +1,5 @@
 [build]
-target = ".cargo/i386-unknown-none.json"
+target = "./src/arch/x86/i386-unknown-none.json"
 
 [target.i386-unknown-none]
 rustflags = [
