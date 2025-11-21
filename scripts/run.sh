@@ -29,7 +29,7 @@ run "grub-mkrescue -o ./build/kernel.iso ./build/iso --locale-directory=/dev/nul
 log "Successfully created ./build/kernel.iso from the ./build/iso directory"
 
 log "Running tests in QEMU"
-qemu-system-i386 -cdrom build/kernel.iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none
+qemu-system-i386 -cdrom build/kernel.iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 4G
 
 if [ $? -eq 33 ]
 then
