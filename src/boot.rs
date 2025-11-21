@@ -28,9 +28,9 @@ struct MultibootHeader {
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".multiboot")]
 static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
-    magic: 0x1badb002,
+    magic: 0xe85250d6,
     flags: 0,
-    checksum: (0usize.wrapping_sub(0x1badb002)),
+    checksum: (0usize.wrapping_sub(0xe85250d6)),
 };
 
 /// # Safety
