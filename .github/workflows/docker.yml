@@ -1,6 +1,8 @@
 name: Build kfs-test-runner
 
 on:
+    workflow_dispatch:
+
     push:
         branches: ["**"]
         paths:
