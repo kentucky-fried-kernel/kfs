@@ -12,11 +12,12 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     gdb
     git
-    busybox
     rustup
     qemu
     grub2
     xorriso
+    mtools
+    xz
   ];
 
   shellHook = ''
