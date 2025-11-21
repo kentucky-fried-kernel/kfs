@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
+import argparse
+import json
+import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
-import json
-import argparse
 import typing
-import logging
+from pathlib import Path
 
 LOGGER = logging.getLogger("x")
 LOGLEVEL = os.environ.get("LOGLEVEL")
@@ -63,15 +63,10 @@ def discover_unit_tests(build_output: str) -> list[str]:
     executables: list[str] = []
     parsed_output: list[dict[str, str | typing.Any]] = [json.loads(o) for o in build_output.split("\n") if o != ""]
     for o in parsed_output:
-        if not (exe := o.get("executable")):
+        if not (exe := o.get("executable")) or "target/i386-unknown-none/release/deps/kfs-" not in exe:
             continue
-        if "target/i386-unknown-none/release/deps/kfs-" not in exe:
-            continue
-        # Not quite sure how reliable this is, we will see if this leads to issues
-        # in the future.
         if o["target"]["kind"][0] == "bin" or o["target"]["src_path"].endswith("lib.rs"):
             executables.append(exe)
-            # continue
 
     return executables
 
