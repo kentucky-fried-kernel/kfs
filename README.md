@@ -49,8 +49,13 @@ brew install qemu
 ```
 
 #### NixOS
+For NixOs or other x86 linux systems that have the nix package manager installed just run.
+```sh
+nix-shell
+```
 
-TODO @fbruggem
+You should be put into a nix-shell with all dependencies installed.
+
 
 ---
 
