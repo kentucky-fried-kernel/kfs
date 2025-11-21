@@ -1,15 +1,4 @@
-UNAME := $(shell uname -s)
-
-ifeq ($(UNAME),Linux)
-	OS := linux
-else ifeq ($(UNAME),Darwin)
-	OS := macos
-else
-	exit 1
-endif
-
 SRC_DIR := src
-OBJ_DIR := obj
 BUILD_DIR := build
 NAME := kernel
 BINARY := $(NAME).bin
@@ -24,11 +13,11 @@ LIB := target/i386-unknown-none/release/libkfs.a
 RUST_SRCS := $(shell find $(SRC_DIR) -type f -name "*.rs")
 CARGO_TOML := Cargo.toml
 
-all: $(BUILD_DIR)/$(BINARY)
+all: $(BUILD_DIR)/$(BINARY) $(LD_SCRIPT) $(TARGET_CONFIG)
 
 $(BUILD_DIR)/$(BINARY): $(LIB)
 
-$(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER)
+$(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER) $(LD_SCRIPT) $(TARGET_CONFIG)
 	cargo build --release
 	touch $(LIB)
 
