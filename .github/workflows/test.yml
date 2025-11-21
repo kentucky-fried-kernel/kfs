@@ -1,6 +1,8 @@
 name: Run tests
 
 on:
+    workflow_dispatch:
+
     push: &on_config
         branches: ["**"]
         paths:
