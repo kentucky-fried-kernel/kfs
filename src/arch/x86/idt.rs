@@ -1,4 +1,3 @@
-#![cfg(not(test))]
 #![allow(static_mut_refs)]
 #![allow(unused)]
 
