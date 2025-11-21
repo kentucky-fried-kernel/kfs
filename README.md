@@ -49,7 +49,7 @@ brew install qemu
 ```
 
 #### NixOS
-For NixOs or other x86 linux systems that have the nix package manager installed just run.
+For NixOs or other x86 linux systems that have the nix package manager installed just this command in the kfs directory.
 ```sh
 nix-shell
 ```
