@@ -143,7 +143,7 @@ fn get_stack_pointer() -> u32 {
 
 #[allow(static_mut_refs)]
 fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
-    printk!("ESP: 0x{:#08x} STACK_TOP: 0x{:#08x}\n", get_stack_pointer(), unsafe {
+    printk!("ESP: {:#08x} STACK_TOP: {:#08x}\n", get_stack_pointer(), unsafe {
         (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32
     });
 }
