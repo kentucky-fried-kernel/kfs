@@ -62,6 +62,11 @@ test:
 	echo
 	@LOGLEVEL=INFO ./x.py --unit-tests
 
+debug-test:
+	@LOGLEVEL=DEBUG ./x.py --end-to-end-tests
+	echo
+	@LOGLEVEL=DEBUG ./x.py --unit-tests
+
 fclean:
 	cargo clean
 	$(RM) -rf $(BUILD_DIR)
