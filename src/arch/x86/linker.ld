@@ -1,8 +1,10 @@
 ENTRY(_start)
 
+KERNEL_BASE = 1M;
+
 SECTIONS
 {
-	. = 0x3c000000;
+	. = KERNEL_BASE;
 	.text : ALIGN(4K)
 	{
 	    . = ALIGN(8);
