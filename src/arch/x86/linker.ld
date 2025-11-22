@@ -1,32 +1,36 @@
 ENTRY(_start)
 
-KERNEL_BASE = 1M;
+HARDWARE = 1M;
+KERNEL_BASE = 3000M;
 
 SECTIONS
 {
-	. = KERNEL_BASE;
-	.text : ALIGN(4K)
+	. = HARDWARE;
+
+	.multiboot : ALIGN(4K)
 	{
 	    . = ALIGN(8);
 		KEEP(*(.multiboot))
+		*(.boot)
+	}
+
+	. += KERNEL_BASE;
+	.text ALIGN (4K) : AT (ADDR (.text) - KERNEL_BASE)
+	{
 		*(.text)
 	}
-	.page_table : ALIGN(4K)
-	{
-		*(.page_table)	
-	}
-	.rodata : ALIGN(4K)
+	.rodata ALIGN (4K) : AT (ADDR (.rodata) - KERNEL_BASE)
 	{
 		*(.rodata)
 	}
-	.data : ALIGN(4K)
+	/* .data ALIGN (4K) : AT (ADDR (.data) - KERNEL_BASE)
 	{
 		*(.data)
-	}
-	.bss : ALIGN(4K)
+	} */
+	/* .bss ALIGN (4K) : AT (ADDR (.bss) - KERNEL_BASE)
 	{
 	    _bss_start = .;
 		*(.bss)
 		_bss_end = .;
-	}
+	} */
 }

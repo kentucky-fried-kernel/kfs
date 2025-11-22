@@ -4,6 +4,10 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+use core::arch::asm;
+
+use kfs::{printk, qemu::exit};
+
 mod panic;
 
 // type DirectoryEntry = usize;
@@ -19,9 +23,22 @@ fn set_bit(num: &mut usize, bit_position: u8) {
     *num |= 1 << bit_position
 }
 
+
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".boot")]
+pub unsafe extern "C" fn trampolin() {
+    let x: usize = 10;
+    printk!("0x{:x}\n", (trampolin as *const usize) as usize);
+    kernel_main();
+}
+
 // #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
+    unsafe {
+
+    asm!("hlt");
+    }
     use core::arch::asm;
 
     use kfs::{arch, printk, ps2, shell, terminal};

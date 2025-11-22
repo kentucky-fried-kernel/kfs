@@ -44,7 +44,7 @@ pub unsafe extern "C" fn _start() {
         "push eax",
         "push ebx",
         "cli",
-        "call kernel_main",
+        "call trampolin",
         "hang:",
         "cli",
         "hlt",
