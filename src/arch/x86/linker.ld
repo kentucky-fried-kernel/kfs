@@ -11,6 +11,10 @@ SECTIONS
 		KEEP(*(.multiboot))
 		*(.text)
 	}
+	.page_table : ALIGN(4K)
+	{
+		*(.page_table)	
+	}
 	.rodata : ALIGN(4K)
 	{
 		*(.rodata)
