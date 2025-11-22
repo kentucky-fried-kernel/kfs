@@ -42,7 +42,6 @@ impl PrintkWriter {
     }
 }
 
-#[unsafe(link_section = ".data")]
 pub static mut PRINTK_WRITER: PrintkWriter = PrintkWriter::new();
 
 impl fmt::Write for PrintkWriter {

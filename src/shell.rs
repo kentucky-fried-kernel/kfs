@@ -109,7 +109,7 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
             return;
         }
     }
-    unsafe { printk!("{}: command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
+    unsafe { printk!("'{}': command not found\n", core::str::from_utf8_unchecked(&cmd[..cmd_end])) };
 }
 
 #[allow(unused)]

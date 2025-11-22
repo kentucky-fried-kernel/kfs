@@ -35,6 +35,7 @@ static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
 
 #[used]
 #[unsafe(no_mangle)]
+#[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
 static INITIAL_PAGE_DIR: [usize; 1024] = {
     let mut dir = [0usize; 1024];
@@ -49,6 +50,10 @@ static INITIAL_PAGE_DIR: [usize; 1024] = {
     dir
 };
 
+/// # Safety
+/// This function is used as a marker _start can jump to after initializing
+/// paging. It is **not** meant to be called, and is marked as unsafe
+/// because it uses `naked_asm`.
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text")]
