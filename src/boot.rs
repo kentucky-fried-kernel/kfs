@@ -1,8 +1,8 @@
-pub const STACK_SIZE: usize = 2 << 20;
+pub const STACK_SIZE: usize = 1 << 18;
 
 #[used]
 #[unsafe(no_mangle)]
-#[unsafe(link_section = ".bss")]
+#[unsafe(link_section = ".boot_stack")]
 pub static mut STACK: Stack = Stack([0; STACK_SIZE]);
 
 #[allow(unused)]
@@ -40,6 +40,7 @@ static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
 #[unsafe(link_section = ".boot")]
 pub unsafe extern "C" fn _start() {
     core::arch::naked_asm!(
+        "hlt",
         "mov esp, offset STACK + {stack_size}",
         "push eax",
         "push ebx",

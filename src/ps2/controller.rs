@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller
 use crate::{
     port::Port,
@@ -196,9 +198,11 @@ fn test_port(cmd: Command) -> Result<(), &'static str> {
 ///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 fn has_ps2_controller() -> Result<(), &'static str> {
+
     let rsdp_ptr: *mut Rsdp = get_rsdp()?;
     let rsdp: &mut Rsdp = unsafe { &mut *rsdp_ptr };
     assert_eq!(&rsdp.signature, b"RSD PTR ");
+
     if !validate_checksum(rsdp_ptr as *const u8, size_of::<Rsdp>() as u32) {
         return Err("RSDP checksum verification failed");
     }
@@ -266,6 +270,7 @@ fn reset_controller() -> Result<(), &'static str> {
 /// https://wiki.osdev.org/ACPI
 pub fn init() -> Result<(), &'static str> {
     has_ps2_controller()?;
+
 
     send_command(Command::DisableFirstPort);
     send_command(Command::DisableSecondPort);

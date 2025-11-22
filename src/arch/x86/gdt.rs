@@ -1,4 +1,4 @@
-use core::ptr::write_volatile;
+use core::{arch::asm, ptr::write_volatile};
 
 fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
     let mut descriptor: u64;
@@ -51,6 +51,7 @@ unsafe extern "C" fn flush_gdt_registers() {
 static mut GDT: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
 
 pub fn init() {
+
     unsafe {
         GDT[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
         GDT[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);

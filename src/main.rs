@@ -19,37 +19,37 @@ struct DirectoryTable {
     entries: [usize; 1024],
 }
 
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".boot")]
 fn set_bit(num: &mut usize, bit_position: u8) {
     *num |= 1 << bit_position
 }
 
 #[unsafe(no_mangle)]
-#[unsafe(link_section = ".boot")]
-pub unsafe extern "C" fn trampolin() {
-    let x: usize = 10;
-    printk!("0x{:x}\n", (trampolin as *const usize) as usize);
-    kernel_main();
-}
-
-// #[cfg(not(test))]
+#[unsafe(link_section = ".boot_page_dir")]
+static mut dir_table: DirectoryTable = DirectoryTable { entries: [0; 1024] };
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
-    use core::arch::asm;
+#[unsafe(link_section = ".boot_page_entries")]
+static mut pages_table: DirectoryTable = DirectoryTable { entries: [0; 1024] };
 
-    use kfs::{arch, printk, ps2, shell, terminal};
-    if let Err(e) = ps2::init() {
-        panic!("could not initialize PS/2: {}", e);
-    }
-    arch::x86::gdt::init();
+#[unsafe(link_section = ".boot_page_entries")]
+static print: &str = "hello";
+#[unsafe(no_mangle)]
+#[unsafe(link_section = ".boot")]
+#[allow(static_mut_refs)]
+pub unsafe extern "C" fn trampolin() {
 
-    let mut dir_table: DirectoryTable = DirectoryTable { entries: [0; 1024] };
-    let mut pages_table: DirectoryTable = DirectoryTable { entries: [0; 1024] };
-
+    
+    
+    asm!("hlt");
     dir_table.entries[0] = (&mut pages_table as *mut DirectoryTable) as usize;
-
     // make 0xc0000000..(0xc0000000 + 4mb) point to kernel as well
     let kernel_pde_index = (0xC0000000 >> 22) & 0x3FF;
     dir_table.entries[kernel_pde_index] = (&mut pages_table as *mut DirectoryTable) as usize;
+
+    let dir_entry = &mut dir_table.entries[kernel_pde_index];
+    set_bit(dir_entry, 1);
+    set_bit(dir_entry, 0);
 
     let dir_entry = &mut dir_table.entries[0];
     set_bit(dir_entry, 1);
@@ -63,12 +63,7 @@ pub extern "C" fn kernel_main() {
     }
 
     let cr3_value = (&dir_table as *const DirectoryTable) as usize;
-    for i in (0..32).rev() {
-        printk!("{}", (dir_table.entries[0] >> i) & 1);
-    }
-    printk!("\n");
-    printk!("{:x}\n", cr3_value);
-    printk!("{:x}\n", dir_table.entries[0]);
+
     unsafe {
         asm!(
             "mov cr3, {0}",
@@ -84,16 +79,63 @@ pub extern "C" fn kernel_main() {
         );
 
         cr0_value |= 0x80000000;
-
         asm!(
             "mov cr0, {0}",  // move the new value back into cr0
             in(reg) cr0_value, // input the modified value
             options(nostack, preserves_flags)
         );
     }
+    // unsafe {
+    //     asm!("mov esp, offset STACK1 + {stack_size}",
+    //     "mov ebp, offset STACK1",
+    //     "push eax",
+    //     "push ebx",
+    //     stack_size = const STACK_SIZE
+    //     )
+    // }
+    kernel_main();
+}
+// const STACK_SIZE: usize = 1 << 21;
+
+// #[used]
+// #[unsafe(no_mangle)]
+// #[unsafe(link_section = ".bss")]
+// pub static mut STACK1: [u8; STACK_SIZE] = [0; STACK_SIZE];
+
+// #[cfg(not(test))]
+#[unsafe(no_mangle)]
+pub extern "C" fn kernel_main() {
+    use core::arch::asm;
+    use kfs::{arch, shell, terminal};
+
+    // if let Err(e) = ps2::init() {
+    //     panic!("could not initialize PS/2: {}", e);
+    // }
+    // let f = ((arch::x86::gdt::init as *const () as usize) - 0xC0000000);
+
+    //     let f: *const () = arch::x86::gdt::init as *const ();
+
+    // let base: usize = 0xC0000000;
+    // let function_address: usize = f as usize;
+    // let relative_address = function_address - base;
+
+    // let f_fn: unsafe fn() = relative_address as *const () as *const ();
+
+    // unsafe {
+    //     f_fn();
+    // }
+
+
+    // arch::x86::gdt::init();
+    // unsafe {
+    //     *(0xB8000 as * mut u16) = 0x4f << 8 | (b'A' as u16);
+    //     asm!("hlt");
+    // }
+
 
     // printk!("|{:?}|", dir_table.entries[0]);
     // printk!("|{:?}|", &pages_table as *const _);
+
 
     // arch::x86::set_idt();
     #[allow(static_mut_refs)]
