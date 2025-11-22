@@ -55,6 +55,10 @@ pub extern "C" fn kernel_main() {
     set_bit(dir_entry, 1);
     set_bit(dir_entry, 0);
 
+    let dir_entry = &mut dir_table.entries[kernel_pde_index];
+    set_bit(dir_entry, 1);
+    set_bit(dir_entry, 0);
+
     for i in 0..1024 {
         let page_entry = &mut pages_table.entries[i];
         *page_entry = i * 0x1000;
