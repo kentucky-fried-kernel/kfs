@@ -9,7 +9,9 @@ mod panic;
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() {
-    use kfs::{arch, ps2, shell, terminal};
+    panic!("yoyoyo");
+
+    use kfs::{arch, printkln, ps2, shell, terminal};
     if let Err(e) = ps2::init() {
         panic!("could not initialize PS/2: {}", e);
     }
