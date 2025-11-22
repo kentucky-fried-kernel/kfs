@@ -35,10 +35,6 @@ pub unsafe extern "C" fn trampolin() {
 // #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() {
-    unsafe {
-
-    asm!("hlt");
-    }
     use core::arch::asm;
 
     use kfs::{arch, printk, ps2, shell, terminal};

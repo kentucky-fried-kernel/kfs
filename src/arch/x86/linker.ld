@@ -14,7 +14,7 @@ SECTIONS
 		*(.boot)
 	}
 
-	. += KERNEL_BASE;
+	/* . += KERNEL_BASE; */
 	.text ALIGN (4K) : AT (ADDR (.text) - KERNEL_BASE)
 	{
 		*(.text)
