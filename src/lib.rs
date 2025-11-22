@@ -22,7 +22,7 @@ pub mod tester;
 
 #[cfg(test)]
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use crate::qemu;
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };

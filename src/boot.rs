@@ -40,15 +40,15 @@ static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
 #[unsafe(link_section = ".boot")]
 pub unsafe extern "C" fn _start() {
     core::arch::naked_asm!(
-        "mov esp, offset STACK + {stack_size}",
+        "mov esp, offset STACK + {STACK_SIZE}",
         "push eax",
         "push ebx",
         "cli",
-        "call kernel_main",
+        "call kmain",
         "hang:",
         "cli",
         "hlt",
         "jmp hang",
-        stack_size = const STACK_SIZE
+        STACK_SIZE = const STACK_SIZE
     )
 }

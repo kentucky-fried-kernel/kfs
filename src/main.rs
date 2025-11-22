@@ -8,7 +8,7 @@ mod panic;
 
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use kfs::{arch, ps2, shell, terminal};
     if let Err(e) = ps2::init() {
         panic!("could not initialize PS/2: {}", e);
@@ -22,7 +22,7 @@ pub extern "C" fn kernel_main() {
 
 #[cfg(test)]
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use kfs::qemu;
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };

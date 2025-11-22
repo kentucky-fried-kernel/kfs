@@ -21,7 +21,7 @@ fn test_printkln() -> Result<(), &'static str> {
 
 #[cfg(test)]
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use kfs::qemu;
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };

@@ -36,18 +36,18 @@ The first thing we need to do is tell `rustc` to stop yelling at us, and let us 
 
 The next step is to create a test main, the first function that is called after setting up the stack in [`_start`](/src/boot.rs#L36-L54). Our [actual main](/src/main.rs#L9-L21) initializes everything and runs an interactive shell, which we do not want here: It should only run the tests and exit.
 
-We can do this by conditionally compiling our `kernel_main` function based on the `cfg(test)` attribute:
+We can do this by conditionally compiling our `kmain` function based on the `cfg(test)` attribute:
 
 ```rust
 // /src/main.rs
 
 #[cfg(not(test))]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     // Run normally
 }
 
 #[cfg(test)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     // Call the test_main function exported by rustc to run the tests.
     test_main();
 }
@@ -96,7 +96,7 @@ Putting everything together, we get something like this:
 #![reexport_test_harness_main = "test_main"]
 
 #[cfg(test)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use kfs::qemu;
     // Call the test_main function exported by rustc to run the tests.
     test_main();
@@ -170,7 +170,7 @@ Unit tests are convenient, however they have a critical flaw: all of them run in
 
 By **end-to-end** tests, I mean a suite of one or more tests that runs in its own QEMU instance, i.e., that does not interact with other test suites. It needs to define its own panic handler and kernel main in a Rust file in the `tests/` directory.
 
-To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kernel_main` functions, as well as all global attributes.
+To create an end-to-end test, create a new file in the [`./tests`](/tests) directory. This file should include its own panic handler and `kmain` functions, as well as all global attributes.
 
 ```rust
 #![no_std]
@@ -190,14 +190,14 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[cfg(test)]
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use kfs::qemu;
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };
 }
 ```
 
-With this approach, you can use your custom `kernel_main` as a setup function, and define as many `#[test_case]`s as you want to make assertions about the state of the system. Note that all `#[test_case]`s defined in one end-to-end test suite run in the same binary/QEMU instance, they are only separated from other end-to-end test suites.
+With this approach, you can use your custom `kmain` as a setup function, and define as many `#[test_case]`s as you want to make assertions about the state of the system. Note that all `#[test_case]`s defined in one end-to-end test suite run in the same binary/QEMU instance, they are only separated from other end-to-end test suites.
 
 A cool use case can be checking for expected panics by defining a panic handler that exits with the success exit code, like so:
 
@@ -219,7 +219,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[cfg(test)]
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main() {
+pub extern "C" fn kmain() {
     use kfs::qemu;
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };
