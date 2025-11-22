@@ -47,17 +47,20 @@ unsafe extern "C" fn flush_gdt_registers() {
     );
 }
 
-pub fn init() {
-    let mut gdt: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
-    gdt[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
-    gdt[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
-    gdt[3] = gdt[2];
-    gdt[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
-    gdt[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
-    gdt[6] = gdt[5];
+#[unsafe(link_section = ".gdt")]
+static mut GDT: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
 
+pub fn init() {
     unsafe {
-        for (i, entry) in gdt.iter().enumerate() {
+        GDT[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
+        GDT[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
+        GDT[3] = GDT[2];
+        GDT[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
+        GDT[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
+        GDT[6] = GDT[5];
+
+        #[allow(static_mut_refs)]
+        for (i, entry) in GDT.iter().enumerate() {
             write_volatile(GDT_ADDRESS.add(i), *entry);
         }
 

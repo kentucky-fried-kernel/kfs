@@ -16,13 +16,12 @@ mod panic;
 
 #[repr(align(0x1000))]
 struct DirectoryTable {
-    entries: [usize; 1024]
+    entries: [usize; 1024],
 }
 
 fn set_bit(num: &mut usize, bit_position: u8) {
     *num |= 1 << bit_position
 }
-
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".boot")]
@@ -42,13 +41,15 @@ pub extern "C" fn kernel_main() {
         panic!("could not initialize PS/2: {}", e);
     }
     arch::x86::gdt::init();
-    // #[cfg(not(test))]
 
-    let mut dir_table: DirectoryTable = DirectoryTable { entries: [0;1024]};
-    let mut pages_table: DirectoryTable = DirectoryTable { entries: [0;1024]};
+    let mut dir_table: DirectoryTable = DirectoryTable { entries: [0; 1024] };
+    let mut pages_table: DirectoryTable = DirectoryTable { entries: [0; 1024] };
 
+    dir_table.entries[0] = (&mut pages_table as *mut DirectoryTable) as usize;
 
-    dir_table.entries[0] = (&mut pages_table as *mut DirectoryTable ) as usize;
+    // make 0xc0000000..(0xc0000000 + 4mb) point to kernel as well
+    let kernel_pde_index = (0xC0000000 >> 22) & 0x3FF;
+    dir_table.entries[kernel_pde_index] = (&mut pages_table as *mut DirectoryTable) as usize;
 
     let dir_entry = &mut dir_table.entries[0];
     set_bit(dir_entry, 1);
@@ -57,11 +58,11 @@ pub extern "C" fn kernel_main() {
     for i in 0..1024 {
         let page_entry = &mut pages_table.entries[i];
         *page_entry = i * 0x1000;
-        set_bit(page_entry, 1);
         set_bit(page_entry, 0);
+        set_bit(page_entry, 1);
     }
 
-    let cr3_value  =  (&dir_table as *const DirectoryTable) as usize;
+    let cr3_value = (&dir_table as *const DirectoryTable) as usize;
     for i in (0..32).rev() {
         printk!("{}", (dir_table.entries[0] >> i) & 1);
     }
@@ -70,14 +71,14 @@ pub extern "C" fn kernel_main() {
     printk!("{:x}\n", dir_table.entries[0]);
     unsafe {
         asm!(
-            "mov cr3, {0}", 
-            in(reg) cr3_value, 
+            "mov cr3, {0}",
+            in(reg) cr3_value,
             options(nostack, preserves_flags)
         );
 
         let mut cr0_value: u32;
         asm!(
-            "mov {0}, cr0",  
+            "mov {0}, cr0",
             out(reg) cr0_value,
             options(nostack, preserves_flags)
         );

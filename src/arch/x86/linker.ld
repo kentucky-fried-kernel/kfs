@@ -1,24 +1,35 @@
 ENTRY(_start)
 
-HARDWARE = 1M;
-KERNEL_BASE = 3000M;
+KERNEL_BASE = 0xC0000000;
 
 SECTIONS
 {
-	. = HARDWARE;
+    . = 0x800;
+    .gdt :
+    {
+        *(.gdt)
+    }
 
-	.multiboot : ALIGN(4K)
-	{
-	    . = ALIGN(8);
-		KEEP(*(.multiboot))
-		*(.boot)
-	}
+    . = KERNEL_BASE + 0xB8000;
+    .vga : AT(ADDR(.vga) - KERNEL_BASE)
+    {
+        *(.vga)
+    }
 
-	/* . += KERNEL_BASE; */
-	.text ALIGN (4K) : AT (ADDR (.text) - KERNEL_BASE)
+    . = 0x100000;
+
+    .boot BLOCK(4K) : ALIGN(4K)
+    {
+        KEEP(*(.multiboot.data))
+        *(.boot)
+    }
+
+    /*. += KERNEL_BASE;*/
+	.text ALIGN(4K) : AT(ADDR(.text) - KERNEL_BASE)
 	{
 		*(.text)
 	}
+
 	.rodata ALIGN (4K) : AT (ADDR (.rodata) - KERNEL_BASE)
 	{
 		*(.rodata)
