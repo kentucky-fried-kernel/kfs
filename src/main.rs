@@ -26,6 +26,7 @@ fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
 
     let page_dir_phys = unsafe { (&INITIAL_PAGE_DIR as *const _ as usize) - KERNEL_BASE };
     printkln!("page_dir_phys: 0x{:x}", page_dir_phys);
+    printkln!("page_dir_virt: 0x{:x}", unsafe { &INITIAL_PAGE_DIR as *const _ as usize });
     unsafe { INITIAL_PAGE_DIR[1023] = page_dir_phys | 1 | 2 };
     invalidate(0xFFFFF000);
 }
