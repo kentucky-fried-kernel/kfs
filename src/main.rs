@@ -18,7 +18,7 @@ fn invalidate(vaddr: usize) {
 }
 
 #[allow(static_mut_refs)]
-fn init_memory(mem_high: usize, physical_alloc_start: usize) {
+fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     // We do not need the identity mapped kernel anymore, so we can remove
     // its PD entry.
     unsafe { INITIAL_PAGE_DIR[0] = 0 };
