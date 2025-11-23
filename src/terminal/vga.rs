@@ -1,5 +1,7 @@
 use core::ptr::{read_volatile, write_volatile};
 
+use crate::boot::KERNEL_BASE;
+
 use super::{
     cursor::Cursor,
     screen::{BUFFER_SIZE, Screen},
@@ -15,7 +17,7 @@ pub const VIEW_HEIGHT: usize = 25;
 pub const VIEW_BUFFER_SIZE: usize = VIEW_WIDTH * VIEW_HEIGHT;
 
 /// The base memory address of the VGA buffer for text mode display.
-const VGA_BUFFER_ADDR: *mut u16 = 0xB8000 as *mut u16;
+const VGA_BUFFER_ADDR: *mut u16 = (KERNEL_BASE + 0xB8000) as *mut u16;
 
 /// A struct representing a screen buffer for VGA entry handling and cursor management.
 ///
