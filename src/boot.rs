@@ -100,7 +100,7 @@ impl Display for MultibootInfo {
         writeln!(f, "  mem_lower: {} KB", self.mem_lower)?;
         writeln!(f, "  mem_upper: {} KB", self.mem_upper)?;
         writeln!(f, "  boot_device: 0x{:x}", self.boot_device)?;
-        writeln!(f, "  cmdline: 0x{:x}", self.cmdline)?;
+        writeln!(f, "  cmdline: 0x{:x} ", self.cmdline)?;
         writeln!(f, "  mods_count: {}", self.mods_count)?;
         writeln!(f, "  mods_addr: 0x{:x}", self.mods_addr)?;
         writeln!(f, "  mmap_length: {}", self.mmap_length)?;
