@@ -15,16 +15,15 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     use kfs::{arch, printkln, shell, terminal};
 
     printkln!("Multiboot Magic: {:x}", magic);
-    printkln!("Multiboot Info:  {}", info);
+    printkln!("Multiboot Info :  {}", info);
     printkln!("_start       : 0x{:x}", kfs::boot::_start as *const () as usize);
     printkln!("kmain        : 0x{:x}", kmain as *const () as usize);
-    printkln!("set_idt      : 0x{:x}", arch::x86::set_idt as *const () as usize);
+    printkln!("idt::init    : 0x{:x}", arch::x86::idt::init as *const () as usize);
     printkln!("higher_half  : 0x{:x}", kfs::boot::higher_half as *const () as usize);
 
     arch::x86::gdt::init();
-    #[cfg(not(test))]
-    arch::x86::set_idt();
-    // panic!("yooyo");
+    arch::x86::idt::init();
+
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
 }

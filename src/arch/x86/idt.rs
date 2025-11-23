@@ -279,7 +279,7 @@ pub fn remap_pic() {
 
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
-pub fn set_idt() {
+pub fn init() {
     unsafe {
         let stubs = isr_stubs!();
         let mut idt = InterruptDescriptorTable::new();
