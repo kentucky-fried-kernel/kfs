@@ -1,3 +1,5 @@
+use core::{fmt::Display, ops::BitOr};
+
 pub const STACK_SIZE: usize = 2 << 20;
 
 #[used]
@@ -24,14 +26,93 @@ struct MultibootHeader {
     checksum: usize,
 }
 
+#[repr(usize)]
+pub enum MultibootFlag {
+    Mem = 1 << 0,
+    BootDevice = 1 << 1,
+    Cmdline = 1 << 2,
+    Mods = 1 << 3,
+    Syms = 1 << 4 | 1 << 5,
+    Mmap = 1 << 6,
+    Drives = 1 << 7,
+    ConfigTable = 1 << 8,
+    Bootloader = 1 << 9,
+    Apm = 1 << 10,
+    Vbe = 1 << 11,
+    Framebuffer = 1 << 12,
+}
+
+impl const BitOr for MultibootFlag {
+    type Output = usize;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self as usize | rhs as usize
+    }
+}
+
+const MULTIBOOT_FLAGS: usize = MultibootFlag::Mem | MultibootFlag::BootDevice;
+
 #[used]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".multiboot")]
 static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
     magic: 0x1badb002,
-    flags: 1 | 2,
-    checksum: (0usize.wrapping_sub(0x1badb002 + (1 | 2))),
+    flags: MULTIBOOT_FLAGS,
+    checksum: (0usize.wrapping_sub(0x1badb002 + (MULTIBOOT_FLAGS))),
 };
+
+#[derive(Debug)]
+pub struct MultibootInfo {
+    flags: u32,
+    mem_lower: u32,
+    mem_upper: u32,
+    boot_device: u32,
+    cmdline: u32,
+    mods_count: u32,
+    mods_addr: u32,
+    syms: [u32; 3],
+    mmap_length: u32,
+    mmap_addr: u32,
+    drives_length: u32,
+    drives_addr: u32,
+    config_table: u32,
+    boot_loader_name: u32,
+    apm_table: u32,
+    vbe_control_info: u32,
+    vbe_mode_info: u32,
+    vbe_mode: u32,
+    vbe_interface_seg: u16,
+    vbe_interface_off: u16,
+    vbe_interface_len: u16,
+    framebuffer_addr: u32,
+    framebuffer_pitch: u32,
+    framebuffer_width: u32,
+    framebuffer_height: u32,
+    framebuffer_bpp: u8,
+    framebuffer_type: u8,
+    color_info: [u8; 5],
+}
+
+impl Display for MultibootInfo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        writeln!(f, "MultibootInfo {{")?;
+        writeln!(f, "  flags: 0x{:b}", self.flags)?;
+        writeln!(f, "  mem_lower: {} KB", self.mem_lower)?;
+        writeln!(f, "  mem_upper: {} KB", self.mem_upper)?;
+        writeln!(f, "  boot_device: 0x{:x}", self.boot_device)?;
+        writeln!(f, "  cmdline: 0x{:x}", self.cmdline)?;
+        writeln!(f, "  mods_count: {}", self.mods_count)?;
+        writeln!(f, "  mods_addr: 0x{:x}", self.mods_addr)?;
+        writeln!(f, "  mmap_length: {}", self.mmap_length)?;
+        writeln!(f, "  mmap_addr: 0x{:x}", self.mmap_addr)?;
+        writeln!(f, "  boot_loader_name: 0x{:x}", self.boot_loader_name)?;
+        writeln!(
+            f,
+            "  framebuffer: {}x{}x{} @ 0x{:x}",
+            self.framebuffer_width, self.framebuffer_height, self.framebuffer_bpp, self.framebuffer_addr
+        )?;
+        write!(f, "}}")
+    }
+}
 
 #[used]
 #[unsafe(no_mangle)]

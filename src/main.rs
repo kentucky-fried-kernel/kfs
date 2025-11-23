@@ -4,19 +4,23 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+#[cfg(not(test))]
+use kfs::boot::MultibootInfo;
+
 mod panic;
 
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
-pub extern "C" fn kmain() {
-    use kfs::{arch, boot::_start, printkln, shell, terminal};
+pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
+    use kfs::{arch, printkln, shell, terminal};
 
-    // if let Err(e) = ps2::init() {
-    //     panic!("could not initialize PS/2: {}", e);
-    // }
+    printkln!("Multiboot Magic: {:x}", magic);
+    printkln!("Multiboot Info:  {}", info);
+    printkln!("_start       : 0x{:x}", kfs::boot::_start as *const () as usize);
+    printkln!("kmain        : 0x{:x}", kmain as *const () as usize);
+    printkln!("set_idt      : 0x{:x}", arch::x86::set_idt as *const () as usize);
+    printkln!("higher_half  : 0x{:x}", kfs::boot::higher_half as *const () as usize);
 
-    printkln!("_start : 0x{:x}", _start as *const () as usize);
-    printkln!("kmain  : 0x{:x}", kmain as *const () as usize);
     arch::x86::gdt::init();
     #[cfg(not(test))]
     arch::x86::set_idt();
