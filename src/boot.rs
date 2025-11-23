@@ -1,6 +1,7 @@
 use core::{fmt::Display, ops::BitOr};
 
 pub const STACK_SIZE: usize = 2 << 20;
+pub const KERNEL_BASE: usize = 0xC0000000;
 
 #[used]
 #[unsafe(no_mangle)]
@@ -119,7 +120,7 @@ impl Display for MultibootInfo {
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-static INITIAL_PAGE_DIR: [usize; 1024] = {
+pub static mut INITIAL_PAGE_DIR: [usize; 1024] = {
     let mut dir = [0usize; 1024];
 
     dir[0] = 0b10000011;
@@ -160,7 +161,7 @@ pub unsafe extern "C" fn higher_half() {
 #[unsafe(link_section = ".boot")]
 pub unsafe extern "C" fn _start() {
     core::arch::naked_asm!(
-        "mov ecx, offset INITIAL_PAGE_DIR - 0xC0000000",
+        "mov ecx, offset INITIAL_PAGE_DIR - {KERNEL_BASE}",
         "mov cr3, ecx",
         "mov ecx, cr4",
         "or ecx, 0x10",
@@ -169,5 +170,6 @@ pub unsafe extern "C" fn _start() {
         "or ecx, 0x80000000",
         "mov cr0, ecx",
         "jmp higher_half",
+        KERNEL_BASE = const KERNEL_BASE
     )
 }
