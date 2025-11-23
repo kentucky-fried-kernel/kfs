@@ -6,11 +6,33 @@
 
 #[cfg(not(test))]
 use kfs::boot::MultibootInfo;
+use kfs::{
+    boot::{INITIAL_PAGE_DIR, KERNEL_BASE},
+    printkln,
+};
 
 mod panic;
 
+fn invalidate(vaddr: usize) {
+    unsafe { core::arch::asm!("invlpg [{}]", in(reg) vaddr) };
+}
+
+#[allow(static_mut_refs)]
+fn init_memory(mem_high: usize, physical_alloc_start: usize) {
+    // We do not need the identity mapped kernel anymore, so we can remove
+    // its PD entry.
+    unsafe { INITIAL_PAGE_DIR[0] = 0 };
+    invalidate(0);
+
+    let page_dir_phys = unsafe { (&INITIAL_PAGE_DIR as *const _ as usize) - KERNEL_BASE };
+    printkln!("page_dir_phys: 0x{:x}", page_dir_phys);
+    unsafe { INITIAL_PAGE_DIR[1023] = page_dir_phys | 1 | 2 };
+    invalidate(0xFFFFF000);
+}
+
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
+#[allow(static_mut_refs)]
 pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     use kfs::{arch, printkln, shell, terminal};
 
@@ -23,6 +45,8 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
+
+    init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
