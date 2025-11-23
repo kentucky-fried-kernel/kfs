@@ -1,6 +1,6 @@
 use crate::{
     boot::{STACK, STACK_SIZE},
-    printk,
+    printk, printkln,
     ps2::{self, Key, read_if_ready},
     qemu::{ExitCode, exit},
     terminal::{Screen, vga::Buffer},
