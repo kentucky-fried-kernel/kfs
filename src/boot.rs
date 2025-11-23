@@ -61,7 +61,6 @@ static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
     checksum: (0usize.wrapping_sub(0x1badb002 + (MULTIBOOT_FLAGS))),
 };
 
-#[allow(unused)]
 #[derive(Debug)]
 pub struct MultibootInfo {
     pub flags: u32,

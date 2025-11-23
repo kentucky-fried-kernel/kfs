@@ -1,7 +1,7 @@
 #![allow(static_mut_refs)]
 #![allow(unused)]
 
-use crate::printk;
+use crate::{printk, printkln};
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
 
@@ -137,7 +137,11 @@ macro_rules! isr_err_stub {
 
 #[unsafe(no_mangle)]
 extern "C" fn handle_interrupt(interrupt_number: usize) {
-    panic!("Got an interrupt and I don't know what to do");
+    match interrupt_number {
+        13 => panic!("General Protection Fault"),
+        14 => panic!("Page Fault"),
+        _ => panic!("Interrupt"),
+    }
 }
 
 isr_no_err_stub!(isr_stub_0, 0);
