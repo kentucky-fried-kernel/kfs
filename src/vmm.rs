@@ -3,6 +3,20 @@ use crate::{
     printkln,
 };
 
+#[bitstruct::bitstruct]
+struct PageDirectoryEntry {
+    address: u20,
+    available_4: u4,
+    ps: u1,
+    available_1: u1,
+    accessed: u1,
+    cache_disable: u1,
+    write_through: u1,
+    user_supervisor: u1,
+    read_write: u1,
+    present: u1,
+}
+
 fn invalidate(vaddr: usize) {
     unsafe { core::arch::asm!("invlpg [{}]", in(reg) vaddr) };
 }
@@ -18,7 +32,8 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     printkln!("page_dir_phys: 0x{:x}", page_dir_phys);
     printkln!("page_dir_virt: 0x{:x}", unsafe { &INITIAL_PAGE_DIR as *const _ as usize });
 
+    let page_dir_entry: u32 = PageDirectoryEntry::new(page_dir_phys as u32 | 1 | 2).into();
     // Recursive mapping (maps the page directory itself into virtual memory)
-    unsafe { INITIAL_PAGE_DIR[1023] = page_dir_phys | 1 | 2 };
+    unsafe { INITIAL_PAGE_DIR[1023] = page_dir_entry as usize };
     invalidate(0xFFFFF000);
 }

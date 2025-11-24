@@ -100,6 +100,7 @@ impl Display for MultibootInfo {
         writeln!(f, "  mem_lower: {} KB", self.mem_lower)?;
         writeln!(f, "  mem_upper: {} KB", self.mem_upper)?;
         writeln!(f, "  boot_device: 0x{:x}", self.boot_device)?;
+        writeln!(f, "  mmap_addr, 0x{:x}", self.mmap_addr)?;
         write!(f, "}}")
     }
 }
