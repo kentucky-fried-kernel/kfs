@@ -13,6 +13,7 @@ mod panic;
 pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     use kfs::{arch, printkln, shell, terminal, vmm};
 
+    printkln!("Multiboot Info Struct Address: 0x{:x}", info as *const _ as usize);
     printkln!("Multiboot Magic: {:x}", magic);
     printkln!("{}", info);
     printkln!("_start       : 0x{:x}", kfs::boot::_start as *const () as usize);

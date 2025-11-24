@@ -132,6 +132,15 @@ pub struct MultibootMmapEntry {
     ty: u32,
 }
 
+#[repr(C)]
+pub struct MemoryMap {
+    htype: u32,
+    size: u32,
+    entry_size: u32,
+    versions: u32,
+    entries: [MultibootMmapEntry; 0],
+}
+
 /// # Safety
 /// This function is used as a marker _start can jump to after initializing
 /// paging. It is **not** meant to be called, and is marked as unsafe
