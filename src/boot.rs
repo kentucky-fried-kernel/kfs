@@ -96,21 +96,10 @@ pub struct MultibootInfo {
 impl Display for MultibootInfo {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(f, "MultibootInfo {{")?;
-        writeln!(f, "  flags: 0x{:b}", self.flags)?;
+        writeln!(f, "  flags: 0b{:b}", self.flags)?;
         writeln!(f, "  mem_lower: {} KB", self.mem_lower)?;
         writeln!(f, "  mem_upper: {} KB", self.mem_upper)?;
         writeln!(f, "  boot_device: 0x{:x}", self.boot_device)?;
-        writeln!(f, "  cmdline: 0x{:x} ", self.cmdline)?;
-        writeln!(f, "  mods_count: {}", self.mods_count)?;
-        writeln!(f, "  mods_addr: 0x{:x}", self.mods_addr)?;
-        writeln!(f, "  mmap_length: {}", self.mmap_length)?;
-        writeln!(f, "  mmap_addr: 0x{:x}", self.mmap_addr)?;
-        writeln!(f, "  boot_loader_name: 0x{:x}", self.boot_loader_name)?;
-        writeln!(
-            f,
-            "  framebuffer: {}x{}x{} @ 0x{:x}",
-            self.framebuffer_width, self.framebuffer_height, self.framebuffer_bpp, self.framebuffer_addr
-        )?;
         write!(f, "}}")
     }
 }

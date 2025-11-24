@@ -21,6 +21,7 @@ pub mod serial;
 pub mod shell;
 pub mod terminal;
 pub mod tester;
+pub mod vmm;
 
 #[cfg(test)]
 #[unsafe(no_mangle)]
