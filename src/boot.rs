@@ -124,12 +124,12 @@ pub static mut INITIAL_PAGE_DIR: [usize; 1024] = {
     dir
 };
 
-#[repr(C, packed)]
+#[repr(C, align(1))]
 pub struct MultibootMmapEntry {
-    size: u32,
-    addr: u64,
-    len: u64,
-    ty: u32,
+    pub size: u32,
+    pub addr: u64,
+    pub len: u64,
+    pub ty: u32,
 }
 
 #[repr(C)]

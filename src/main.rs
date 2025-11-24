@@ -24,6 +24,21 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
+    let mut i = 0;
+    printkln!("start table");
+    loop {
+        use kfs::boot::MultibootMmapEntry;
+
+        unsafe {
+            let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
+            printkln!("addr: 0x{:09X} | len : 0x{:08X} | type : {:x}", (*entry).addr , (*entry).len , (*entry).ty);
+            i += (*entry).size + 4;
+            if i >= info.mmap_length {
+                break;
+            }
+        }
+    }
+
     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
     #[allow(static_mut_refs)]
