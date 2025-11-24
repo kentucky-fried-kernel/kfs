@@ -62,6 +62,7 @@ static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
 };
 
 #[derive(Debug)]
+#[repr(C, align(4))]
 pub struct MultibootInfo {
     pub flags: u32,
     pub mem_lower: u32,
@@ -70,7 +71,7 @@ pub struct MultibootInfo {
     pub cmdline: u32,
     pub mods_count: u32,
     pub mods_addr: u32,
-    pub syms: [u32; 3],
+    pub syms: [u32; 4],
     pub mmap_length: u32,
     pub mmap_addr: u32,
     pub drives_length: u32,
@@ -101,6 +102,7 @@ impl Display for MultibootInfo {
         writeln!(f, "  mem_upper: {} KB", self.mem_upper)?;
         writeln!(f, "  boot_device: 0x{:x}", self.boot_device)?;
         writeln!(f, "  mmap_addr, 0x{:x}", self.mmap_addr)?;
+        writeln!(f, "  mmap_length, 0x{:x}", self.mmap_length)?;
         write!(f, "}}")
     }
 }
@@ -122,6 +124,14 @@ pub static mut INITIAL_PAGE_DIR: [usize; 1024] = {
     dir
 };
 
+#[repr(C, packed)]
+pub struct MultibootMmapEntry {
+    size: u32,
+    addr: u64,
+    len: u64,
+    ty: u32,
+}
+
 /// # Safety
 /// This function is used as a marker _start can jump to after initializing
 /// paging. It is **not** meant to be called, and is marked as unsafe
@@ -132,6 +142,7 @@ pub static mut INITIAL_PAGE_DIR: [usize; 1024] = {
 pub unsafe extern "C" fn higher_half() {
     core::arch::naked_asm!(
         "mov esp, offset STACK + {STACK_SIZE}",
+        "add ebx, {KERNEL_BASE}",
         "push ebx",
         "push eax",
         "xor ebp, ebp",
@@ -139,7 +150,8 @@ pub unsafe extern "C" fn higher_half() {
         "halt:",
         "hlt",
         "jmp halt",
-        STACK_SIZE = const STACK_SIZE
+        STACK_SIZE = const STACK_SIZE,
+        KERNEL_BASE = const KERNEL_BASE
     )
 }
 
