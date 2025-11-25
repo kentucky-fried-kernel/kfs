@@ -183,14 +183,11 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
 
     unsafe { KERNEL_PAGE_DIRECTORY_TABLE[0] = PageDirectoryEntry::empty() };
 
+    // Remove maps from caches
     invalidate(0);
 
-    // let page_dir_phys = unsafe { (&KERNEL_PAGE_DIR as *const _ as usize) - KERNEL_BASE };
-    // printkln!("page_dir_phys: 0x{:x}", page_dir_phys);
-    // printkln!("page_dir_virt: 0x{:x}", unsafe { &KERNEL_PAGE_DIR as *const _ as usize });
+    for i in 0..=kernel_pages_needed {
+        invalidate(KERNEL_BASE + i * PAGE_SIZE);
+    }
 
-    // let page_dir_entry: u32 = PageDirectoryEntry::new(page_dir_phys as u32 | 1 | 2).into();
-    // // Recursive mapping (maps the page directory itself into virtual memory)
-    // unsafe { KERNEL_PAGE_DIR[1023] = page_dir_entry as usize };
-    // invalidate(0xFFFFF000);
 }
