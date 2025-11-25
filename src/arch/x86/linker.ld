@@ -36,4 +36,7 @@ SECTIONS
     }
 
     _kernel_end = .;
+    .dummy : {
+        
+    }
 }
