@@ -107,40 +107,6 @@ impl Display for MultibootInfo {
     }
 }
 
-const PAGE_SIZE :usize = 0x1000;
-const USER_PAGES_BIT_MAP_SIZE :usize =  usize::MAX / PAGE_SIZE / 8;
-
-#[used]
-#[unsafe(no_mangle)]
-#[allow(clippy::identity_op)]
-#[unsafe(link_section = ".data")]
-pub static mut USED_PAGES_BIT_MAP: [u8; USER_PAGES_BIT_MAP_SIZE] = [0; USER_PAGES_BIT_MAP_SIZE];
-
-#[used]
-#[unsafe(no_mangle)]
-#[allow(clippy::identity_op)]
-#[unsafe(link_section = ".data")]
-pub static mut KERNEL_PAGE_ENTRIES: [[usize; 1024]; 1024] = [[0;1024]; 1024];
-
-#[used]
-#[unsafe(no_mangle)]
-#[allow(clippy::identity_op)]
-#[unsafe(link_section = ".data")]
-pub static mut KERNEL_PAGE_DIR: [usize; 1024] = {
-    let mut dir = [0usize; 1024];
-
-    dir[0] = 0b10000011;
-
-    dir[768] = (0 << 22) | 0b10000011;
-    dir[769] = (1 << 22) | 0b10000011;
-    dir[770] = (2 << 22) | 0b10000011;
-    dir[771] = (3 << 22) | 0b10000011;
-    dir[772] = (4 << 22) | 0b10000011;
-    dir[773] = (5 << 22) | 0b10000011;
-    dir[774] = (6 << 22) | 0b10000011;
-
-    dir
-};
 
 #[repr(C, align(1))]
 pub struct MultibootMmapEntry {
@@ -189,7 +155,7 @@ pub unsafe extern "C" fn higher_half() {
 #[unsafe(link_section = ".boot")]
 pub unsafe extern "C" fn _start() {
     core::arch::naked_asm!(
-        "mov ecx, offset KERNEL_PAGE_DIR - {KERNEL_BASE}",
+        "mov ecx, offset KERNEL_PAGE_DIRECTORY_TABLE - {KERNEL_BASE}",
         "mov cr3, ecx",
         "mov ecx, cr4",
         "or ecx, 0x10",
