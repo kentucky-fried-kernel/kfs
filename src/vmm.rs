@@ -21,19 +21,18 @@ pub static mut KERNEL_PAGE_ENTRY_TABLES: [[usize; 1024]; 1024] = [[0;1024]; 1024
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [usize; 1024] = {
-    let mut dir = [0usize; 1024];
+pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [PageDirectoryEntry; 1024] = {
+    let mut dir : [PageDirectoryEntry; 1024] = [PageDirectoryEntry::from_usize(0); 1024];
+
+    dir[0] = PageDirectoryEntry(0b10000011);
 
     // Sets mappings temporary so that the kernel is mapped to the upper half of the vm space
-    dir[0] = 0b10000011;
-
-    dir[768] = (0 << 22) | 0b10000011;
-    dir[769] = (1 << 22) | 0b10000011;
-    dir[770] = (2 << 22) | 0b10000011;
-    dir[771] = (3 << 22) | 0b10000011;
-    dir[772] = (4 << 22) | 0b10000011;
-    dir[773] = (5 << 22) | 0b10000011;
-    dir[774] = (6 << 22) | 0b10000011;
+    dir[768] = PageDirectoryEntry::from_usize((0 << 22) | 0b10000011);
+    dir[769] = PageDirectoryEntry::from_usize((1 << 22) | 0b10000011);
+    dir[770] = PageDirectoryEntry::from_usize((2 << 22) | 0b10000011);
+    dir[771] = PageDirectoryEntry::from_usize((3 << 22) | 0b10000011);
+    dir[772] = PageDirectoryEntry::from_usize((4 << 22) | 0b10000011);
+    dir[773] = PageDirectoryEntry::from_usize((5 << 22) | 0b10000011);
 
     dir
 };
@@ -43,12 +42,12 @@ unsafe extern "C" {
     static KERNEL_END: u8;
 }
 
-enum Bit { 
+pub enum Bit { 
     Used,
-    Unused,
+   Unused,
 }
 
-struct Bitmap {
+pub struct Bitmap {
     content: [u8; Self::BIT_MAP_USED_PAGES_SIZE]
 }
 
@@ -96,6 +95,49 @@ struct PageDirectoryEntry {
     present: u1,
 }
 
+impl PageDirectoryEntry {
+    pub const fn empty() -> Self {
+        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(0) } 
+    }
+    
+    pub const fn from_usize(value: usize) -> Self {
+        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(value) } 
+    }
+
+    pub const fn to_usize(&self) -> usize {
+        unsafe { core::mem::transmute::<PageDirectoryEntry, usize>(*self) } 
+    }
+}
+
+#[bitstruct::bitstruct]
+struct PageTableEntry {
+    address: u20,
+    available: u3,
+    global: u1,
+    page_attribute_table: u1,
+    dirty: u1,
+    accessed: u1,
+    cache_disable: u1,
+    write_through: u1,
+    user_supervisor: u1,
+    read_write: u1,
+    present: u1,
+}
+
+impl PageTableEntry {
+    pub const fn empty() -> Self {
+        unsafe { core::mem::transmute::<usize, Self>(0) } 
+    }
+    
+    pub const fn from_usize(value: usize) -> Self {
+        unsafe { core::mem::transmute::<usize, Self>(value) } 
+    }
+
+    pub const fn to_usize(&self) -> usize {
+        unsafe { core::mem::transmute::<Self, usize>(*self) } 
+    }
+}
+
 fn invalidate(vaddr: usize) {
     unsafe { core::arch::asm!("invlpg [{}]", in(reg) vaddr) };
 }
@@ -122,12 +164,17 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
 
 
     for i in 0..=(kernel_pages_needed / 1024) {
+        let mut e = PageDirectoryEntry::empty();
+        e.set_address((kernel_page_entries_physical_address / 0x1000) as u32 + i as u32);
+        e.set_read_write(1);
+        e.set_present(1);
+
         unsafe {
-            KERNEL_PAGE_DIRECTORY_TABLE[768 + i] = (kernel_page_entries_physical_address / 0x1000) + i << 12 | 0b11;
+            KERNEL_PAGE_DIRECTORY_TABLE[768 + i] = e;
         }
     }
 
-    unsafe { KERNEL_PAGE_DIRECTORY_TABLE[0] = 0 };
+    unsafe { KERNEL_PAGE_DIRECTORY_TABLE[0] = PageDirectoryEntry::empty() };
 
     invalidate(0);
 
