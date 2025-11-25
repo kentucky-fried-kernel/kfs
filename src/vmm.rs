@@ -8,7 +8,7 @@ const PAGE_SIZE :usize = 0x1000;
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut BIT_MAP_USED_PAGES: Bitmap = Bitmap::new();
+pub static mut USED_PAGES: Bitmap = Bitmap::new();
 
 #[used]
 #[unsafe(no_mangle)]
@@ -41,11 +41,6 @@ unsafe extern "C" {
     static KERNEL_END: u8;
 }
 
-pub enum Bit { 
-    Used,
-   Unused,
-}
-
 pub struct Bitmap {
     content: [u8; Self::BIT_MAP_USED_PAGES_SIZE]
 }
@@ -63,14 +58,14 @@ impl Bitmap {
         return self.content[page_index_byte] & 1 << (7 - page_index_bit);
     }
 
-    pub fn set(&mut self, index: usize, value: Bit) {
-        match value {
-            Bit::Used => {
+    pub fn set(&mut self, index: usize, used: bool) {
+        match used {
+            true => {
                 let page_index_bit = index % 8;
                 let page_index_byte = index / 8;
                 self.content[page_index_byte] |= 1 << (7 - page_index_bit);
             },
-            Bit::Unused => {
+            false => {
                 let page_index_bit = index % 8;
                 let page_index_byte = index / 8;
                 self.content[page_index_byte] &= !(1 << (7 - page_index_bit));
@@ -151,7 +146,7 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     
     for i in 0..kernel_pages_needed {
         unsafe { 
-            BIT_MAP_USED_PAGES.set(i, Bit::Used); 
+            USED_PAGES.set(i, true); 
         }
 
         let dir_index = i / PAGE_TABLE_LEN;
@@ -189,5 +184,34 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     for i in 0..=kernel_pages_needed {
         invalidate(KERNEL_BASE + i * PAGE_SIZE);
     }
+}
 
+
+enum MmapError {
+    VaddrAlreadyMapped,
+    NotEnoughMemory,
+
+}
+
+fn page_get(vaddr: usize) -> Option<*const PageTableEntry> {
+    return Some(unsafe {&KERNEL_PAGE_TABLES[0][0]});
+}
+
+pub fn mmap(vaddr: usize, size: usize) -> Result<usize, MmapError> {
+    // Check if the current vaddr with the len is already in use
+    let pages_needed = (size + (PAGE_SIZE - (size % PAGE_SIZE))) / PAGE_SIZE;
+    for _ in 0..pages_needed {
+        if let Some(_) = page_get(vaddr) {
+            return Err(MmapError::VaddrAlreadyMapped);
+        }
+    }
+
+    // Check if there is enough pmem
+
+    // Create the mappings in the kernel table
+
+    // set in USED_PAGES
+
+    // return vaddr from the start
+    Ok(0)
 }
