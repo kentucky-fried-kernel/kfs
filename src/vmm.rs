@@ -1,6 +1,5 @@
 use crate::{
     boot::KERNEL_BASE,
-    printkln,
 };
 
 const PAGE_SIZE :usize = 0x1000;
@@ -15,7 +14,7 @@ pub static mut BIT_MAP_USED_PAGES: Bitmap = Bitmap::new();
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut KERNEL_PAGE_ENTRY_TABLES: [[usize; 1024]; 1024] = [[0;1024]; 1024];
+pub static mut KERNEL_PAGE_TABLES: [[PageTableEntry; 1024]; 1024] = [[PageTableEntry::empty();1024]; 1024];
 
 #[used]
 #[unsafe(no_mangle)]
@@ -80,6 +79,7 @@ impl Bitmap {
     }
 }
 
+const PAGE_DIRECTORY_LEN: usize = 1024;
 
 #[bitstruct::bitstruct]
 struct PageDirectoryEntry {
@@ -108,6 +108,8 @@ impl PageDirectoryEntry {
         unsafe { core::mem::transmute::<PageDirectoryEntry, usize>(*self) } 
     }
 }
+
+const PAGE_TABLE_LEN: usize = 1024;
 
 #[bitstruct::bitstruct]
 struct PageTableEntry {
@@ -144,28 +146,33 @@ fn invalidate(vaddr: usize) {
 
 #[allow(static_mut_refs)]
 pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
-    let kernel_end = unsafe {&KERNEL_END as *const u8} as usize;
-    let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / 0x1000;
+    let kernel_end = unsafe {&KERNEL_END as *const _} as usize;
+    let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
     
     for i in 0..kernel_pages_needed {
         unsafe { 
             BIT_MAP_USED_PAGES.set(i, Bit::Used); 
         }
 
-        let dir_index = i / 1024;
-        let page_index = i % 1024;
+        let dir_index = i / PAGE_TABLE_LEN;
+        let page_index = i % PAGE_TABLE_LEN;
+        let mut e = PageTableEntry::default();
+        e.set_address(i as u32); 
+        e.set_read_write(1);
+        e.set_present(1);
+
         unsafe {
-            KERNEL_PAGE_ENTRY_TABLES[dir_index][page_index] = i << 12 | 0b11;
+            KERNEL_PAGE_TABLES[dir_index][page_index] = e;
         }
     }
 
-    let mut kernel_page_entries_physical_address = &raw const KERNEL_PAGE_ENTRY_TABLES as usize;
+    let mut kernel_page_entries_physical_address = &raw const KERNEL_PAGE_TABLES as usize;
     kernel_page_entries_physical_address -= KERNEL_BASE;
 
 
-    for i in 0..=(kernel_pages_needed / 1024) {
+    for i in 0..=(kernel_pages_needed / PAGE_TABLE_LEN) {
         let mut e = PageDirectoryEntry::empty();
-        e.set_address((kernel_page_entries_physical_address / 0x1000) as u32 + i as u32);
+        e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32);
         e.set_read_write(1);
         e.set_present(1);
 
