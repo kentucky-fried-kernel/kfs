@@ -20,8 +20,6 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    printkln!("STANDARD_CACHE_SIZES: {:?}", kmalloc::STANDARD_CACHE_SIZES);
-    printkln!("STANDARD_CACHE_LEN: {}", kmalloc::STANDARD_CACHE_SIZES.len());
     kmalloc::init().unwrap();
 
     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
