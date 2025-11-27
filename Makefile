@@ -40,7 +40,7 @@ debug-iso: all
 	grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
 
 debug: debug-iso
-	qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G
+	qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G -monitor stdio
 
 test:
 	@LOGLEVEL=INFO ./x.py --end-to-end-tests
