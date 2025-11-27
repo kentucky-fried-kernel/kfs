@@ -32,10 +32,7 @@ pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [PageDirectoryEntry; KERNEL_PAGE_DIR
     dir[769] = PageDirectoryEntry::from_usize((1 << 22) | 0b10000011);
     dir[770] = PageDirectoryEntry::from_usize((2 << 22) | 0b10000011);
     dir[771] = PageDirectoryEntry::from_usize((3 << 22) | 0b10000011);
-    dir[772] = PageDirectoryEntry::from_usize((4 << 22) | 0b10000011);
-    dir[773] = PageDirectoryEntry::from_usize((5 << 22) | 0b10000011);
-    dir[774] = PageDirectoryEntry::from_usize((6 << 22) | 0b10000011);
-    dir[775] = PageDirectoryEntry::from_usize((7 << 22) | 0b10000011);
+
 
     dir
 };
@@ -144,6 +141,9 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
             KERNEL_PAGE_DIRECTORY_TABLE[768 + i] = e;
         }
     }
+
+    unsafe { KERNEL_PAGE_DIRECTORY_TABLE[0] = PageDirectoryEntry::empty() };
+
     // Set all page direcotry entries to empty but connect them to the page tables
     for i in 0..KERNEL_PAGE_DIRECTORY_TABLE_SIZE {
         unsafe {
@@ -154,15 +154,15 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
         }
         let mut e = PageDirectoryEntry::empty();
         e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32);
+        e.set_read_write(1);
+        e.set_present(1);
 
         unsafe {
             KERNEL_PAGE_DIRECTORY_TABLE[i] = e;
         }
     }
 
-    unsafe { KERNEL_PAGE_DIRECTORY_TABLE[0] = PageDirectoryEntry::empty() };
 
-    // Remove maps from caches
     invalidate(0);
 
     for i in 0..=kernel_pages_needed {
@@ -266,11 +266,16 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
                     printkln!("Virtual: 0x{:x}", virtual_i);
                     
                     *physical_page = Some(access);
+
                     let mut e = PageTableEntry::empty();
                     e.set_address(physical_i as u32);
                     e.set_read_write(permissions as u8);
                     e.set_present(1);
                     *virtual_page = e;
+
+                    printkln!("address entry {:p}", virtual_page);
+                    printkln!("address table {:p}", &KERNEL_PAGE_TABLES);
+
                     if let Err(_) = return_value {
                         return_value = Ok(virtual_i * PAGE_SIZE);
                     }
@@ -280,12 +285,4 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
             },
         }
     }
-    // Check if there is enough pmem
-
-    // Create the mappings in the kernel table
-
-    // set in USED_PAGES
-
-    // return vaddr from the start
-    Ok(0)
 }

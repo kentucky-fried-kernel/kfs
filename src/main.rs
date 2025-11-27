@@ -4,6 +4,8 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+use core::arch::asm;
+
 use kfs::{boot::MultibootInfo, printk, vmm::PAGE_SIZE};
 
 mod panic;
@@ -42,24 +44,33 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
 
     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    let addr  = vmm::mmap(None,  PAGE_SIZE, vmm::Permissions::Read, vmm::Access::User);
-    match addr {
-        Ok(addr) => printkln!("return addr: 0x{:x}", addr),
-        Err(err) => printkln!("{:?}", err)
-    }
+        let mut value: u32;
+        unsafe {
+
+        asm!("mov {}, cr0", out(reg) value);
+        }
+        printkln!("REGISTER: {:b}", value);
+        value |= 1 << 16;
+        unsafe {
+
+        asm!("mov cr0, {}", in(reg) value);
+        }
+
     let addr  = vmm::mmap(None,  PAGE_SIZE, vmm::Permissions::Read, vmm::Access::User);
     let addr = match addr {
         Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
         Err(err) => {printkln!("{:?}", err); 0}
     };
-    // let ptr = addr as *const i32;       // interpret as pointer to i32
+    let addr = 0xfff;
+    let ptr = addr as *mut u8;       // interpret as pointer to i32
 
-    // unsafe {
-    //     // ⚠️ undefined behavior if the address is invalid/unmapped/unaligned
-    //     let value = *ptr;
-    //     printkln!("Value at {:X} = {}", addr, value);
+    unsafe {
+        // ⚠️ undefined behavior if the address is invalid/unmapped/unaligned
+        // *ptr = 42;
+        let value = *ptr;
+        printkln!("Value at {:X} = {}", addr, value);
 
-    // }
+    }
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
