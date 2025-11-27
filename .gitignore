@@ -7,3 +7,4 @@ kernel
 build
 a.out
 mem.txt
+.venv

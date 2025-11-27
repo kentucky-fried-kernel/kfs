@@ -11,33 +11,18 @@ mod panic;
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, printkln, shell, terminal, vmm};
-
-    printkln!("Multiboot Info Struct Address: 0x{:x}", info as *const _ as usize);
-    printkln!("Multiboot Magic: {:x}", magic);
-    printkln!("{}", info);
-    printkln!("_start       : 0x{:x}", kfs::boot::_start as *const () as usize);
-    printkln!("kmain        : 0x{:x}", kmain as *const () as usize);
-    printkln!("idt::init    : 0x{:x}", arch::x86::idt::init as *const () as usize);
-    printkln!("higher_half  : 0x{:x}", kfs::boot::higher_half as *const () as usize);
+    use kfs::{
+        arch,
+        kmalloc::{self, kmalloc},
+        printkln, shell, terminal, vmm,
+    };
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    let mut i = 0;
-    printkln!("start table");
-    loop {
-        use kfs::boot::MultibootMmapEntry;
-
-        unsafe {
-            let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
-            printkln!("addr: 0x{:09X} | len : 0x{:08X} | type : {:x}", (*entry).addr , (*entry).len , (*entry).ty);
-            i += (*entry).size + 4;
-            if i >= info.mmap_length {
-                break;
-            }
-        }
-    }
+    printkln!("STANDARD_CACHE_SIZES: {:?}", kmalloc::STANDARD_CACHE_SIZES);
+    printkln!("STANDARD_CACHE_LEN: {}", kmalloc::STANDARD_CACHE_SIZES.len());
+    kmalloc::init().unwrap();
 
     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
