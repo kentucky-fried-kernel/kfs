@@ -61,7 +61,7 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
         Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
         Err(err) => {printkln!("{:?}", err); 0}
     };
-    let addr = 0xfff;
+    let addr = 0x1000;
     let ptr = addr as *mut u8;       // interpret as pointer to i32
 
     unsafe {
