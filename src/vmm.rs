@@ -2,8 +2,8 @@ use core::mem::take;
 
 use crate::{boot::{KERNEL_BASE, MemoryMap}, printkln};
 
-const PAGE_SIZE: usize = 0x1000;
-const MEMORY_MAX: usize = usize::MAX;
+pub const PAGE_SIZE: usize = 0x1000;
+pub const MEMORY_MAX: usize = usize::MAX;
 
 #[used]
 #[unsafe(no_mangle)]
@@ -170,6 +170,7 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     }
 }
 
+#[derive(Debug)]
 pub enum MmapError {
     VaddrRangeAlreadyMapped,
     NotEnoughMemory,
@@ -178,8 +179,8 @@ pub enum MmapError {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Permissions {
-    Read,
-    ReadWrite,
+    Read = 0,
+    ReadWrite = 1,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -201,11 +202,11 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
     unsafe {
-        let page_physical_used_lowest_index_user = match USED_PAGES.iter().rev().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::Root)) {
+        let page_physical_used_lowest_index_user = match USED_PAGES.iter().rev().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::User)) {
             Some((i, _)) => i,
             None => u32::MAX as usize / PAGE_SIZE,
         };
-        let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::User)) {
+        let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::Root)) {
             Some((i, _)) => i,
             None => 0,
         };
@@ -223,18 +224,20 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
                     .filter(|(_, b)| b.is_none())
                     .take(pages_needed);
 
-                let free_pages = free_pages_physical_iter.clone().count();
+                let free_pages = free_pages_physical_iter.count();
                 if free_pages < pages_needed {
-                    return Err(MmapError::NotEnoughMemory);
+                    return Err(MmapError::NotImplemented);
                 }
 
+                let free_pages_physical_iter = USED_PAGES
+                    .iter_mut()
+                    .enumerate()
+                    .rev()
+                    .take(USED_PAGES.len() - page_physical_used_highest_index_root)
+                    .filter(|(_, b)| b.is_none())
+                    .take(pages_needed);
                 let pages_physical_to_be_allocated = free_pages_physical_iter.take(pages_needed);
 
-                // let pages_virtual_to_be_allocated = KERNEL_PAGE_TABLES
-                //     .iter()
-                //     .enumerate()
-                //     .flat_map(|(outer_i, table)| table.iter().enumerate().map(move |(inner_i, p)| (outer_i, inner_i, p)))
-                //     .filter(|(_, _, p)| p.present() == 0);
                 let pages_virtual_free_iter = KERNEL_PAGE_TABLES.iter_mut().flatten().enumerate()
                 ;
                 let pages_virtual_to_be_allocated = {
@@ -246,15 +249,6 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
                             res = Some(KERNEL_PAGE_TABLES.iter_mut().flatten().enumerate().skip(i));
                             break;
                         }
-
-                        // let free_in_range = pages_virtual_free_iter.take(pages_needed).filter(|p| p.present() == 0).count();
-
-                        // let pages_virtual_free_iter = KERNEL_PAGE_TABLES.iter_mut().flatten().skip(i).filter(|p| p.present() == 0);
-                        // let all_in_range = pages_virtual_free_iter.take(pages_needed).count();
-
-                        // if all_in_range == free_in_range {
-                        //     return Some()
-                        // }
                     }
                     res
                 };
@@ -266,10 +260,23 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
                 let pages_to_be_allocated = pages_physical_to_be_allocated.zip(pages_virtual_to_be_allocated);
 
-                for (physical_page, virtual_page) in pages_to_be_allocated {
-                    printkln!("Physical: 0x{:x}", physical_page.0);
-                    printkln!("Virtual: 0x{:x}", virtual_page.0);
+                let mut return_value  = Err(MmapError::NotEnoughMemory);
+                for ((physical_i, physical_page), (virtual_i, virtual_page)) in pages_to_be_allocated {
+                    printkln!("Physical: 0x{:x}", physical_i);
+                    printkln!("Virtual: 0x{:x}", virtual_i);
+                    
+                    *physical_page = Some(access);
+                    let mut e = PageTableEntry::empty();
+                    e.set_address(physical_i as u32);
+                    e.set_read_write(permissions as u8);
+                    e.set_present(1);
+                    *virtual_page = e;
+                    if let Err(_) = return_value {
+                        return_value = Ok(virtual_i * PAGE_SIZE);
+                    }
                 }
+
+                return return_value;
             },
         }
     }
