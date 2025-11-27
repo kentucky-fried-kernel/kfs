@@ -15,6 +15,7 @@ pub static mut USED_PAGES: Bitmap = Bitmap::new();
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
 pub static mut KERNEL_PAGE_TABLES: [[PageTableEntry; 1024]; 1024] = [[PageTableEntry::empty();1024]; 1024];
+const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;
 
 #[used]
 #[unsafe(no_mangle)]
@@ -173,6 +174,21 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
 
         unsafe {
             KERNEL_PAGE_DIRECTORY_TABLE[768 + i] = e;
+        }
+    }
+    // Set all page direcotry entries to empty but connect them to the page tables
+    for i in 0..KERNEL_PAGE_DIRECTORY_TABLE_SIZE {
+        unsafe {
+            let already_set = KERNEL_PAGE_DIRECTORY_TABLE[i].address() != 0;
+            if  already_set {
+                continue;
+            }
+        }
+        let mut e = PageDirectoryEntry::empty();
+        e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32);
+
+        unsafe {
+            KERNEL_PAGE_DIRECTORY_TABLE[i] = e;
         }
     }
 
