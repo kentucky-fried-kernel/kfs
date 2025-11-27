@@ -1,29 +1,29 @@
-use crate::{
-    boot::KERNEL_BASE,
-};
+use core::mem::take;
 
-const PAGE_SIZE :usize = 0x1000;
-const MEMORY_MAX :usize = usize::MAX;
+use crate::{boot::{KERNEL_BASE, MemoryMap}, printkln};
+
+const PAGE_SIZE: usize = 0x1000;
+const MEMORY_MAX: usize = usize::MAX;
 
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut USED_PAGES: [Option<Access>;  USED_PAGES_SIZE] = [None; USED_PAGES_SIZE];
+pub static mut USED_PAGES: [Option<Access>; USED_PAGES_SIZE] = [None; USED_PAGES_SIZE];
 const USED_PAGES_SIZE: usize = MEMORY_MAX / PAGE_SIZE;
 
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut KERNEL_PAGE_TABLES: [[PageTableEntry; 1024]; 1024] = [[PageTableEntry::empty();1024]; 1024];
+pub static mut KERNEL_PAGE_TABLES: [[PageTableEntry; 1024]; 1024] = [[PageTableEntry::empty(); 1024]; 1024];
 
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
 pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = {
-    let mut dir : [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from_usize(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
+    let mut dir: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from_usize(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
 
     dir[0] = PageDirectoryEntry(0b10000011);
 
@@ -62,15 +62,15 @@ struct PageDirectoryEntry {
 
 impl PageDirectoryEntry {
     pub const fn empty() -> Self {
-        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(0) } 
+        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(0) }
     }
-    
+
     pub const fn from_usize(value: usize) -> Self {
-        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(value) } 
+        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(value) }
     }
 
     pub const fn to_usize(&self) -> usize {
-        unsafe { core::mem::transmute::<PageDirectoryEntry, usize>(*self) } 
+        unsafe { core::mem::transmute::<PageDirectoryEntry, usize>(*self) }
     }
 }
 
@@ -93,15 +93,15 @@ struct PageTableEntry {
 
 impl PageTableEntry {
     pub const fn empty() -> Self {
-        unsafe { core::mem::transmute::<usize, Self>(0) } 
+        unsafe { core::mem::transmute::<usize, Self>(0) }
     }
-    
+
     pub const fn from_usize(value: usize) -> Self {
-        unsafe { core::mem::transmute::<usize, Self>(value) } 
+        unsafe { core::mem::transmute::<usize, Self>(value) }
     }
 
     pub const fn to_usize(&self) -> usize {
-        unsafe { core::mem::transmute::<Self, usize>(*self) } 
+        unsafe { core::mem::transmute::<Self, usize>(*self) }
     }
 }
 
@@ -111,33 +111,32 @@ fn invalidate(vaddr: usize) {
 
 #[allow(static_mut_refs)]
 pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
-    let kernel_end = unsafe {&KERNEL_END as *const _} as usize;
+    let kernel_end = unsafe { &KERNEL_END as *const _ } as usize;
     let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
-    
+
     for i in 0..kernel_pages_needed {
-        unsafe { 
+        unsafe {
             USED_PAGES[i] = Some(Access::Root);
         }
 
         let dir_index = i / PAGE_TABLE_LEN;
         let page_index = i % PAGE_TABLE_LEN;
-        let mut e = PageTableEntry::default();
-        e.set_address(i as u32); 
+        let mut e = PageTableEntry::empty();
+        e.set_address(i as u32);
         e.set_read_write(1);
         e.set_present(1);
 
         unsafe {
-            KERNEL_PAGE_TABLES[dir_index][page_index] = e;
+            KERNEL_PAGE_TABLES[768 + dir_index][page_index] = e;
         }
     }
 
     let mut kernel_page_entries_physical_address = &raw const KERNEL_PAGE_TABLES as usize;
     kernel_page_entries_physical_address -= KERNEL_BASE;
 
-
     for i in 0..=(kernel_pages_needed / PAGE_TABLE_LEN) {
         let mut e = PageDirectoryEntry::empty();
-        e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32);
+        e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32 + 768);
         e.set_read_write(1);
         e.set_present(1);
 
@@ -149,7 +148,7 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     for i in 0..KERNEL_PAGE_DIRECTORY_TABLE_SIZE {
         unsafe {
             let already_set = KERNEL_PAGE_DIRECTORY_TABLE[i].address() != 0;
-            if  already_set {
+            if already_set {
                 continue;
             }
         }
@@ -171,8 +170,8 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     }
 }
 
-enum MmapError {
-    VaddrAlreadyMapped,
+pub enum MmapError {
+    VaddrRangeAlreadyMapped,
     NotEnoughMemory,
     NotImplemented,
 }
@@ -193,48 +192,93 @@ fn page_get(vaddr: usize) -> Option<*const PageTableEntry> {
     return Some(unsafe { &KERNEL_PAGE_TABLES[0][0] });
 }
 
-// #[allow(static_mut_refs)]
-// pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access) -> Result<usize, MmapError> {
-//     if let Some(_) = vaddr {
-//         unimplemented!();
-//     }
+#[allow(static_mut_refs)]
+pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access) -> Result<usize, MmapError> {
+    if let Some(_) = vaddr {
+        unimplemented!();
+    }
 
-//     let pages_needed = (size + size % PAGE_SIZE) / PAGE_SIZE;
-//     unsafe {
-//         let page_physical_used_lowest_index_user = match USED_PAGES.iter().rev().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::Root)) {
-//             Some((i, _)) => i,
-//             None => 0,
-//         };
-//         let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::User)) {
-//             Some((i, _)) => i,
-//             None => u32::MAX as usize / PAGE_SIZE,
-//         };
+    let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
-//         match access {
-//             Access::Root => {
-//                 unimplemented!()
-//             }
-//             Access::User => unsafe {
-//                 let free_pages_physical_iter = USED_PAGES.iter().enumerate().take(page_physical_used_highest_index_root).filter(|(_, b)| b.is_none());
-//                 let free_pages = free_pages_physical_iter.clone().count();
-//                 if free_pages < pages_needed {
-//                     return Err(MmapError::NotEnoughMemory);
-//                 }
+    unsafe {
+        let page_physical_used_lowest_index_user = match USED_PAGES.iter().rev().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::Root)) {
+            Some((i, _)) => i,
+            None => u32::MAX as usize / PAGE_SIZE,
+        };
+        let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::User)) {
+            Some((i, _)) => i,
+            None => 0,
+        };
 
-//                 let pages_physical_to_be_allocated = free_pages_physical_iter.clone().take(pages_needed);
+        match access {
+            Access::Root => {
+                unimplemented!()
+            }
+            Access::User => {
+                let free_pages_physical_iter = USED_PAGES
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .take(USED_PAGES.len() - page_physical_used_highest_index_root)
+                    .filter(|(_, b)| b.is_none())
+                    .take(pages_needed);
 
-//                 // let pages_virtual_to_be_allocated = KERNEL_PAGE_TABLES.iter().enumerate().flat_map(f)
+                let free_pages = free_pages_physical_iter.clone().count();
+                if free_pages < pages_needed {
+                    return Err(MmapError::NotEnoughMemory);
+                }
 
+                let pages_physical_to_be_allocated = free_pages_physical_iter.take(pages_needed);
 
-//             },
-//         }
-//     }
-//     // Check if there is enough pmem
+                // let pages_virtual_to_be_allocated = KERNEL_PAGE_TABLES
+                //     .iter()
+                //     .enumerate()
+                //     .flat_map(|(outer_i, table)| table.iter().enumerate().map(move |(inner_i, p)| (outer_i, inner_i, p)))
+                //     .filter(|(_, _, p)| p.present() == 0);
+                let pages_virtual_free_iter = KERNEL_PAGE_TABLES.iter_mut().flatten().enumerate()
+                ;
+                let pages_virtual_to_be_allocated = {
+                    let mut res = None;
+                    for (i, p) in pages_virtual_free_iter {
+                        printkln!("i: {}", i);
+                        let all_are_free = pages_needed == KERNEL_PAGE_TABLES.iter_mut().flatten().skip(i).take(pages_needed).filter(|p| p.present() == 0).count();
+                        if all_are_free {
+                            res = Some(KERNEL_PAGE_TABLES.iter_mut().flatten().enumerate().skip(i));
+                            break;
+                        }
 
-//     // Create the mappings in the kernel table
+                        // let free_in_range = pages_virtual_free_iter.take(pages_needed).filter(|p| p.present() == 0).count();
 
-//     // set in USED_PAGES
+                        // let pages_virtual_free_iter = KERNEL_PAGE_TABLES.iter_mut().flatten().skip(i).filter(|p| p.present() == 0);
+                        // let all_in_range = pages_virtual_free_iter.take(pages_needed).count();
 
-//     // return vaddr from the start
-//     Ok(0)
-// }
+                        // if all_in_range == free_in_range {
+                        //     return Some()
+                        // }
+                    }
+                    res
+                };
+
+                let pages_virtual_to_be_allocated = match pages_virtual_to_be_allocated {
+                    Some(it) => it,
+                    None => return Err(MmapError::VaddrRangeAlreadyMapped),
+                };
+
+                let pages_to_be_allocated = pages_physical_to_be_allocated.zip(pages_virtual_to_be_allocated);
+
+                for (physical_page, virtual_page) in pages_to_be_allocated {
+                    printkln!("Physical: 0x{:x}", physical_page.0);
+                    printkln!("Virtual: 0x{:x}", virtual_page.0);
+                }
+            },
+        }
+    }
+    // Check if there is enough pmem
+
+    // Create the mappings in the kernel table
+
+    // set in USED_PAGES
+
+    // return vaddr from the start
+    Ok(0)
+}

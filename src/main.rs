@@ -37,10 +37,12 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     printkln!("idt::init    : 0x{:x}", arch::x86::idt::init as *const () as usize);
     printkln!("higher_half  : 0x{:x}", kfs::boot::higher_half as *const () as usize);
 
-    arch::x86::gdt::init();
-    arch::x86::idt::init();
+    // arch::x86::gdt::init();
+    // arch::x86::idt::init();
 
     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+
+    let _  = vmm::mmap(None, 1, vmm::Permissions::Read, vmm::Access::User);
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
