@@ -3,26 +3,27 @@ use crate::{
 };
 
 const PAGE_SIZE :usize = 0x1000;
+const MEMORY_MAX :usize = usize::MAX;
 
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut USED_PAGES: Bitmap = Bitmap::new();
+pub static mut USED_PAGES: [Option<Access>;  USED_PAGES_SIZE] = [None; USED_PAGES_SIZE];
+const USED_PAGES_SIZE: usize = MEMORY_MAX / PAGE_SIZE;
 
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
 pub static mut KERNEL_PAGE_TABLES: [[PageTableEntry; 1024]; 1024] = [[PageTableEntry::empty();1024]; 1024];
-const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;
 
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
-pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [PageDirectoryEntry; 1024] = {
-    let mut dir : [PageDirectoryEntry; 1024] = [PageDirectoryEntry::from_usize(0); 1024];
+pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = {
+    let mut dir : [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from_usize(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
 
     dir[0] = PageDirectoryEntry(0b10000011);
 
@@ -33,49 +34,17 @@ pub static mut KERNEL_PAGE_DIRECTORY_TABLE: [PageDirectoryEntry; 1024] = {
     dir[771] = PageDirectoryEntry::from_usize((3 << 22) | 0b10000011);
     dir[772] = PageDirectoryEntry::from_usize((4 << 22) | 0b10000011);
     dir[773] = PageDirectoryEntry::from_usize((5 << 22) | 0b10000011);
+    dir[774] = PageDirectoryEntry::from_usize((6 << 22) | 0b10000011);
+    dir[775] = PageDirectoryEntry::from_usize((7 << 22) | 0b10000011);
 
     dir
 };
+const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;
 
 unsafe extern "C" {
     #[link_name = "_kernel_end"]
     static KERNEL_END: u8;
 }
-
-pub struct Bitmap {
-    content: [u8; Self::BIT_MAP_USED_PAGES_SIZE]
-}
-
-impl Bitmap {
-    const BIT_MAP_USED_PAGES_SIZE :usize =  usize::MAX / PAGE_SIZE / 8;
-
-    pub const fn new() -> Self {
-        Bitmap { content: [0; Self::BIT_MAP_USED_PAGES_SIZE] }
-    }
-
-    pub fn get(&self, index: usize) -> u8 {
-        let page_index_bit = index % 8;
-        let page_index_byte = index / 8;
-        return self.content[page_index_byte] & 1 << (7 - page_index_bit);
-    }
-
-    pub fn set(&mut self, index: usize, used: bool) {
-        match used {
-            true => {
-                let page_index_bit = index % 8;
-                let page_index_byte = index / 8;
-                self.content[page_index_byte] |= 1 << (7 - page_index_bit);
-            },
-            false => {
-                let page_index_bit = index % 8;
-                let page_index_byte = index / 8;
-                self.content[page_index_byte] &= !(1 << (7 - page_index_bit));
-            }
-        }
-    }
-}
-
-const PAGE_DIRECTORY_LEN: usize = 1024;
 
 #[bitstruct::bitstruct]
 struct PageDirectoryEntry {
@@ -147,7 +116,7 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     
     for i in 0..kernel_pages_needed {
         unsafe { 
-            USED_PAGES.set(i, true); 
+            USED_PAGES[i] = Some(Access::Root);
         }
 
         let dir_index = i / PAGE_TABLE_LEN;
@@ -202,32 +171,70 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     }
 }
 
-
 enum MmapError {
     VaddrAlreadyMapped,
     NotEnoughMemory,
+    NotImplemented,
+}
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum Permissions {
+    Read,
+    ReadWrite,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Access {
+    User,
+    Root,
 }
 
 fn page_get(vaddr: usize) -> Option<*const PageTableEntry> {
-    return Some(unsafe {&KERNEL_PAGE_TABLES[0][0]});
+    return Some(unsafe { &KERNEL_PAGE_TABLES[0][0] });
 }
 
-pub fn mmap(vaddr: usize, size: usize) -> Result<usize, MmapError> {
-    // Check if the current vaddr with the len is already in use
-    let pages_needed = (size + (PAGE_SIZE - (size % PAGE_SIZE))) / PAGE_SIZE;
-    for _ in 0..pages_needed {
-        if let Some(_) = page_get(vaddr) {
-            return Err(MmapError::VaddrAlreadyMapped);
-        }
-    }
+// #[allow(static_mut_refs)]
+// pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access) -> Result<usize, MmapError> {
+//     if let Some(_) = vaddr {
+//         unimplemented!();
+//     }
 
-    // Check if there is enough pmem
+//     let pages_needed = (size + size % PAGE_SIZE) / PAGE_SIZE;
+//     unsafe {
+//         let page_physical_used_lowest_index_user = match USED_PAGES.iter().rev().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::Root)) {
+//             Some((i, _)) => i,
+//             None => 0,
+//         };
+//         let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::User)) {
+//             Some((i, _)) => i,
+//             None => u32::MAX as usize / PAGE_SIZE,
+//         };
 
-    // Create the mappings in the kernel table
+//         match access {
+//             Access::Root => {
+//                 unimplemented!()
+//             }
+//             Access::User => unsafe {
+//                 let free_pages_physical_iter = USED_PAGES.iter().enumerate().take(page_physical_used_highest_index_root).filter(|(_, b)| b.is_none());
+//                 let free_pages = free_pages_physical_iter.clone().count();
+//                 if free_pages < pages_needed {
+//                     return Err(MmapError::NotEnoughMemory);
+//                 }
 
-    // set in USED_PAGES
+//                 let pages_physical_to_be_allocated = free_pages_physical_iter.clone().take(pages_needed);
 
-    // return vaddr from the start
-    Ok(0)
-}
+//                 // let pages_virtual_to_be_allocated = KERNEL_PAGE_TABLES.iter().enumerate().flat_map(f)
+
+
+//             },
+//         }
+//     }
+//     // Check if there is enough pmem
+
+//     // Create the mappings in the kernel table
+
+//     // set in USED_PAGES
+
+//     // return vaddr from the start
+//     Ok(0)
+// }
