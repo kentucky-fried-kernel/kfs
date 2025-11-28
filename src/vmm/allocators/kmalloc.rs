@@ -1,5 +1,3 @@
-use core::slice::Iter;
-
 use crate::vmm::allocators::bitmap::BitMap;
 
 pub const KMALLOC_ALIGNMENT: usize = 0x08;
