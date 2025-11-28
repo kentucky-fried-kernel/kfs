@@ -11,13 +11,13 @@ mod panic;
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, kmalloc, shell, terminal, vmm::paging};
+    use kfs::{arch, shell, terminal, vmm};
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    paging::init::init_memory(info.mem_upper as usize, info.mem_lower as usize);
-    kmalloc::init().unwrap();
+    vmm::paging::init::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    vmm::allocators::kmalloc::init().unwrap();
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });

@@ -12,7 +12,6 @@ use core::panic::PanicInfo;
 pub mod arch;
 pub mod boot;
 pub mod conv;
-pub mod kmalloc;
 pub mod macros;
 pub mod port;
 pub mod printk;
