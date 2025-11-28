@@ -21,10 +21,8 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     let kernel_end = unsafe { &KERNEL_END as *const _ } as usize;
     let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
 
-    for i in 0..kernel_pages_needed {
-        unsafe {
-            USED_PAGES[i] = Some(Access::Root);
-        }
+    for (i, item) in unsafe { USED_PAGES }.iter_mut().enumerate().take(kernel_pages_needed) {
+        *item = Some(Access::Root);
 
         let dir_index = i / PAGE_TABLE_SIZE;
         let page_index = i % PAGE_TABLE_SIZE;
@@ -55,7 +53,7 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     unsafe { KERNEL_PAGE_DIRECTORY_TABLE.0[0] = PageDirectoryEntry::empty() }
 
     unsafe {
-        for  (i, entry)   in KERNEL_PAGE_DIRECTORY_TABLE.0.iter_mut().enumerate() {
+        for (i, entry) in KERNEL_PAGE_DIRECTORY_TABLE.0.iter_mut().enumerate() {
             let already_set = entry.address() != 0;
             if already_set {
                 continue;

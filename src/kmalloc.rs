@@ -1,5 +1,3 @@
-use crate::printkln;
-
 pub const KMALLOC_ALIGNMENT: usize = 0x08;
 
 static mut MMAP: Mmap = Mmap::empty();
@@ -211,7 +209,7 @@ impl Iterator for BlockCacheIntoIterator {
 
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
-    let mut bc = BlockCache::new(16)?;
+    let _bc = BlockCache::new(16)?;
 
     Ok(())
 }

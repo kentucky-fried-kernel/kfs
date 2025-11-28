@@ -1,4 +1,8 @@
-use crate::vmm::paging::{Access, PAGE_SIZE, Permissions, page_entries::PageTableEntry, state::{KERNEL_PAGE_TABLES, USED_PAGES}};
+use crate::vmm::paging::{
+    Access, PAGE_SIZE, Permissions,
+    page_entries::PageTableEntry,
+    state::{KERNEL_PAGE_TABLES, USED_PAGES},
+};
 
 #[derive(Debug)]
 pub enum MmapError {
@@ -9,18 +13,14 @@ pub enum MmapError {
 
 #[allow(static_mut_refs)]
 pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access) -> Result<usize, MmapError> {
-    if let Some(_) = vaddr {
+    if vaddr.is_some() {
         unimplemented!();
     }
 
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
     unsafe {
-        let page_physical_used_lowest_index_user = match USED_PAGES.iter().rev().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::User)) {
-            Some((i, _)) => i,
-            None => u32::MAX as usize / PAGE_SIZE,
-        };
-        let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(i, p)| p.is_some_and(|p| p == Access::Root)) {
+        let page_physical_used_highest_index_root = match USED_PAGES.iter().enumerate().find(|(_i, p)| p.is_some_and(|p| p == Access::Root)) {
             Some((i, _)) => i,
             None => 0,
         };
@@ -55,7 +55,7 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
                 let pages_virtual_free_iter = KERNEL_PAGE_TABLES.iter_mut().flat_map(|p| &mut p.0).enumerate();
                 let pages_virtual_to_be_allocated = {
                     let mut res = None;
-                    for (i, p) in pages_virtual_free_iter {
+                    for (i, _p) in pages_virtual_free_iter {
                         let all_are_free = pages_needed
                             == KERNEL_PAGE_TABLES
                                 .iter_mut()
@@ -81,7 +81,6 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
                 let mut return_value = Err(MmapError::NotEnoughMemory);
                 for ((physical_i, physical_page), (virtual_i, virtual_page)) in pages_to_be_allocated {
-
                     *physical_page = Some(access);
 
                     let mut e = PageTableEntry::empty();
@@ -90,12 +89,12 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
                     e.set_present(1);
                     *virtual_page = e;
 
-                    if let Err(_) = return_value {
+                    if return_value.is_err() {
                         return_value = Ok(virtual_i * PAGE_SIZE);
                     }
                 }
 
-                return return_value;
+                return_value
             }
         }
     }
