@@ -6,25 +6,21 @@
 
 use core::arch::asm;
 
-use kfs::{boot::MultibootInfo, printk, vmm::PAGE_SIZE};
+use kfs::{boot::MultibootInfo, printk, vmm::paging::init::init_memory};
 
 mod panic;
 
 #[derive(Copy, Clone)]
 struct Range {
     pub start: u32,
-    pub size: u32
+    pub size: u32,
 }
 
 impl Range {
     fn new() -> Self {
-        Range {
-            start: 0,
-            size: 0,
-        }
+        Range { start: 0, size: 0 }
     }
 }
-
 
 // #[cfg(not(test))]
 #[unsafe(no_mangle)]
@@ -42,35 +38,35 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     // arch::x86::gdt::init();
     // arch::x86::idt::init();
 
-    vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-        let mut value: u32;
-        unsafe {
+    //     let mut value: u32;
+    //     unsafe {
 
-        asm!("mov {}, cr0", out(reg) value);
-        }
-        printkln!("REGISTER: {:b}", value);
-        value |= 1 << 16;
-        unsafe {
+    //     asm!("mov {}, cr0", out(reg) value);
+    //     }
+    //     printkln!("REGISTER: {:b}", value);
+    //     value |= 1 << 16;
+    //     unsafe {
 
-        asm!("mov cr0, {}", in(reg) value);
-        }
+    //     asm!("mov cr0, {}", in(reg) value);
+    //     }
 
-    let addr  = vmm::mmap(None,  PAGE_SIZE, vmm::Permissions::Read, vmm::Access::User);
-    let addr = match addr {
-        Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
-        Err(err) => {printkln!("{:?}", err); 0}
-    };
-    let addr = 0x1000;
-    let ptr = addr as *mut u8;       // interpret as pointer to i32
+    // let addr  = vmm::mmap(None,  PAGE_SIZE, vmm::Permissions::Read, vmm::Access::User);
+    // let addr = match addr {
+    //     Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
+    //     Err(err) => {printkln!("{:?}", err); 0}
+    // };
+    // let addr = 0x1000;
+    // let ptr = addr as *mut u8;       // interpret as pointer to i32
 
-    unsafe {
-        // ⚠️ undefined behavior if the address is invalid/unmapped/unaligned
-        // *ptr = 42;
-        let value = *ptr;
-        printkln!("Value at {:X} = {}", addr, value);
+    // unsafe {
+    //     // ⚠️ undefined behavior if the address is invalid/unmapped/unaligned
+    //     // *ptr = 42;
+    //     let value = *ptr;
+    //     printkln!("Value at {:X} = {}", addr, value);
 
-    }
+    // }
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
