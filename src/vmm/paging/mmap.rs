@@ -1,4 +1,4 @@
-use crate::vmm::paging::{Access, PAGE_SIZE, Permissions, page_entries::PageTableEntry, state::{KERNEL_PAGE_TABLES, USED_PAGES}};
+use crate::{printkln, vmm::paging::{Access, PAGE_SIZE, Permissions, page_entries::PageTableEntry, state::{KERNEL_PAGE_TABLES, USED_PAGES}}};
 
 #[derive(Debug)]
 pub enum MmapError {
@@ -81,6 +81,8 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
                 let mut return_value = Err(MmapError::NotEnoughMemory);
                 for ((physical_i, physical_page), (virtual_i, virtual_page)) in pages_to_be_allocated {
+                    printkln!("virt: {:x}", virtual_i);
+                    printkln!("phys: {:x}", physical_i);
 
                     *physical_page = Some(access);
 
@@ -88,6 +90,7 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
                     e.set_address(physical_i as u32);
                     e.set_read_write(permissions as u8);
                     e.set_present(1);
+
                     *virtual_page = e;
 
                     if let Err(_) = return_value {

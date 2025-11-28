@@ -6,7 +6,7 @@
 
 use core::arch::asm;
 
-use kfs::{boot::MultibootInfo, printk, vmm::paging::init::init_memory};
+use kfs::{boot::MultibootInfo, printk, vmm::paging::{Access, PAGE_SIZE, Permissions, init::init_memory, mmap::mmap, state::KERNEL_PAGE_DIRECTORY_TABLE}};
 
 mod panic;
 
@@ -35,38 +35,18 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     printkln!("idt::init    : 0x{:x}", arch::x86::idt::init as *const () as usize);
     printkln!("higher_half  : 0x{:x}", kfs::boot::higher_half as *const () as usize);
 
-    // arch::x86::gdt::init();
-    // arch::x86::idt::init();
+    arch::x86::gdt::init();
+    arch::x86::idt::init();
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    //     let mut value: u32;
-    //     unsafe {
 
-    //     asm!("mov {}, cr0", out(reg) value);
-    //     }
-    //     printkln!("REGISTER: {:b}", value);
-    //     value |= 1 << 16;
-    //     unsafe {
 
-    //     asm!("mov cr0, {}", in(reg) value);
-    //     }
-
-    // let addr  = vmm::mmap(None,  PAGE_SIZE, vmm::Permissions::Read, vmm::Access::User);
-    // let addr = match addr {
-    //     Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
-    //     Err(err) => {printkln!("{:?}", err); 0}
-    // };
-    // let addr = 0x1000;
-    // let ptr = addr as *mut u8;       // interpret as pointer to i32
-
-    // unsafe {
-    //     // ⚠️ undefined behavior if the address is invalid/unmapped/unaligned
-    //     // *ptr = 42;
-    //     let value = *ptr;
-    //     printkln!("Value at {:X} = {}", addr, value);
-
-    // }
+    let addr  = mmap(None,  PAGE_SIZE, Permissions::ReadWrite, Access::User);
+    let _ = match addr {
+        Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
+        Err(err) => {printkln!("{:?}", err); 0}
+    };
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
