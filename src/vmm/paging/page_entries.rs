@@ -96,7 +96,6 @@ impl PageDirectoryEntry {
     }
 }
 
-
 #[bitstruct::bitstruct]
 pub struct PageTableEntry {
     address: u20,

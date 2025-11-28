@@ -62,13 +62,6 @@ pub enum Error {
     DoubleFree,
 }
 
-// basic approach:
-// (merge branch with whole memory mapped to avoid page faults)
-// start with pre-mapping block caches for object sizes 32, 64, 256, 512, 1024, 2048
-// service requests <= 2048 bytes by finding the first free block
-// allocate whole pages for larger requests
-// stop overengineering from the start!!
-
 #[derive(Clone, Copy, Debug)]
 struct BitMap {
     bits: [u8; MAX_OBJECTS_PER_CACHE / 8],
