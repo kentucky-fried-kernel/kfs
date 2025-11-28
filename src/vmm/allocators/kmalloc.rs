@@ -1,4 +1,4 @@
-use crate::vmm::allocators::bitmap::BitMap;
+use crate::{printkln, vmm::allocators::bitmap::BitMap};
 
 pub const KMALLOC_ALIGNMENT: usize = 0x08;
 
@@ -77,6 +77,7 @@ impl BlockCache {
     #[allow(static_mut_refs)]
     pub fn new(object_size: u16) -> Result<Self, Error> {
         let mut pages = [core::ptr::null::<u8>(); PAGES_PER_CACHE];
+
         for page in pages.iter_mut() {
             *page = unsafe { MMAP.mmap().ok_or(Error::MmapFailure)? };
         }
@@ -88,7 +89,7 @@ impl BlockCache {
         })
     }
 
-    pub fn alloc(&mut self) -> Option<*const u8> {
+    pub fn malloc(&mut self) -> Option<*const u8> {
         for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
             if bit == 0 {
                 self.bitmap.set(idx);
@@ -151,9 +152,36 @@ impl Iterator for BlockCacheIntoIterator {
     }
 }
 
+static mut CACHE_8: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_16: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_32: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_64: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_128: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_256: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_512: BlockCache = unsafe { core::mem::zeroed() };
+
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
-    let _bc = BlockCache::new(16)?;
+    unsafe {
+        CACHE_8 = BlockCache::new(8).unwrap();
+        CACHE_16 = BlockCache::new(16).unwrap();
+        CACHE_32 = BlockCache::new(32).unwrap();
+        CACHE_64 = BlockCache::new(64).unwrap();
+        CACHE_128 = BlockCache::new(128).unwrap();
+        CACHE_256 = BlockCache::new(256).unwrap();
+        CACHE_512 = BlockCache::new(512).unwrap();
+
+        printkln!("{:x}", CACHE_8.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_8.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_16.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_32.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_64.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_128.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_256.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_512.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_512.malloc().unwrap() as usize);
+        printkln!("{:x}", CACHE_512.malloc().unwrap() as usize);
+    }
 
     Ok(())
 }
