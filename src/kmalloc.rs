@@ -1,5 +1,4 @@
 use crate::printkln;
-use bitstruct::traits::*;
 
 pub const KMALLOC_ALIGNMENT: usize = 0x08;
 
@@ -46,14 +45,14 @@ impl Mmap {
         None
     }
 
-    pub fn munmap(&mut self, addr: *const u8) -> Result<(), ()> {
+    pub fn munmap(&mut self, addr: *const u8) -> Result<(), Error> {
         for i in 0..1024 {
             if self.pages[i].data.as_ptr() == addr {
                 self.bitmap[i / 8] &= !(1 << (i % 8));
                 return Ok(());
             }
         }
-        Err(())
+        Err(Error::InvalidPointer)
     }
 }
 
@@ -135,7 +134,7 @@ pub struct BlockCache {
 impl BlockCache {
     #[allow(static_mut_refs)]
     pub fn new(object_size: u16) -> Result<Self, Error> {
-        let mut pages = [0 as *const u8; PAGES_PER_CACHE];
+        let mut pages = [core::ptr::null::<u8>(); PAGES_PER_CACHE];
         for page in pages.iter_mut() {
             *page = unsafe { MMAP.mmap().ok_or(Error::MmapFailure)? };
         }
@@ -214,10 +213,10 @@ impl Iterator for BlockCacheIntoIterator {
 pub fn init() -> Result<(), Error> {
     let mut bc = BlockCache::new(16)?;
 
-    let foo = bc.alloc().ok_or(Error::MmapFailure)?;
-    bc.free(foo)?;
-    let foo = bc.alloc().ok_or(Error::MmapFailure)?;
-    printkln!("{:x}", foo as usize);
+    let ptr = bc.alloc().ok_or(Error::MmapFailure)?;
+    bc.free(ptr)?;
+    let ptr = bc.alloc().ok_or(Error::MmapFailure)?;
+    printkln!("{:x}", ptr as usize);
 
     Ok(())
 }

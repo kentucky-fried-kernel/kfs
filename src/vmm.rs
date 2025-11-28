@@ -1,7 +1,4 @@
-use crate::{
-    boot::{INITIAL_PAGE_DIR, KERNEL_BASE},
-    printkln,
-};
+use crate::boot::{INITIAL_PAGE_DIR, KERNEL_BASE};
 
 #[bitstruct::bitstruct]
 struct PageDirectoryEntry {

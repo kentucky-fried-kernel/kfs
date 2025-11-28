@@ -10,12 +10,8 @@ mod panic;
 
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
-pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
-    use kfs::{
-        arch,
-        kmalloc::{self, kmalloc},
-        printkln, shell, terminal, vmm,
-    };
+pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+    use kfs::{arch, kmalloc, shell, terminal, vmm};
 
     arch::x86::gdt::init();
     arch::x86::idt::init();

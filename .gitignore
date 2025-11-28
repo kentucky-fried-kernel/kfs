@@ -8,3 +8,5 @@ build
 a.out
 mem.txt
 .venv
+
+kcache.py
