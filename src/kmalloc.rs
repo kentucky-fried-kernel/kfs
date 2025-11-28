@@ -213,10 +213,5 @@ impl Iterator for BlockCacheIntoIterator {
 pub fn init() -> Result<(), Error> {
     let mut bc = BlockCache::new(16)?;
 
-    let ptr = bc.alloc().ok_or(Error::MmapFailure)?;
-    bc.free(ptr)?;
-    let ptr = bc.alloc().ok_or(Error::MmapFailure)?;
-    printkln!("{:x}", ptr as usize);
-
     Ok(())
 }
