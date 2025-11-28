@@ -29,8 +29,6 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
     invalidate(0);
 
     let page_dir_phys = unsafe { (&INITIAL_PAGE_DIR as *const _ as usize) - KERNEL_BASE };
-    printkln!("page_dir_phys: 0x{:x}", page_dir_phys);
-    printkln!("page_dir_virt: 0x{:x}", unsafe { &INITIAL_PAGE_DIR as *const _ as usize });
 
     let page_dir_entry: u32 = PageDirectoryEntry::new(page_dir_phys as u32 | 1 | 2).into();
     // Recursive mapping (maps the page directory itself into virtual memory)
