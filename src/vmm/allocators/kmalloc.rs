@@ -1,8 +1,17 @@
-use crate::{printkln, vmm::allocators::bitmap::BitMap};
+use crate::{
+    printkln,
+    vmm::{
+        allocators::bitmap::BitMap,
+        paging::{
+            Access, Permissions,
+            mmap::{MmapError, mmap},
+        },
+    },
+};
 
-pub const KMALLOC_ALIGNMENT: usize = 0x08;
+// pub const KMALLOC_ALIGNMENT: usize = 0x08;
 
-static mut MMAP: Mmap = Mmap::empty();
+// static mut MMAP: Mmap = Mmap::empty();
 
 #[repr(C, align(0x1000))]
 #[derive(Clone, Copy)]
@@ -10,51 +19,51 @@ pub struct Page {
     data: [u8; 4096],
 }
 
-impl Page {
-    pub const fn empty() -> Self {
-        Self { data: [0; 4096] }
-    }
-}
+// impl Page {
+//     pub const fn empty() -> Self {
+//         Self { data: [0; 4096] }
+//     }
+// }
 
-pub struct Mmap {
-    pages: [Page; 1024],
-    bitmap: [u8; 1024 / 8],
-}
+// pub struct Mmap {
+//     pages: [Page; 1024],
+//     bitmap: [u8; 1024 / 8],
+// }
 
-impl Mmap {
-    pub const fn empty() -> Self {
-        Self {
-            pages: [Page::empty(); 1024],
-            bitmap: [0; 1024 / 8],
-        }
-    }
+// impl Mmap {
+//     pub const fn empty() -> Self {
+//         Self {
+//             pages: [Page::empty(); 1024],
+//             bitmap: [0; 1024 / 8],
+//         }
+//     }
 
-    pub fn mmap(&mut self) -> Option<*const u8> {
-        for i in 0..(1024 / 8) {
-            if self.bitmap[i] == 0xff {
-                continue;
-            }
+//     pub fn mmap(&mut self) -> Option<*const u8> {
+//         for i in 0..(1024 / 8) {
+//             if self.bitmap[i] == 0xff {
+//                 continue;
+//             }
 
-            for j in 0..8 {
-                if (self.bitmap[i] >> j) & 1 == 0 {
-                    self.bitmap[i] |= 1 << j;
-                    return Some(self.pages[i * 8 + j].data.as_ptr());
-                }
-            }
-        }
-        None
-    }
+//             for j in 0..8 {
+//                 if (self.bitmap[i] >> j) & 1 == 0 {
+//                     self.bitmap[i] |= 1 << j;
+//                     return Some(self.pages[i * 8 + j].data.as_ptr());
+//                 }
+//             }
+//         }
+//         None
+//     }
 
-    pub fn munmap(&mut self, addr: *const u8) -> Result<(), Error> {
-        for i in 0..1024 {
-            if self.pages[i].data.as_ptr() == addr {
-                self.bitmap[i / 8] &= !(1 << (i % 8));
-                return Ok(());
-            }
-        }
-        Err(Error::InvalidPointer)
-    }
-}
+//     pub fn munmap(&mut self, addr: *const u8) -> Result<(), Error> {
+//         for i in 0..1024 {
+//             if self.pages[i].data.as_ptr() == addr {
+//                 self.bitmap[i / 8] &= !(1 << (i % 8));
+//                 return Ok(());
+//             }
+//         }
+//         Err(Error::InvalidPointer)
+//     }
+// }
 
 #[derive(Debug)]
 pub enum Error {
@@ -75,11 +84,11 @@ pub struct BlockCache {
 
 impl BlockCache {
     #[allow(static_mut_refs)]
-    pub fn new(object_size: u16) -> Result<Self, Error> {
+    pub fn new(object_size: u16) -> Result<Self, MmapError> {
         let mut pages = [core::ptr::null::<u8>(); PAGES_PER_CACHE];
 
         for page in pages.iter_mut() {
-            *page = unsafe { MMAP.mmap().ok_or(Error::MmapFailure)? };
+            *page = mmap(None, 4096, Permissions::Read, Access::User)? as *const u8;
         }
 
         Ok(Self {
@@ -161,6 +170,13 @@ static mut CACHE_256: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_512: BlockCache = unsafe { core::mem::zeroed() };
 
 #[allow(static_mut_refs)]
+pub fn kmalloc(size: usize) -> usize {
+    let ptr = mmap(None, size, Permissions::Read, Access::User).unwrap();
+    printkln!("{:x}", ptr);
+    ptr
+}
+
+#[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
     unsafe {
         CACHE_8 = BlockCache::new(8).unwrap();
@@ -171,16 +187,11 @@ pub fn init() -> Result<(), Error> {
         CACHE_256 = BlockCache::new(256).unwrap();
         CACHE_512 = BlockCache::new(512).unwrap();
 
-        printkln!("{:x}", CACHE_8.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_8.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_16.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_32.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_64.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_128.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_256.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_512.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_512.malloc().unwrap() as usize);
-        printkln!("{:x}", CACHE_512.malloc().unwrap() as usize);
+        for _ in 0..0x10 {
+            let ptr = kmalloc(8);
+            // printkln!("{:x}", ptr);
+            // kfree(ptr);
+        }
     }
 
     Ok(())
