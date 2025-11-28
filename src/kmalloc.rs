@@ -1,4 +1,5 @@
 use crate::printkln;
+use bitstruct::traits::*;
 
 pub const KMALLOC_ALIGNMENT: usize = 0x08;
 
@@ -60,16 +61,8 @@ impl Mmap {
 pub enum Error {
     NoSpaceLeft,
     MmapFailure,
-}
-
-pub fn kmalloc(size: usize) -> Result<*const usize, &'static str> {
-    Ok(size as *const usize)
-}
-
-pub fn kfree(addr: *const usize) {}
-
-pub fn ksize(addr: *const usize) -> usize {
-    0
+    InvalidPointer,
+    DoubleFree,
 }
 
 // basic approach:
@@ -79,23 +72,102 @@ pub fn ksize(addr: *const usize) -> usize {
 // allocate whole pages for larger requests
 // stop overengineering from the start!!
 
+#[derive(Clone, Copy, Debug)]
+struct BitMap {
+    bits: [u8; MAX_OBJECTS_PER_CACHE / 8],
+}
+
+impl BitMap {
+    pub const fn new() -> Self {
+        Self {
+            bits: [0u8; MAX_OBJECTS_PER_CACHE / 8],
+        }
+    }
+
+    pub fn set(&mut self, index: usize) {
+        self.bits[index / 8] |= 1 << (index % 8)
+    }
+
+    pub fn unset(&mut self, index: usize) {
+        self.bits[index / 8] &= !(1 << (index % 8))
+    }
+}
+
+impl IntoIterator for BitMap {
+    type IntoIter = BitMapIntoIterator;
+    type Item = u8;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter { bitmap: self, index: 0 }
+    }
+}
+
+struct BitMapIntoIterator {
+    bitmap: BitMap,
+    index: usize,
+}
+
+impl Iterator for BitMapIntoIterator {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index * 8 >= MAX_OBJECTS_PER_CACHE {
+            return None;
+        }
+
+        let res = (self.bitmap.bits[self.index / 8] >> (self.index % 8)) & 1;
+        self.index += 1;
+
+        Some(res)
+    }
+}
+
 const PAGES_PER_CACHE: usize = 8;
+const MAX_OBJECTS_PER_CACHE: usize = 4096;
 
 #[derive(Clone, Copy, Debug)]
 pub struct BlockCache {
     pages: [*const u8; PAGES_PER_CACHE],
-    bitmap: u8,
+    bitmap: BitMap,
     object_size: u16,
 }
 
 impl BlockCache {
     #[allow(static_mut_refs)]
     pub fn new(object_size: u16) -> Result<Self, Error> {
+        let mut pages = [0 as *const u8; PAGES_PER_CACHE];
+        for page in pages.iter_mut() {
+            *page = unsafe { MMAP.mmap().ok_or(Error::MmapFailure)? };
+        }
+
         Ok(Self {
-            pages: [unsafe { MMAP.mmap() }.ok_or(Error::MmapFailure)?; PAGES_PER_CACHE],
-            bitmap: 0,
+            pages,
+            bitmap: BitMap::new(),
             object_size,
         })
+    }
+
+    pub fn alloc(&mut self) -> Option<*const u8> {
+        for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
+            if bit == 0 {
+                self.bitmap.set(idx);
+                return Some(object);
+            }
+        }
+        None
+    }
+
+    pub fn free(&mut self, addr: *const u8) -> Result<(), Error> {
+        for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
+            if object == addr {
+                if bit == 0 {
+                    return Err(Error::InvalidPointer);
+                }
+                self.bitmap.unset(idx);
+                return Ok(());
+            }
+        }
+        Err(Error::InvalidPointer)
     }
 }
 
@@ -104,7 +176,7 @@ impl IntoIterator for BlockCache {
     type IntoIter = BlockCacheIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        BlockCacheIntoIterator {
+        Self::IntoIter {
             block_cache: self,
             current_position: self.pages[0],
             page_index: 0,
@@ -131,19 +203,21 @@ impl Iterator for BlockCacheIntoIterator {
             return Some(self.current_position);
         }
 
-        self.current_position = unsafe { self.current_position.add(self.page_index * self.block_cache.object_size as usize) };
-        Some(self.current_position)
+        let current_position = self.current_position;
+
+        self.current_position = unsafe { self.current_position.add(self.block_cache.object_size as usize) };
+        Some(current_position)
     }
 }
 
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
-    let bc = BlockCache::new(16);
+    let mut bc = BlockCache::new(16)?;
 
-    // unsafe { *(0xd0000000 as *mut usize) = 0 };
-    for b in bc.into_iter() {
-        printkln!("{:?}", b);
-    }
+    let foo = bc.alloc().ok_or(Error::MmapFailure)?;
+    bc.free(foo)?;
+    let foo = bc.alloc().ok_or(Error::MmapFailure)?;
+    printkln!("{:x}", foo as usize);
 
     Ok(())
 }
