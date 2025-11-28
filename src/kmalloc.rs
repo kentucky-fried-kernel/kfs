@@ -79,17 +79,71 @@ pub fn ksize(addr: *const usize) -> usize {
 // allocate whole pages for larger requests
 // stop overengineering from the start!!
 
-pub struct BlockCache32 {
-    pages: [Page; 8],
+const PAGES_PER_CACHE: usize = 8;
+
+#[derive(Clone, Copy, Debug)]
+pub struct BlockCache {
+    pages: [*const u8; PAGES_PER_CACHE],
     bitmap: u8,
+    object_size: u16,
+}
+
+impl BlockCache {
+    #[allow(static_mut_refs)]
+    pub fn new(object_size: u16) -> Result<Self, Error> {
+        Ok(Self {
+            pages: [unsafe { MMAP.mmap() }.ok_or(Error::MmapFailure)?; PAGES_PER_CACHE],
+            bitmap: 0,
+            object_size,
+        })
+    }
+}
+
+impl IntoIterator for BlockCache {
+    type Item = *const u8;
+    type IntoIter = BlockCacheIntoIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BlockCacheIntoIterator {
+            block_cache: self,
+            current_position: self.pages[0],
+            page_index: 0,
+        }
+    }
+}
+
+pub struct BlockCacheIntoIterator {
+    block_cache: BlockCache,
+    current_position: *const u8,
+    page_index: usize,
+}
+
+impl Iterator for BlockCacheIntoIterator {
+    type Item = *const u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_position as usize + self.block_cache.object_size as usize >= (self.current_position as usize & !0xFFF) + 0x1000 {
+            if self.page_index == PAGES_PER_CACHE - 1 {
+                return None;
+            }
+            self.page_index += 1;
+            self.current_position = self.block_cache.pages[self.page_index];
+            return Some(self.current_position);
+        }
+
+        self.current_position = unsafe { self.current_position.add(self.page_index * self.block_cache.object_size as usize) };
+        Some(self.current_position)
+    }
 }
 
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
-    unsafe { *(0xd0000000 as *mut usize) = 0 };
-    for i in 0..1024 {
-        let page = unsafe { MMAP.mmap() }.ok_or(Error::MmapFailure)?;
-        // printkln!("{:x}", page as usize);
+    let bc = BlockCache::new(16);
+
+    // unsafe { *(0xd0000000 as *mut usize) = 0 };
+    for b in bc.into_iter() {
+        printkln!("{:?}", b);
     }
+
     Ok(())
 }
