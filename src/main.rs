@@ -6,7 +6,11 @@
 
 use core::arch::asm;
 
-use kfs::{boot::MultibootInfo, printk, vmm::paging::{Access, PAGE_SIZE, Permissions, init::init_memory, mmap::mmap, state::KERNEL_PAGE_DIRECTORY_TABLE}};
+use kfs::{
+    boot::MultibootInfo,
+    printk,
+    vmm::paging::{Access, PAGE_SIZE, Permissions, init::init_memory, mmap::mmap, state::KERNEL_PAGE_DIRECTORY_TABLE},
+};
 
 mod panic;
 
@@ -40,13 +44,98 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-
-
-    let addr  = mmap(None,  PAGE_SIZE, Permissions::ReadWrite, Access::User);
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
     let _ = match addr {
-        Ok(addr) => {printkln!("return addr: 0x{:x}", addr);  addr},
-        Err(err) => {printkln!("{:?}", err); 0}
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
     };
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, PAGE_SIZE, Permissions::Read, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, 2 *PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let _ = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+
+    unsafe {
+        *(0x8000 as *mut u8) = 3;
+    }
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
