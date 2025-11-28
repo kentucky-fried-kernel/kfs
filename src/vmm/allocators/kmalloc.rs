@@ -4,7 +4,7 @@ use crate::{
         allocators::bitmap::BitMap,
         paging::{
             Access, Permissions,
-            mmap::{MmapError, mmap},
+            mmap::{MmapError, Mode, mmap},
         },
     },
 };
@@ -85,10 +85,11 @@ pub struct BlockCache {
 impl BlockCache {
     #[allow(static_mut_refs)]
     pub fn new(object_size: u16) -> Result<Self, MmapError> {
+        printkln!("New cache for {}", object_size);
         let mut pages = [core::ptr::null::<u8>(); PAGES_PER_CACHE];
 
         for page in pages.iter_mut() {
-            *page = mmap(None, 4096, Permissions::Read, Access::User)? as *const u8;
+            *page = mmap(None, 4096, Permissions::ReadWrite, Access::Root, Mode::Continous)? as *const u8;
         }
 
         Ok(Self {
@@ -168,10 +169,12 @@ static mut CACHE_64: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_128: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_256: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_512: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_1024: BlockCache = unsafe { core::mem::zeroed() };
+static mut CACHE_2048: BlockCache = unsafe { core::mem::zeroed() };
 
 #[allow(static_mut_refs)]
 pub fn kmalloc(size: usize) -> usize {
-    let ptr = mmap(None, size, Permissions::Read, Access::User).unwrap();
+    let ptr = mmap(None, size, Permissions::Read, Access::Root, Mode::Continous).unwrap();
     printkln!("{:x}", ptr);
     ptr
 }
@@ -186,12 +189,8 @@ pub fn init() -> Result<(), Error> {
         CACHE_128 = BlockCache::new(128).unwrap();
         CACHE_256 = BlockCache::new(256).unwrap();
         CACHE_512 = BlockCache::new(512).unwrap();
-
-        for _ in 0..0x10 {
-            let ptr = kmalloc(8);
-            // printkln!("{:x}", ptr);
-            // kfree(ptr);
-        }
+        CACHE_1024 = BlockCache::new(1024).unwrap();
+        CACHE_2048 = BlockCache::new(2048).unwrap();
     }
 
     Ok(())

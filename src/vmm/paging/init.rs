@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 use crate::{
     boot::KERNEL_BASE,
     vmm::paging::{
@@ -18,6 +20,13 @@ fn invalidate(vaddr: usize) {
 
 #[allow(static_mut_refs)]
 pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
+    kernel_page_mappings_create();
+    unset_identity_mapping();
+    page_directory_fill_empty();
+    enable_read_write_enforcement();
+}
+
+fn kernel_page_mappings_create() {
     let kernel_end = unsafe { &KERNEL_END as *const _ } as usize;
     let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
 
@@ -50,14 +59,23 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
         }
     }
 
-    unsafe { KERNEL_PAGE_DIRECTORY_TABLE.0[0] = PageDirectoryEntry::empty() }
+    for i in 0..=kernel_pages_needed {
+        invalidate(KERNEL_BASE + i * PAGE_SIZE);
+    }
+}
 
+fn page_directory_fill_empty() {
+    let mut kernel_page_entries_physical_address = &raw const KERNEL_PAGE_TABLES as usize;
+    kernel_page_entries_physical_address -= KERNEL_BASE;
+
+    #[allow(static_mut_refs)]
     unsafe {
         for (i, entry) in KERNEL_PAGE_DIRECTORY_TABLE.0.iter_mut().enumerate() {
             let already_set = entry.address() != 0;
             if already_set {
                 continue;
             }
+
             let mut e = PageDirectoryEntry::empty();
             e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32);
             e.set_read_write(1);
@@ -66,11 +84,23 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
             *entry = e;
         }
     }
-    // Set all page direcotry entries to empty but connect them to the page tables
+}
+
+fn unset_identity_mapping() {
+    unsafe { KERNEL_PAGE_DIRECTORY_TABLE.0[0] = PageDirectoryEntry::empty() }
 
     invalidate(0);
+}
 
-    for i in 0..=kernel_pages_needed {
-        invalidate(KERNEL_BASE + i * PAGE_SIZE);
+fn enable_read_write_enforcement() {
+    let mut cr0: u32;
+    unsafe {
+        asm!("mov {}, cr0", out(reg) cr0);
+    }
+
+    cr0 |= 1 << 16;
+
+    unsafe {
+        asm!("mov cr0, {}", in(reg) cr0);
     }
 }
