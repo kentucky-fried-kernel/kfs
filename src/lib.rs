@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(const_ops)]
 #![feature(const_trait_impl)]
+#![feature(generic_const_exprs)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]

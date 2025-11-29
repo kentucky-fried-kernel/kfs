@@ -78,7 +78,7 @@ const PAGES_PER_CACHE: usize = 8;
 #[derive(Clone, Copy, Debug)]
 pub struct BlockCache {
     pages: [*const u8; PAGES_PER_CACHE],
-    bitmap: BitMap,
+    bitmap: BitMap<4096>,
     object_size: u16,
 }
 
