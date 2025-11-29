@@ -47,6 +47,88 @@ static mut LEVEL_17: BitMap<{ 1 << 17 }> = BitMap::<{ 1 << 17 }>::new();
 static mut LEVEL_18: BitMap<{ 1 << 18 }> = BitMap::<{ 1 << 18 }>::new();
 static mut LEVEL_19: BitMap<{ 1 << 19 }> = BitMap::<{ 1 << 19 }>::new();
 
+macro_rules! with_bitmap_at_level {
+    ($self:expr, $level:expr, |$bitmap:ident| $body:expr) => {
+        unsafe {
+            match $level {
+                0 | 1 | 2 => {
+                    let $bitmap = &mut *$self.levels[$level].cast::<BitMap<8>>().cast_mut();
+                    $body
+                }
+                3 => {
+                    let $bitmap = &mut *$self.levels[3].cast::<BitMap<{ 1 << 3 }>>().cast_mut();
+                    $body
+                }
+                4 => {
+                    let $bitmap = &mut *$self.levels[4].cast::<BitMap<{ 1 << 4 }>>().cast_mut();
+                    $body
+                }
+                5 => {
+                    let $bitmap = &mut *$self.levels[5].cast::<BitMap<{ 1 << 5 }>>().cast_mut();
+                    $body
+                }
+                6 => {
+                    let $bitmap = &mut *$self.levels[6].cast::<BitMap<{ 1 << 6 }>>().cast_mut();
+                    $body
+                }
+                7 => {
+                    let $bitmap = &mut *$self.levels[7].cast::<BitMap<{ 1 << 7 }>>().cast_mut();
+                    $body
+                }
+                8 => {
+                    let $bitmap = &mut *$self.levels[8].cast::<BitMap<{ 1 << 8 }>>().cast_mut();
+                    $body
+                }
+                9 => {
+                    let $bitmap = &mut *$self.levels[9].cast::<BitMap<{ 1 << 9 }>>().cast_mut();
+                    $body
+                }
+                10 => {
+                    let $bitmap = &mut *$self.levels[10].cast::<BitMap<{ 1 << 10 }>>().cast_mut();
+                    $body
+                }
+                11 => {
+                    let $bitmap = &mut *$self.levels[11].cast::<BitMap<{ 1 << 11 }>>().cast_mut();
+                    $body
+                }
+                12 => {
+                    let $bitmap = &mut *$self.levels[12].cast::<BitMap<{ 1 << 12 }>>().cast_mut();
+                    $body
+                }
+                13 => {
+                    let $bitmap = &mut *$self.levels[13].cast::<BitMap<{ 1 << 13 }>>().cast_mut();
+                    $body
+                }
+                14 => {
+                    let $bitmap = &mut *$self.levels[14].cast::<BitMap<{ 1 << 14 }>>().cast_mut();
+                    $body
+                }
+                15 => {
+                    let $bitmap = &mut *$self.levels[15].cast::<BitMap<{ 1 << 15 }>>().cast_mut();
+                    $body
+                }
+                16 => {
+                    let $bitmap = &mut *$self.levels[16].cast::<BitMap<{ 1 << 16 }>>().cast_mut();
+                    $body
+                }
+                17 => {
+                    let $bitmap = &mut *$self.levels[17].cast::<BitMap<{ 1 << 17 }>>().cast_mut();
+                    $body
+                }
+                18 => {
+                    let $bitmap = &mut *$self.levels[18].cast::<BitMap<{ 1 << 18 }>>().cast_mut();
+                    $body
+                }
+                19 => {
+                    let $bitmap = &mut *$self.levels[19].cast::<BitMap<{ 1 << 19 }>>().cast_mut();
+                    $body
+                }
+                _ => unreachable!(),
+            }
+        }
+    };
+}
+
 pub struct BuddyAllocatorBitmap {
     /// `levels[0]`: 1 * 2 GiB
     ///
@@ -122,6 +204,7 @@ impl BuddyAllocatorBitmap {
         if level_block_size / 2 >= allocation_size {
             return self.alloc_internal(allocation_size, root, level_block_size / 2);
         }
+
         0 as *const u8
     }
 
