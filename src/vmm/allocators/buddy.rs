@@ -31,7 +31,7 @@ macro_rules! bitmap_ptr_cast_mut {
 macro_rules! generate_bitmap_match_arms {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr, [$($lv:literal),* $(,)?]) => {
         match $level {
-            0 | 1 | 2 => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, 8),
+            0..=2 => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, 8),
             $(
                 $lv => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, { 1 << $lv }),
             )*
@@ -111,7 +111,10 @@ impl BuddyAllocatorBitmap {
     #[inline]
     #[allow(static_mut_refs)]
     fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*const u8> {
-        assert!(allocation_size % PAGE_SIZE == 0, "The buddy allocator can only allocate multiples of 4096");
+        assert!(
+            allocation_size.is_multiple_of(PAGE_SIZE),
+            "The buddy allocator can only allocate multiples of 4096"
+        );
 
         let current_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
         if current_state == 0b11 {
@@ -161,7 +164,7 @@ impl BuddyAllocatorBitmap {
     }
 
     pub fn alloc(&mut self, size: usize) -> Option<*const u8> {
-        assert!(size % PAGE_SIZE == 0, "The buddy allocator can only allocate multiples of 4096");
+        assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
         assert!(size < self.size, "The buddy allocator cannot allocate more than {}", self.size);
 
         // if size > self.size {
