@@ -1,35 +1,35 @@
 use crate::{
     printkln,
     vmm::{
-        allocators::bitmap::BitMap,
-        paging::{self, PAGE_SIZE},
+        allocators::bitmap::{BitMap, BuddyAllocatorNode},
+        paging::PAGE_SIZE,
     },
 };
 
-static mut LEVEL_0: BitMap<8> = BitMap::<8>::new();
-static mut LEVEL_1: BitMap<8> = BitMap::<8>::new();
-static mut LEVEL_2: BitMap<8> = BitMap::<8>::new();
-static mut LEVEL_3: BitMap<{ 1 << 3 }> = BitMap::<{ 1 << 3 }>::new();
-static mut LEVEL_4: BitMap<{ 1 << 4 }> = BitMap::<{ 1 << 4 }>::new();
-static mut LEVEL_5: BitMap<{ 1 << 5 }> = BitMap::<{ 1 << 5 }>::new();
-static mut LEVEL_6: BitMap<{ 1 << 6 }> = BitMap::<{ 1 << 6 }>::new();
-static mut LEVEL_7: BitMap<{ 1 << 7 }> = BitMap::<{ 1 << 7 }>::new();
-static mut LEVEL_8: BitMap<{ 1 << 8 }> = BitMap::<{ 1 << 8 }>::new();
-static mut LEVEL_9: BitMap<{ 1 << 9 }> = BitMap::<{ 1 << 9 }>::new();
-static mut LEVEL_10: BitMap<{ 1 << 10 }> = BitMap::<{ 1 << 10 }>::new();
-static mut LEVEL_11: BitMap<{ 1 << 11 }> = BitMap::<{ 1 << 11 }>::new();
-static mut LEVEL_12: BitMap<{ 1 << 12 }> = BitMap::<{ 1 << 12 }>::new();
-static mut LEVEL_13: BitMap<{ 1 << 13 }> = BitMap::<{ 1 << 13 }>::new();
-static mut LEVEL_14: BitMap<{ 1 << 14 }> = BitMap::<{ 1 << 14 }>::new();
-static mut LEVEL_15: BitMap<{ 1 << 15 }> = BitMap::<{ 1 << 15 }>::new();
-static mut LEVEL_16: BitMap<{ 1 << 16 }> = BitMap::<{ 1 << 16 }>::new();
-static mut LEVEL_17: BitMap<{ 1 << 17 }> = BitMap::<{ 1 << 17 }>::new();
-static mut LEVEL_18: BitMap<{ 1 << 18 }> = BitMap::<{ 1 << 18 }>::new();
-static mut LEVEL_19: BitMap<{ 1 << 19 }> = BitMap::<{ 1 << 19 }>::new();
+static mut LEVEL_0: BitMap<BuddyAllocatorNode, 8, 4> = BitMap::<BuddyAllocatorNode, 8, 4>::new();
+static mut LEVEL_1: BitMap<BuddyAllocatorNode, 8, 4> = BitMap::<BuddyAllocatorNode, 8, 4>::new();
+static mut LEVEL_2: BitMap<BuddyAllocatorNode, 8, 4> = BitMap::<BuddyAllocatorNode, 8, 4>::new();
+static mut LEVEL_3: BitMap<BuddyAllocatorNode, { 1 << 3 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 3 }, 4>::new();
+static mut LEVEL_4: BitMap<BuddyAllocatorNode, { 1 << 4 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 4 }, 4>::new();
+static mut LEVEL_5: BitMap<BuddyAllocatorNode, { 1 << 5 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 5 }, 4>::new();
+static mut LEVEL_6: BitMap<BuddyAllocatorNode, { 1 << 6 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 6 }, 4>::new();
+static mut LEVEL_7: BitMap<BuddyAllocatorNode, { 1 << 7 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 7 }, 4>::new();
+static mut LEVEL_8: BitMap<BuddyAllocatorNode, { 1 << 8 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 8 }, 4>::new();
+static mut LEVEL_9: BitMap<BuddyAllocatorNode, { 1 << 9 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 9 }, 4>::new();
+static mut LEVEL_10: BitMap<BuddyAllocatorNode, { 1 << 10 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 10 }, 4>::new();
+static mut LEVEL_11: BitMap<BuddyAllocatorNode, { 1 << 11 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 11 }, 4>::new();
+static mut LEVEL_12: BitMap<BuddyAllocatorNode, { 1 << 12 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 12 }, 4>::new();
+static mut LEVEL_13: BitMap<BuddyAllocatorNode, { 1 << 13 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 13 }, 4>::new();
+static mut LEVEL_14: BitMap<BuddyAllocatorNode, { 1 << 14 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 14 }, 4>::new();
+static mut LEVEL_15: BitMap<BuddyAllocatorNode, { 1 << 15 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 15 }, 4>::new();
+static mut LEVEL_16: BitMap<BuddyAllocatorNode, { 1 << 16 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 16 }, 4>::new();
+static mut LEVEL_17: BitMap<BuddyAllocatorNode, { 1 << 17 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 17 }, 4>::new();
+static mut LEVEL_18: BitMap<BuddyAllocatorNode, { 1 << 18 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 18 }, 4>::new();
+static mut LEVEL_19: BitMap<BuddyAllocatorNode, { 1 << 19 }, 4> = BitMap::<BuddyAllocatorNode, { 1 << 19 }, 4>::new();
 
 macro_rules! bitmap_ptr_cast_mut {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr, $size:expr) => {{
-        let $bitmap = unsafe { &mut *$self.levels[$level].cast::<BitMap<$size>>().cast_mut() };
+        let $bitmap = unsafe { &mut *$self.levels[$level].cast::<BitMap<BuddyAllocatorNode, $size, 4>>().cast_mut() };
         $body
     }};
 }
@@ -123,18 +123,18 @@ impl BuddyAllocatorBitmap {
         if level == self.root_level {
             // This means we need to allocate the entire block if it is free
             if allocation_size > level_block_size / 2 {
-                if with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index)) == 1 {
+                return match with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index)) {
+                    BuddyAllocatorNode::Free => Some(root),
                     // The entire memory needs to be free for this allocation to be possible
-                    return None;
-                }
-                return Some(root);
+                    _ => None,
+                };
             }
             return self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, index);
         }
 
         let (left, right) = with_bitmap_at_level!(self, level, |bitmap| {
             printkln!("{}", bitmap.get(index));
-            bitmap.set(index, 0b10);
+            bitmap.set(index, BuddyAllocatorNode::PartiallyAllocated);
             printkln!("{}", bitmap.get(index));
             bitmap.clear(index);
             printkln!("{}", bitmap.get(index));
@@ -144,8 +144,8 @@ impl BuddyAllocatorBitmap {
 
         if allocation_size > level_block_size / 2 {
             match (left, right) {
-                (0, _) => return Some(root),
-                (_, 0) => return Some((root as usize + level_block_size) as *const u8),
+                (BuddyAllocatorNode::Free, _) => return Some(root),
+                (_, BuddyAllocatorNode::Free) => return Some((root as usize + level_block_size) as *const u8),
                 _ => return None,
             }
         }

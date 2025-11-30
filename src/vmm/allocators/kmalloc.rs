@@ -28,7 +28,7 @@ const PAGES_PER_CACHE: usize = 8;
 #[derive(Clone, Copy, Debug)]
 pub struct BlockCache {
     pages: [*const u8; PAGES_PER_CACHE],
-    bitmap: BitMap<4096>,
+    bitmap: BitMap<u8, 4096, 8>,
     object_size: u16,
 }
 
@@ -142,9 +142,9 @@ pub fn init() -> Result<(), Error> {
     //     CACHE_2048 = BlockCache::new(2048).unwrap();
     // }
 
-    let mut bm = BuddyAllocatorBitmap::new(0 as *const u8, 32768);
-    printkln!("Allocating 4096 bytes from buddy allocator");
-    printkln!("Received address: {:?}", bm.alloc(4096));
+    // let mut bm = BuddyAllocatorBitmap::new(0 as *const u8, 32768);
+    // printkln!("Allocating 4096 bytes from buddy allocator");
+    // printkln!("Received address: {:?}", bm.alloc(4096));
 
     Ok(())
 }
