@@ -1,54 +1,48 @@
-// where [(); N / 8]: => An array of size N / 8 must be constructible
+// where [(); N / 4]: => An array of size N / 4 must be constructible
 // TODO: use 2 bits per node, allows to traverse the tree the following way:
 // - 11: all nodes below are allocated, prune subtree
 // - 00: all nodes below are free, prefer if choice is possible
 // - 10/01: mixed subtree, if no 00 try both
 
-#[repr(u8)]
-pub enum Node {
-    Free = 0b00,
-    PartiallyAllocated = 0b10,
-    Allocated = 0b11,
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct BitMap<const N: usize>
 where
-    [(); N / 8]:,
+    [(); N / 4]:,
 {
-    bits: [u8; N / 8],
+    bits: [u8; N / 4],
 }
 
 impl<const N: usize> BitMap<N>
 where
-    [(); N / 8]:,
+    [(); N / 4]:,
 {
     pub const fn new() -> Self
     where
-        [(); N / 8]:,
+        [(); N / 4]:,
     {
-        Self { bits: [0u8; N / 8] }
+        Self { bits: [0u8; N / 4] }
     }
 
     #[inline]
     pub const fn get(&self, index: usize) -> u8
     where
-        [(); N / 8]:,
+        [(); N / 4]:,
     {
-        (self.bits[index / 8] >> (index % 8)) & 1
+        (self.bits[index / 4] >> (index % 4)) & 0b11
     }
 
     #[inline]
-    pub const fn set(&mut self, index: usize)
+    pub const fn set(&mut self, index: usize, value: u8)
     where
-        [(); N / 8]:,
+        [(); N / 4]:,
     {
-        self.bits[index / 8] |= 1 << (index % 8);
+        self.clear(index);
+        self.bits[index / 4] |= (value & 0b11) << (index % 4);
     }
 
     #[inline]
-    pub const fn unset(&mut self, index: usize) {
-        self.bits[index / 8] &= !(1 << (index % 8));
+    pub const fn clear(&mut self, index: usize) {
+        self.bits[index / 4] &= !(0b11 << (index % 4));
     }
 
     pub const fn as_ptr(&self) -> *const u8 {
@@ -58,7 +52,7 @@ where
 
 impl<const N: usize> IntoIterator for BitMap<N>
 where
-    [(); N / 8]:,
+    [(); N / 4]:,
 {
     type IntoIter = BitMapIntoIterator<N>;
     type Item = u8;
@@ -70,7 +64,7 @@ where
 
 pub struct BitMapIntoIterator<const N: usize>
 where
-    [(); N / 8]:,
+    [(); N / 4]:,
 {
     bitmap: BitMap<N>,
     index: usize,
@@ -78,7 +72,7 @@ where
 
 impl<const N: usize> Iterator for BitMapIntoIterator<N>
 where
-    [(); N / 8]:,
+    [(); N / 4]:,
 {
     type Item = u8;
 
@@ -88,7 +82,7 @@ where
             return None;
         }
 
-        let res = (self.bitmap.bits[self.index / 8] >> (self.index % 8)) & 1;
+        let res = (self.bitmap.bits[self.index / 4] >> (self.index % 4)) & 0b11;
         self.index += 1;
 
         Some(res)

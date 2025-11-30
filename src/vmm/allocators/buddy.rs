@@ -132,7 +132,15 @@ impl BuddyAllocatorBitmap {
             return self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, index);
         }
 
-        let (left, right) = with_bitmap_at_level!(self, level, |bitmap| (bitmap.get(index), bitmap.get(index + 1)));
+        let (left, right) = with_bitmap_at_level!(self, level, |bitmap| {
+            printkln!("{}", bitmap.get(index));
+            bitmap.set(index, 0b10);
+            printkln!("{}", bitmap.get(index));
+            bitmap.clear(index);
+            printkln!("{}", bitmap.get(index));
+
+            (bitmap.get(index), bitmap.get(index + 1))
+        });
 
         if allocation_size > level_block_size / 2 {
             match (left, right) {

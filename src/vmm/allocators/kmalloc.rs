@@ -51,7 +51,7 @@ impl BlockCache {
     pub fn malloc(&mut self) -> Option<*const u8> {
         for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
             if bit == 0 {
-                self.bitmap.set(idx);
+                self.bitmap.set(idx, 1);
                 return Some(object);
             }
         }
@@ -64,7 +64,7 @@ impl BlockCache {
                 if bit == 0 {
                     return Err(Error::InvalidPointer);
                 }
-                self.bitmap.unset(idx);
+                self.bitmap.clear(idx);
                 return Ok(());
             }
         }
@@ -144,7 +144,7 @@ pub fn init() -> Result<(), Error> {
 
     let mut bm = BuddyAllocatorBitmap::new(0 as *const u8, 32768);
     printkln!("Allocating 4096 bytes from buddy allocator");
-    printkln!("Received address: 0x{:x}", bm.alloc(4096).unwrap() as usize);
+    printkln!("Received address: {:?}", bm.alloc(4096));
 
     Ok(())
 }
