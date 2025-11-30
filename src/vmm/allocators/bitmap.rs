@@ -46,7 +46,7 @@ impl const From<BuddyAllocatorNode> for u8 {
 }
 
 /// `N` (number): Total number of entries
-/// `G` (granularity): Entries per byte
+/// `G` (granularity): Entries per byte (one of 1, 2, 4, 8)
 #[derive(Clone, Copy, Debug)]
 pub struct BitMap<const N: usize, const G: usize>
 where
@@ -59,7 +59,8 @@ impl<const N: usize, const G: usize> BitMap<N, G>
 where
     [(); N / G]:,
 {
-    const MASK: u8 = (1 << (8 / G)) - 1;
+    const BITS_PER_ENTRY: usize = 8 / G;
+    const MASK: u8 = (1 << (Self::BITS_PER_ENTRY)) - 1;
 
     pub const fn new() -> Self
     where
@@ -73,7 +74,7 @@ where
     where
         [(); N / G]:,
     {
-        ((self.bits[index / G] >> (index % G)) & Self::MASK).into()
+        (self.bits[index / G] >> ((index % G) * Self::BITS_PER_ENTRY)) & Self::MASK
     }
 
     #[inline]
@@ -82,12 +83,12 @@ where
         [(); N / G]:,
     {
         self.clear(index);
-        self.bits[index / G] |= (value & Self::MASK) << (index % G);
+        self.bits[index / G] |= (value & Self::MASK) << ((index % G) * Self::BITS_PER_ENTRY);
     }
 
     #[inline]
     pub const fn clear(&mut self, index: usize) {
-        self.bits[index / G] &= !(Self::MASK << (index % G));
+        self.bits[index / G] &= !(Self::MASK << ((index % G) * Self::BITS_PER_ENTRY));
     }
 
     pub const fn as_ptr(&self) -> *const u8 {
@@ -123,11 +124,11 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index * 8 >= N {
+        if self.index >= N {
             return None;
         }
 
-        let res = (self.bitmap.bits[self.index / G] >> (self.index % G)) & 0b11;
+        let res = (self.bitmap.bits[self.index / G] >> ((self.index % G) * BitMap::<N, G>::BITS_PER_ENTRY)) & BitMap::<N, G>::MASK;
         self.index += 1;
 
         Some(res)

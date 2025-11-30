@@ -130,11 +130,7 @@ impl BuddyAllocatorBitmap {
         }
 
         let (left, right) = with_bitmap_at_level!(self, level, |bitmap| {
-            printkln!("{}", bitmap.get(index));
-            bitmap.set(index, 0b10);
-            printkln!("{}", bitmap.get(index));
-            bitmap.clear(index);
-            printkln!("{}", bitmap.get(index));
+            printkln!("bits at {}: 0b{:02b}", index, bitmap.get(index));
 
             (bitmap.get(index), bitmap.get(index + 1))
         });
