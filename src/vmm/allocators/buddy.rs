@@ -1,6 +1,9 @@
 use crate::{
     printkln,
-    vmm::{allocators::bitmap::BitMap, paging},
+    vmm::{
+        allocators::bitmap::BitMap,
+        paging::{self, PAGE_SIZE},
+    },
 };
 
 static mut LEVEL_0: BitMap<8> = BitMap::<8>::new();
@@ -67,10 +70,8 @@ pub struct BuddyAllocatorBitmap {
 impl BuddyAllocatorBitmap {
     #[allow(static_mut_refs)]
     pub const fn new(root: *const u8, size: usize) -> Self {
-        let log2 = size.ilog2();
-
-        assert!(2usize.pow(log2) == size, "size parameter must be a power of 2");
-        assert!(size >= 1 << 15 && size <= i32::MAX as usize, "size parameter must be at least 32768 and at most 2147483648");
+        assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
+        assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
 
         let levels = unsafe {
             [
@@ -97,46 +98,77 @@ impl BuddyAllocatorBitmap {
             ]
         };
 
-        let root_level = match size {
-            _ if size == 1 << 31 => 1,
-            _ if size == 1 << 30 => 2,
-            _ if size == 1 << 29 => 3,
-            _ if size == 1 << 28 => 4,
-            _ if size == 1 << 27 => 5,
-            _ if size == 1 << 26 => 6,
-            _ if size == 1 << 25 => 7,
-            _ if size == 1 << 24 => 8,
-            _ if size == 1 << 23 => 9,
-            _ if size == 1 << 22 => 10,
-            _ if size == 1 << 21 => 11,
-            _ if size == 1 << 20 => 12,
-            _ if size == 1 << 19 => 13,
-            _ if size == 1 << 18 => 14,
-            _ if size == 1 << 17 => 15,
-            _ if size == 1 << 16 => 16,
-            _ if size == 1 << 15 => 17,
-            _ => unreachable!(),
+        let root_level = Self::get_root_level(size);
+
+        Self {
+            levels,
+            root,
+            root_level,
+            size,
+        }
+    }
+
+    const fn get_root_level(size: usize) -> usize {
+        assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
+
+        31 - size.ilog2() as usize
+    }
+
+    #[inline]
+    #[allow(static_mut_refs)]
+    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*const u8> {
+        assert!(allocation_size % PAGE_SIZE == 0, "The buddy allocator can only allocate multiples of 4096");
+
+        // Special handling for bitmap.len() == 1
+        if level == self.root_level {
+            // This means we need to allocate the entire block if it is free
+            if allocation_size > level_block_size / 2 {
+                if with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index)) == 1 {
+                    // The entire memory needs to be free for this allocation to be possible
+                    return None;
+                }
+                return Some(root);
+            }
+            return self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, index);
+        }
+
+        let (left, right) = with_bitmap_at_level!(self, level, |bitmap| (bitmap.get(index), bitmap.get(index + 1)));
+
+        if allocation_size > level_block_size / 2 {
+            match (left, right) {
+                (0, _) => return Some(root),
+                (_, 0) => return Some((root as usize + level_block_size) as *const u8),
+                _ => return None,
+            }
+        }
+
+        if level == self.levels.len() {
+            return None;
+        }
+        let next_index = match level {
+            0 => 0,
+            _ => index * 2 + if index % 2 == 0 { 0 } else { 1 },
         };
 
-        Self { levels, root, root_level, size }
-    }
-
-    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize) -> *const u8 {
-        // figure out if we go left or right
         if level_block_size / 2 >= allocation_size {
-            return self.alloc_internal(allocation_size, root, level_block_size / 2);
+            return self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, next_index);
         }
 
-        0 as *const u8
+        None
     }
 
-    pub fn alloc(&mut self, size: usize) -> *const u8 {
-        assert_eq!(size % paging::PAGE_SIZE, 0, "The buddy allocator can only allocate multiples of PAGE_SIZE ({})", paging::PAGE_SIZE);
+    pub fn alloc(&mut self, size: usize) -> Option<*const u8> {
+        assert!(size % PAGE_SIZE == 0, "The buddy allocator can only allocate multiples of 4096");
+        assert!(size < self.size, "The buddy allocator cannot allocate more than {}", self.size);
 
-        if size > self.size {
-            // probably dynamically grow here?
-        }
+        // if size > self.size {
+        //     // probably dynamically grow here?
+        //     // - would have to grow by a factor of at least 4 to satisfy the request,
+        //     //   might make more sense to just pass on the request to mmap directly
+        //     //   return mmap(size, ...);
+        // }
 
-        self.alloc_internal(size, self.root, self.size)
+        self.alloc_internal(size, self.root, self.size, self.root_level, 0)
+        // 0 as *const u8
     }
 }
