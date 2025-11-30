@@ -22,6 +22,7 @@ pkgs.callPackage (
       pkgs.xorriso
       pkgs.mtools
       pkgs.xz
+      pkgs.coreboot-toolchain.i386
     ];
     # libraries here
     buildInputs = with pkgs; [
