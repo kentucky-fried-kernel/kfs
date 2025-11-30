@@ -15,6 +15,7 @@ pkgs.callPackage (
     strictDeps = true;
     nativeBuildInputs = [
       rustup
+      pkgs.rust-analyzer
       rustPlatform.bindgenHook
       pkgs.busybox
       pkgs.qemu
