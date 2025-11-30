@@ -7,7 +7,6 @@
 	"target-c-int-width": 32,
 	"os": "none",
 	"features": "-mmx,-sse",
-	"linker": "i386-elf-ld",
 	"linker-flavor": "ld",
 	"pre-link-args": {
 		"ld": ["-melf_i386"]
