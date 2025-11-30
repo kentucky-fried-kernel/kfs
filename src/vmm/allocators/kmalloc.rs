@@ -1,7 +1,7 @@
 use crate::{
     printkln,
     vmm::{
-        allocators::bitmap::BitMap,
+        allocators::{bitmap::BitMap, buddy::BuddyAllocatorBitmap},
         paging::{
             Access, Permissions,
             mmap::{MmapError, Mode, mmap},
@@ -9,61 +9,11 @@ use crate::{
     },
 };
 
-// pub const KMALLOC_ALIGNMENT: usize = 0x08;
-
-// static mut MMAP: Mmap = Mmap::empty();
-
 #[repr(C, align(0x1000))]
 #[derive(Clone, Copy)]
 pub struct Page {
     data: [u8; 4096],
 }
-
-// impl Page {
-//     pub const fn empty() -> Self {
-//         Self { data: [0; 4096] }
-//     }
-// }
-
-// pub struct Mmap {
-//     pages: [Page; 1024],
-//     bitmap: [u8; 1024 / 8],
-// }
-
-// impl Mmap {
-//     pub const fn empty() -> Self {
-//         Self {
-//             pages: [Page::empty(); 1024],
-//             bitmap: [0; 1024 / 8],
-//         }
-//     }
-
-//     pub fn mmap(&mut self) -> Option<*const u8> {
-//         for i in 0..(1024 / 8) {
-//             if self.bitmap[i] == 0xff {
-//                 continue;
-//             }
-
-//             for j in 0..8 {
-//                 if (self.bitmap[i] >> j) & 1 == 0 {
-//                     self.bitmap[i] |= 1 << j;
-//                     return Some(self.pages[i * 8 + j].data.as_ptr());
-//                 }
-//             }
-//         }
-//         None
-//     }
-
-//     pub fn munmap(&mut self, addr: *const u8) -> Result<(), Error> {
-//         for i in 0..1024 {
-//             if self.pages[i].data.as_ptr() == addr {
-//                 self.bitmap[i / 8] &= !(1 << (i % 8));
-//                 return Ok(());
-//             }
-//         }
-//         Err(Error::InvalidPointer)
-//     }
-// }
 
 #[derive(Debug)]
 pub enum Error {
@@ -85,7 +35,6 @@ pub struct BlockCache {
 impl BlockCache {
     #[allow(static_mut_refs)]
     pub fn new(object_size: u16) -> Result<Self, MmapError> {
-        printkln!("New cache for {}", object_size);
         let mut pages = [core::ptr::null::<u8>(); PAGES_PER_CACHE];
 
         for page in pages.iter_mut() {
@@ -181,17 +130,21 @@ pub fn kmalloc(size: usize) -> usize {
 
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
-    unsafe {
-        CACHE_8 = BlockCache::new(8).unwrap();
-        CACHE_16 = BlockCache::new(16).unwrap();
-        CACHE_32 = BlockCache::new(32).unwrap();
-        CACHE_64 = BlockCache::new(64).unwrap();
-        CACHE_128 = BlockCache::new(128).unwrap();
-        CACHE_256 = BlockCache::new(256).unwrap();
-        CACHE_512 = BlockCache::new(512).unwrap();
-        CACHE_1024 = BlockCache::new(1024).unwrap();
-        CACHE_2048 = BlockCache::new(2048).unwrap();
-    }
+    // unsafe {
+    //     CACHE_8 = BlockCache::new(8).unwrap();
+    //     CACHE_16 = BlockCache::new(16).unwrap();
+    //     CACHE_32 = BlockCache::new(32).unwrap();
+    //     CACHE_64 = BlockCache::new(64).unwrap();
+    //     CACHE_128 = BlockCache::new(128).unwrap();
+    //     CACHE_256 = BlockCache::new(256).unwrap();
+    //     CACHE_512 = BlockCache::new(512).unwrap();
+    //     CACHE_1024 = BlockCache::new(1024).unwrap();
+    //     CACHE_2048 = BlockCache::new(2048).unwrap();
+    // }
+
+    let mut bm = BuddyAllocatorBitmap::new(0 as *const u8, 32768);
+    printkln!("Allocating 4096 bytes from buddy allocator");
+    printkln!("Received address: 0x{:x}", bm.alloc(4096).unwrap() as usize);
 
     Ok(())
 }
