@@ -6,7 +6,7 @@ use crate::{
         paging::{
             Access, PAGE_SIZE, Permissions,
             page_entries::PageTableEntry,
-            state::{KERNEL_PAGE_TABLES, USED_PAGES},
+            state::{self, KERNEL_PAGE_TABLES, USED_PAGES},
         },
     },
 };
@@ -120,4 +120,35 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
     }
 
     first_page_addr
+}
+
+pub enum MunmapError {
+    SizeIsZero,
+}
+
+#[allow(static_mut_refs)]
+pub fn munmap(vaddr: usize, size: usize) -> Result<(), MunmapError> {
+    let size = (size + (size % PAGE_SIZE)) / PAGE_SIZE;
+    if size == 0 {
+        return Err(MunmapError::SizeIsZero);
+    }
+    for i in 0..size {
+        let vaddr = vaddr + i * PAGE_SIZE;
+        let page_directory_index = vaddr >> 22;
+        let page_table_index = (vaddr << 10) >> 22;
+
+        unsafe {
+            let page_directory_entry = &mut state::KERNEL_PAGE_DIRECTORY_TABLE.0[page_directory_index];
+            if page_directory_entry.ps() == 1 {
+                panic!("page directories with size 4mb are not supported");
+            }
+
+            let page_table_entry = &mut KERNEL_PAGE_TABLES[page_directory_index].0[page_table_index];
+            if page_table_entry.present() == 1 {
+                USED_PAGES[page_table_entry.address() as usize] = None;
+            }
+            *page_table_entry = PageTableEntry::empty();
+        }
+    }
+    Ok(())
 }
