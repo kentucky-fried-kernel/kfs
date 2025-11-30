@@ -1,4 +1,8 @@
 // where [(); N / 8]: => An array of size N / 8 must be constructible
+// TODO: use 2 bits per node, allows to traverse the tree the following way:
+// - 11: all nodes below are allocated, prune subtree
+// - 00: all nodes below are free, prefer if choice is possible
+// - 10/01: mixed subtree, if no 00 try both
 
 #[derive(Clone, Copy, Debug)]
 pub struct BitMap<const N: usize>
@@ -32,12 +36,12 @@ where
     where
         [(); N / 8]:,
     {
-        self.bits[index / 8] |= 1 << (index % 8)
+        self.bits[index / 8] |= 1 << (index % 8);
     }
 
     #[inline]
     pub const fn unset(&mut self, index: usize) {
-        self.bits[index / 8] &= !(1 << (index % 8))
+        self.bits[index / 8] &= !(1 << (index % 8));
     }
 
     pub const fn as_ptr(&self) -> *const u8 {
