@@ -3,7 +3,7 @@
 use crate::{
     printkln,
     vmm::{
-        allocators::{bitmap::BitMap, buddy::BuddyAllocatorBitmap},
+        allocators::{bitmap::BitMap, buddy::BuddyAllocator},
         paging::{
             Access, Permissions,
             mmap::{MmapError, Mode, mmap},
@@ -145,9 +145,13 @@ pub fn init() -> Result<(), Error> {
     // }
 
     let cache_memory = mmap(None, 1 << 20, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
-    let mut bm = BuddyAllocatorBitmap::new(cache_memory as *const u8, 1 << 20);
-    for iter in 0..11 {
-        printkln!("[{}] Received address: {:?}", iter, bm.alloc(1 << 19));
+    let mut bm = BuddyAllocator::new(cache_memory as *const u8, 1 << 20);
+    for iter in 0..2 {
+        let addr = bm.alloc(4096 * 2).ok_or(Error::NoSpaceLeft)?;
+        printkln!("[{}] Received address: {:?}", iter, addr);
+        let addr = bm.alloc(4096).ok_or(Error::NoSpaceLeft)?;
+        printkln!("[{}] Received address: {:?}", iter, addr);
+        bm.free(addr);
     }
 
     Ok(())

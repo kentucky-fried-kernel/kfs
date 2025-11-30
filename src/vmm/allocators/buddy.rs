@@ -1,4 +1,7 @@
-use crate::vmm::{allocators::bitmap::BitMap, paging::PAGE_SIZE};
+use crate::{
+    printkln,
+    vmm::{allocators::bitmap::BitMap, paging::PAGE_SIZE},
+};
 
 static mut LEVEL_0: BitMap<8, 4> = BitMap::<8, 4>::new();
 static mut LEVEL_1: BitMap<8, 4> = BitMap::<8, 4>::new();
@@ -48,7 +51,7 @@ macro_rules! with_bitmap_at_level {
     };
 }
 
-pub struct BuddyAllocatorBitmap {
+pub struct BuddyAllocator {
     /// `levels[0]`: 1 * 2 GiB
     ///
     /// `levels[19]`: 1.048.576 * 4096 B
@@ -61,7 +64,7 @@ pub struct BuddyAllocatorBitmap {
     size: usize,
 }
 
-impl BuddyAllocatorBitmap {
+impl BuddyAllocator {
     #[allow(static_mut_refs)]
     pub const fn new(root: *const u8, size: usize) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
@@ -92,7 +95,7 @@ impl BuddyAllocatorBitmap {
             ]
         };
 
-        let root_level = Self::get_root_level(size);
+        let root_level = 31 - size.ilog2() as usize;
 
         Self {
             levels,
@@ -100,12 +103,6 @@ impl BuddyAllocatorBitmap {
             root_level,
             size,
         }
-    }
-
-    const fn get_root_level(size: usize) -> usize {
-        assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
-
-        31 - size.ilog2() as usize
     }
 
     #[inline]
@@ -165,7 +162,7 @@ impl BuddyAllocatorBitmap {
 
     pub fn alloc(&mut self, size: usize) -> Option<*const u8> {
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
-        assert!(size < self.size, "The buddy allocator cannot allocate more than {}", self.size);
+        assert!(size < self.size, "The buddy allocator cannot allocate more than its size");
 
         // if size > self.size {
         //     // probably dynamically grow here?
@@ -175,7 +172,82 @@ impl BuddyAllocatorBitmap {
         // }
 
         self.alloc_internal(size, self.root, self.size, self.root_level, 0)
+    }
 
-        // 0 as *const u8
+    /// Gets the base index (level 19, page granularity) for a given `addr`.
+    /// Used to recurse back from there and find an allocation by address.
+    #[inline]
+    fn get_base_index(&self, addr: *const u8) -> usize {
+        assert!(
+            (self.root as usize..(self.root as usize + self.size)).contains(&(addr as usize)),
+            "addr is out of range for this allocator"
+        );
+
+        (addr as usize - self.root as usize) / PAGE_SIZE
+    }
+
+    fn update_parent_states(&mut self, level: usize, index: usize) {
+        if level == self.root_level {
+            return;
+        }
+
+        let parent_index = index / 2;
+
+        let left_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index & !1));
+        let right_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index | 1));
+
+        let parent_state = match (left_state, right_state) {
+            (0b00, 0b00) => 0b00,
+            (0b11, 0b11) => 0b11,
+            _ => 0b10,
+        };
+
+        with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, parent_state));
+
+        self.update_parent_states(level - 1, parent_index);
+    }
+
+    fn coalesce(&mut self, level: usize, index: usize) {
+        if level == self.root_level {
+            return;
+        }
+
+        let buddy_index = if index % 2 == 1 { index - 1 } else { index + 1 };
+        let buddy_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(buddy_index));
+
+        let parent_index = index / 2;
+        if buddy_state == 0b00 {
+            with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, 0b00));
+            self.coalesce(level - 1, index);
+        } else {
+            with_bitmap_at_level!(self, level - 1, |bitmap| {
+                let parent_state = bitmap.get(parent_index);
+                if parent_state == 0b11 {
+                    bitmap.set(parent_index, 0b10);
+                }
+            });
+
+            if level > self.root_level + 1 {
+                self.update_parent_states(level - 1, parent_index);
+            }
+        }
+    }
+
+    pub fn free(&mut self, addr: *const u8) {
+        assert!(!addr.is_null(), "Cannot free null pointer");
+
+        printkln!("Freeing 0x{:x}", addr as usize);
+        let mut index = self.get_base_index(addr);
+
+        for level in (self.root_level..=self.levels.len() - 1).rev() {
+            let state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
+            if state == 0b11 {
+                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, 0b00));
+                self.coalesce(level, index);
+                return;
+            }
+            // Every pair of [even, odd] has the same parent
+            index = if index % 2 == 1 { index - 1 } else { index } / 2;
+        }
     }
 }

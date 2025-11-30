@@ -21,7 +21,9 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    vmm::allocators::kmalloc::init().unwrap();
+    if vmm::allocators::kmalloc::init().is_err() {
+        panic!("Failed to initialize kmalloc");
+    }
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
