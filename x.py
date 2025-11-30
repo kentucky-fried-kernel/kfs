@@ -73,7 +73,6 @@ def discover_unit_tests(build_output: str) -> list[str]:
 
 def discover_e2e_tests():
     test_names = {str(p.name).removesuffix(".rs") for p in Path("./tests").iterdir() if p.name.endswith(".rs")}
-    print(test_names)
     test_paths = [str(p) for p in Path("./target/i386-unknown-none/release/deps").iterdir() if p.name.split("-")[0] in test_names and not p.name.endswith(".d")]
     return test_paths
 
