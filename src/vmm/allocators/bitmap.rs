@@ -4,6 +4,13 @@
 // - 00: all nodes below are free, prefer if choice is possible
 // - 10/01: mixed subtree, if no 00 try both
 
+#[repr(u8)]
+pub enum Node {
+    Free = 0b00,
+    PartiallyAllocated = 0b10,
+    Allocated = 0b11,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct BitMap<const N: usize>
 where
