@@ -1,30 +1,7 @@
-use crate::vmm::{allocators::bitmap::BitMap, paging};
-
-// TODO: Each enum variant takes as much space as the largest one, this is a stupid solution.
-// Trait objects are not an option since they do not support const initialization, will probably have
-// to resort to pointers here.
-// enum BitMapLevel {
-//     Level0 { map: BitMap<8> },
-//     Level1 { map: BitMap<8> },
-//     Level2 { map: BitMap<8> },
-//     Level3 { map: BitMap<{ 1 << 3 }> },
-//     Level4 { map: BitMap<{ 1 << 4 }> },
-//     Level5 { map: BitMap<{ 1 << 5 }> },
-//     Level6 { map: BitMap<{ 1 << 6 }> },
-//     Level7 { map: BitMap<{ 1 << 7 }> },
-//     Level8 { map: BitMap<{ 1 << 8 }> },
-//     Level9 { map: BitMap<{ 1 << 9 }> },
-//     Level10 { map: BitMap<{ 1 << 10 }> },
-//     Level11 { map: BitMap<{ 1 << 11 }> },
-//     Level12 { map: BitMap<{ 1 << 12 }> },
-//     Level13 { map: BitMap<{ 1 << 13 }> },
-//     Level14 { map: BitMap<{ 1 << 14 }> },
-//     Level15 { map: BitMap<{ 1 << 15 }> },
-//     Level16 { map: BitMap<{ 1 << 16 }> },
-//     Level17 { map: BitMap<{ 1 << 17 }> },
-//     Level18 { map: BitMap<{ 1 << 18 }> },
-//     Level19 { map: BitMap<{ 1 << 19 }> },
-// }
+use crate::{
+    printkln,
+    vmm::{allocators::bitmap::BitMap, paging},
+};
 
 static mut LEVEL_0: BitMap<8> = BitMap::<8>::new();
 static mut LEVEL_1: BitMap<8> = BitMap::<8>::new();
@@ -47,85 +24,30 @@ static mut LEVEL_17: BitMap<{ 1 << 17 }> = BitMap::<{ 1 << 17 }>::new();
 static mut LEVEL_18: BitMap<{ 1 << 18 }> = BitMap::<{ 1 << 18 }>::new();
 static mut LEVEL_19: BitMap<{ 1 << 19 }> = BitMap::<{ 1 << 19 }>::new();
 
+macro_rules! bitmap_ptr_cast_mut {
+    ($self:expr, $level:expr, |$bitmap:ident| $body:expr, $size:expr) => {{
+        let $bitmap = unsafe { &mut *$self.levels[$level].cast::<BitMap<$size>>().cast_mut() };
+        $body
+    }};
+}
+
+macro_rules! generate_bitmap_match_arms {
+    ($self:expr, $level:expr, |$bitmap:ident| $body:expr, [$($lv:literal),* $(,)?]) => {
+        match $level {
+            0 | 1 | 2 => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, 8),
+            $(
+                $lv => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, { 1 << $lv }),
+            )*
+            _ => unreachable!("BuddyAllocatorBitmap only has 20 levels (indices 0..19)"),
+        }
+    };
+}
+
+/// Gets the bitmap from `self` (`BuddyAllocatorBitmap`) for `level`, casting it
+/// to the correct type based on its size.
 macro_rules! with_bitmap_at_level {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr) => {
-        unsafe {
-            match $level {
-                0 | 1 | 2 => {
-                    let $bitmap = &mut *$self.levels[$level].cast::<BitMap<8>>().cast_mut();
-                    $body
-                }
-                3 => {
-                    let $bitmap = &mut *$self.levels[3].cast::<BitMap<{ 1 << 3 }>>().cast_mut();
-                    $body
-                }
-                4 => {
-                    let $bitmap = &mut *$self.levels[4].cast::<BitMap<{ 1 << 4 }>>().cast_mut();
-                    $body
-                }
-                5 => {
-                    let $bitmap = &mut *$self.levels[5].cast::<BitMap<{ 1 << 5 }>>().cast_mut();
-                    $body
-                }
-                6 => {
-                    let $bitmap = &mut *$self.levels[6].cast::<BitMap<{ 1 << 6 }>>().cast_mut();
-                    $body
-                }
-                7 => {
-                    let $bitmap = &mut *$self.levels[7].cast::<BitMap<{ 1 << 7 }>>().cast_mut();
-                    $body
-                }
-                8 => {
-                    let $bitmap = &mut *$self.levels[8].cast::<BitMap<{ 1 << 8 }>>().cast_mut();
-                    $body
-                }
-                9 => {
-                    let $bitmap = &mut *$self.levels[9].cast::<BitMap<{ 1 << 9 }>>().cast_mut();
-                    $body
-                }
-                10 => {
-                    let $bitmap = &mut *$self.levels[10].cast::<BitMap<{ 1 << 10 }>>().cast_mut();
-                    $body
-                }
-                11 => {
-                    let $bitmap = &mut *$self.levels[11].cast::<BitMap<{ 1 << 11 }>>().cast_mut();
-                    $body
-                }
-                12 => {
-                    let $bitmap = &mut *$self.levels[12].cast::<BitMap<{ 1 << 12 }>>().cast_mut();
-                    $body
-                }
-                13 => {
-                    let $bitmap = &mut *$self.levels[13].cast::<BitMap<{ 1 << 13 }>>().cast_mut();
-                    $body
-                }
-                14 => {
-                    let $bitmap = &mut *$self.levels[14].cast::<BitMap<{ 1 << 14 }>>().cast_mut();
-                    $body
-                }
-                15 => {
-                    let $bitmap = &mut *$self.levels[15].cast::<BitMap<{ 1 << 15 }>>().cast_mut();
-                    $body
-                }
-                16 => {
-                    let $bitmap = &mut *$self.levels[16].cast::<BitMap<{ 1 << 16 }>>().cast_mut();
-                    $body
-                }
-                17 => {
-                    let $bitmap = &mut *$self.levels[17].cast::<BitMap<{ 1 << 17 }>>().cast_mut();
-                    $body
-                }
-                18 => {
-                    let $bitmap = &mut *$self.levels[18].cast::<BitMap<{ 1 << 18 }>>().cast_mut();
-                    $body
-                }
-                19 => {
-                    let $bitmap = &mut *$self.levels[19].cast::<BitMap<{ 1 << 19 }>>().cast_mut();
-                    $body
-                }
-                _ => unreachable!(),
-            }
-        }
+        generate_bitmap_match_arms!($self, $level, |$bitmap| $body, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
     };
 }
 
