@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::{
     printkln,
     vmm::{
@@ -142,9 +144,11 @@ pub fn init() -> Result<(), Error> {
     //     CACHE_2048 = BlockCache::new(2048).unwrap();
     // }
 
-    let mut bm = BuddyAllocatorBitmap::new(0 as *const u8, 32768);
-    printkln!("Allocating 4096 bytes from buddy allocator");
-    printkln!("Received address: {:?}", bm.alloc(4096));
+    let cache_memory = mmap(None, 1 << 20, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
+    let mut bm = BuddyAllocatorBitmap::new(cache_memory as *const u8, 1 << 20);
+    for iter in 0..11 {
+        printkln!("[{}] Received address: {:?}", iter, bm.alloc(1 << 19));
+    }
 
     Ok(())
 }

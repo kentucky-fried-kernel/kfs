@@ -1,7 +1,4 @@
-use crate::{
-    printkln,
-    vmm::{allocators::bitmap::BitMap, paging::PAGE_SIZE},
-};
+use crate::vmm::{allocators::bitmap::BitMap, paging::PAGE_SIZE};
 
 static mut LEVEL_0: BitMap<8, 4> = BitMap::<8, 4>::new();
 static mut LEVEL_1: BitMap<8, 4> = BitMap::<8, 4>::new();
@@ -116,46 +113,51 @@ impl BuddyAllocatorBitmap {
     fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*const u8> {
         assert!(allocation_size % PAGE_SIZE == 0, "The buddy allocator can only allocate multiples of 4096");
 
-        // Special handling for bitmap.len() == 1
-        if level == self.root_level {
-            // This means we need to allocate the entire block if it is free
-            if allocation_size > level_block_size / 2 {
-                if with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index)) == 1 {
-                    // The entire memory needs to be free for this allocation to be possible
-                    return None;
-                }
-                return Some(root);
-            }
-            return self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, index);
-        }
-
-        let (left, right) = with_bitmap_at_level!(self, level, |bitmap| {
-            printkln!("bits at {}: 0b{:02b}", index, bitmap.get(index));
-
-            (bitmap.get(index), bitmap.get(index + 1))
-        });
-
-        if allocation_size > level_block_size / 2 {
-            match (left, right) {
-                (0, _) => return Some(root),
-                (_, 0) => return Some((root as usize + level_block_size) as *const u8),
-                _ => return None,
-            }
-        }
-
-        if level == self.levels.len() {
+        let current_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
+        if current_state == 0b11 {
             return None;
         }
-        let next_index = match level {
-            0 => 0,
-            _ => index * 2 + if index % 2 == 0 { 0 } else { 1 },
-        };
 
-        if level_block_size / 2 >= allocation_size {
-            return self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, next_index);
+        if allocation_size >= level_block_size || level == self.levels.len() {
+            if current_state == 0b00 {
+                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, 0b11));
+                return Some(root);
+            }
+            return None;
         }
 
-        None
+        let left_child_index = index * 2;
+        let allocation = self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, left_child_index);
+
+        if allocation.is_some() {
+            with_bitmap_at_level!(self, level, |bitmap| {
+                let state = bitmap.get(index);
+                if state == 0b00 {
+                    bitmap.set(index, 0b10);
+                }
+            });
+            return allocation;
+        }
+
+        let right_child_index = index * 2 + 1;
+        let allocation = self.alloc_internal(
+            allocation_size,
+            (root as usize + level_block_size / 2) as *const u8,
+            level_block_size / 2,
+            level + 1,
+            right_child_index,
+        );
+
+        if allocation.is_some() {
+            with_bitmap_at_level!(self, level, |bitmap| {
+                let state = bitmap.get(index);
+                if state == 0b00 {
+                    bitmap.set(index, 0b10);
+                }
+            });
+        }
+
+        allocation
     }
 
     pub fn alloc(&mut self, size: usize) -> Option<*const u8> {
@@ -170,6 +172,7 @@ impl BuddyAllocatorBitmap {
         // }
 
         self.alloc_internal(size, self.root, self.size, self.root_level, 0)
+
         // 0 as *const u8
     }
 }
