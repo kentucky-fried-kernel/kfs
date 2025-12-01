@@ -2,7 +2,6 @@ use core::arch::asm;
 
 use crate::{
     boot::KERNEL_BASE,
-    printkln,
     vmm::paging::{
         Access, PAGE_SIZE,
         page_entries::{PageDirectoryEntry, PageTableEntry},
@@ -31,10 +30,8 @@ fn kernel_page_mappings_create() {
     let kernel_end = unsafe { &KERNEL_END as *const _ } as usize;
     let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
 
-    for i in 0..kernel_pages_needed {
-        unsafe {
-            USED_PAGES[i] = Some(Access::Root);
-        }
+    for (i, item) in unsafe { USED_PAGES }.iter_mut().enumerate().take(kernel_pages_needed) {
+        *item = Some(Access::Root);
 
         let dir_index = i / PAGE_TABLE_SIZE;
         let page_index = i % PAGE_TABLE_SIZE;
@@ -100,9 +97,9 @@ fn enable_read_write_enforcement() {
     unsafe {
         asm!("mov {}, cr0", out(reg) cr0);
     }
-    printkln!("REGISTER: {:b}", cr0);
 
     cr0 |= 1 << 16;
+
     unsafe {
         asm!("mov cr0, {}", in(reg) cr0);
     }

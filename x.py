@@ -72,9 +72,13 @@ def discover_unit_tests(build_output: str) -> list[str]:
 
 
 def discover_e2e_tests():
-    test_names = {str(p.name).strip(".rs") for p in Path("./tests").iterdir() if p.name.endswith(".rs")}
+    test_names = {str(p.name).removesuffix(".rs") for p in Path("./tests").iterdir() if p.name.endswith(".rs")}
     test_paths = [str(p) for p in Path("./target/i386-unknown-none/release/deps").iterdir() if p.name.split("-")[0] in test_names and not p.name.endswith(".d")]
     return test_paths
+
+
+QEMU_ARGS = "-boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 4G"
+ISO_PATH = "./build/kernel.iso"
 
 
 def run_tests(type: typing.Literal["E2E", "Unit"]):
@@ -88,8 +92,10 @@ def run_tests(type: typing.Literal["E2E", "Unit"]):
     LOGGER.info(f"Running {type} tests...")
 
     for path in test_paths:
-        LOGGER.info("")
-        proc = run_with_output(["./scripts/run.sh", str(path)])
+        LOGGER.info(f"Building ISO for {path}")
+        proc = run_with_output(["./scripts/build_iso.sh", str(path)])
+        LOGGER.info(f"Running tests for {path}")
+        proc = run_with_output(["./scripts/run.sh", ISO_PATH, QEMU_ARGS])
         ok += int(proc.returncode == 0)
         ko += int(proc.returncode != 0)
 

@@ -1,6 +1,5 @@
 use crate::{
     boot::KERNEL_BASE,
-    printkln,
     vmm::{
         MEMORY_MAX,
         paging::{
@@ -24,14 +23,13 @@ pub enum Mode {
     Scattered,
 }
 
-// fn free_pages_physical_iter(iter: PhysicalIterator, pages_needed: usize, mode: Mode) -> Result<PhysicalIterator, MmapError> {}
-
 #[allow(static_mut_refs)]
 fn pages_virtual_iter(access: Access) -> impl Iterator<Item = (usize, &'static mut PageTableEntry)> {
     unsafe {
         let pages_virtual_all = KERNEL_PAGE_TABLES.iter_mut().flat_map(|p| &mut p.0);
 
         // NOTE: have to .skip(0) here so that the types are the same
+        #[allow(clippy::iter_skip_zero)]
         match access {
             Access::User => pages_virtual_all.enumerate().skip(0).take(KERNEL_BASE / PAGE_SIZE),
             Access::Root => pages_virtual_all
@@ -61,7 +59,7 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
 }
 
 fn pages_physical_free_iter(pages_needed: usize, mode: Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
-    let lets_see = pages_physical_iter();
+    let _lets_see = pages_physical_iter();
 
     let i = match mode {
         Mode::Continous => {
@@ -88,7 +86,7 @@ fn pages_physical_free_iter(pages_needed: usize, mode: Mode) -> Result<impl Iter
 
 #[allow(static_mut_refs)]
 pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access, mode: Mode) -> Result<usize, MmapError> {
-    if let Some(_) = vaddr {
+    if vaddr.is_some() {
         unimplemented!();
     }
 
@@ -102,12 +100,9 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
     let mut first_page_addr = Err(MmapError::NotImplemented);
     for ((physical_i, physical_page), (virtual_i, virtual_page)) in pages {
-        if let Err(_) = first_page_addr {
+        if first_page_addr.is_err() {
             first_page_addr = Ok(virtual_i * PAGE_SIZE);
         }
-
-        printkln!("physical 0x{}", physical_i);
-        printkln!("virtual 0x{:x}", virtual_i);
 
         *physical_page = Some(access);
 

@@ -1,7 +1,10 @@
 #![no_std]
 #![no_main]
 #![feature(const_ops)]
+#![feature(const_convert)]
 #![feature(const_trait_impl)]
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
@@ -10,6 +13,7 @@
 use core::panic::PanicInfo;
 
 pub mod arch;
+pub mod bitmap;
 pub mod boot;
 pub mod conv;
 pub mod macros;

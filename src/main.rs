@@ -4,89 +4,41 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::{
-    boot::MultibootInfo,
-    vmm::paging::{
-        Access, PAGE_SIZE, Permissions,
-        init::init_memory,
-        mmap::{mmap, munmap},
-        page_entries::PageDirectory,
-    },
-};
+use kfs::boot::MultibootInfo;
 
 mod panic;
 
-// #[cfg(not(test))]
+#[cfg(not(test))]
 #[unsafe(no_mangle)]
-pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, printkln, shell, terminal, vmm};
-
-    printkln!("Multiboot Info Struct Address: 0x{:x}", info as *const _ as usize);
-    printkln!("Multiboot Magic: {:x}", magic);
-    printkln!("{}", info);
-    printkln!("_start       : 0x{:x}", kfs::boot::_start as *const () as usize);
-    printkln!("kmain        : 0x{:x}", kmain as *const () as usize);
-    printkln!("idt::init    : 0x{:x}", arch::x86::idt::init as *const () as usize);
-    printkln!("higher_half  : 0x{:x}", kfs::boot::higher_half as *const () as usize);
+pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+    use kfs::{
+        arch, shell, terminal,
+        vmm::{self, paging::init::init_memory},
+    };
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
-    let addr = match addr {
-        Ok(addr) => {
-            printkln!("return addr: 0x{:x}", addr);
-            addr
-        }
-        Err(err) => {
-            printkln!("{:?}", err);
-            0
-        }
-    };
-    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
-    let addr = match addr {
-        Ok(addr) => {
-            printkln!("return addr: 0x{:x}", addr);
-            addr
-        }
-        Err(err) => {
-            printkln!("{:?}", err);
-            0
-        }
-    };
-    let _ = munmap(addr - PAGE_SIZE, 2 * PAGE_SIZE);
-
-    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
-    let addr = match addr {
-        Ok(addr) => {
-            printkln!("return addr: 0x{:x}", addr);
-            addr
-        }
-        Err(err) => {
-            printkln!("{:?}", err);
-            0
-        }
-    };
-    // unsafe {
-    //     *(0x8000 as *mut u8) = 3;
-    // }
+    if vmm::allocators::kmalloc::init().is_err() {
+        panic!("Failed to initialize kmalloc");
+    }
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
 }
 
-// #[cfg(test)]
-// #[unsafe(no_mangle)]
-// pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-//     use kfs::{arch, qemu, vmm};
+#[cfg(test)]
+#[unsafe(no_mangle)]
+pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+    use kfs::{arch, qemu, vmm};
 
-//     arch::x86::gdt::init();
-//     arch::x86::idt::init();
+    arch::x86::gdt::init();
+    arch::x86::idt::init();
 
-//     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    vmm::paging::init::init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-//     test_main();
-//     unsafe { qemu::exit(qemu::ExitCode::Success) };
-// }
+    test_main();
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
+}

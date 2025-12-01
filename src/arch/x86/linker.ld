@@ -31,8 +31,11 @@ SECTIONS
     }
 
     .bss ALIGN(4K): AT(ADDR(.bss) - 0xC0000000) {
+        _bss_start = .;
+        *(.bss .bss.*)
         *(COMMON)
-        *(.bss)
+        . = ALIGN(4K);
+        _bss_end = .;
     }
 
     _kernel_end = .;
