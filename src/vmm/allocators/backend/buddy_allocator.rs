@@ -1,4 +1,4 @@
-use crate::{bitmap::BitMap, printkln, vmm::paging::PAGE_SIZE};
+use crate::{bitmap::BitMap, vmm::paging::PAGE_SIZE};
 
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -116,7 +116,7 @@ impl BuddyAllocator {
 
         if allocation_size >= level_block_size || level == self.levels.len() {
             if current_state == BuddyAllocatorNode::Free as u8 {
-                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, 0b11));
+                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, BuddyAllocatorNode::FullyAllocated as u8));
                 return Some(root);
             }
             return None;
@@ -128,8 +128,8 @@ impl BuddyAllocator {
         if allocation.is_some() {
             with_bitmap_at_level!(self, level, |bitmap| {
                 let state = bitmap.get(index);
-                if state == 0b00 {
-                    bitmap.set(index, 0b10);
+                if state == BuddyAllocatorNode::Free as u8 {
+                    bitmap.set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
                 }
             });
             return allocation;
@@ -147,8 +147,8 @@ impl BuddyAllocator {
         if allocation.is_some() {
             with_bitmap_at_level!(self, level, |bitmap| {
                 let state = bitmap.get(index);
-                if state == 0b00 {
-                    bitmap.set(index, 0b10);
+                if state == BuddyAllocatorNode::Free as u8 {
+                    bitmap.set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
                 }
             });
         }
@@ -187,8 +187,8 @@ impl BuddyAllocator {
         let right_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index | 1));
 
         let parent_state = match (left_state, right_state) {
-            (0b00, 0b00) => 0b00,
-            (0b11, 0b11) => 0b11,
+            (0b00, 0b00) => BuddyAllocatorNode::Free as u8,
+            (0b11, 0b11) => BuddyAllocatorNode::FullyAllocated as u8,
             _ => 0b10,
         };
 
@@ -206,14 +206,14 @@ impl BuddyAllocator {
         let buddy_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(buddy_index));
 
         let parent_index = index / 2;
-        if buddy_state == 0b00 {
-            with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, 0b00));
+        if buddy_state == BuddyAllocatorNode::Free as u8 {
+            with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, BuddyAllocatorNode::Free as u8));
             self.coalesce(level - 1, index);
         } else {
             with_bitmap_at_level!(self, level - 1, |bitmap| {
                 let parent_state = bitmap.get(parent_index);
-                if parent_state == 0b11 {
-                    bitmap.set(parent_index, 0b10);
+                if parent_state == BuddyAllocatorNode::FullyAllocated as u8 {
+                    bitmap.set(parent_index, BuddyAllocatorNode::PartiallyAllocated as u8);
                 }
             });
 
@@ -227,13 +227,12 @@ impl BuddyAllocator {
         assert!(!addr.is_null(), "Cannot free null pointer");
         assert!(!self.root.is_null());
 
-        printkln!("Freeing 0x{:x}", addr as usize);
         let mut index = self.get_base_index(addr);
 
         for level in (self.root_level..=self.levels.len() - 1).rev() {
             let state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
             if state == 0b11 {
-                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, 0b00));
+                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, BuddyAllocatorNode::Free as u8));
                 self.coalesce(level, index);
                 return;
             }
