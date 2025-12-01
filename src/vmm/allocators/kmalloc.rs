@@ -155,32 +155,32 @@ pub fn init() -> Result<(), Error> {
     //     // bm.free(addr);
     // }
 
-    let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
-        .map_err(|_| "Error::MmapFailure")
-        .unwrap();
-    printkln!("\nMMAP Memory: {:x}", cache_memory);
-    let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
-    for _ in 0..8 {
-        let ptr = bm.alloc(4096);
-        printkln!("\nALLOCATION: {:?}", ptr);
-        if ptr.is_none() {
-            panic!("Allocation failed when it should have been able to service the request");
-        }
-    }
+    // let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
+    //     .map_err(|_| "Error::MmapFailure")
+    //     .unwrap();
+    // printkln!("\nMMAP Memory: {:x}", cache_memory);
+    // let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
+    // for _ in 0..8 {
+    //     let ptr = bm.alloc(4096);
+    //     printkln!("\nALLOCATION: {:?}", ptr);
+    //     if ptr.is_none() {
+    //         panic!("Allocation failed when it should have been able to service the request");
+    //     }
+    // }
 
-    let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
-        .map_err(|_| "Error::MmapFailure")
-        .unwrap();
-    printkln!("\nMMAP Memory: {:x}", cache_memory);
-    let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
-    for _ in 0..8 {
-        let ptr = bm.alloc(4096);
-        printkln!("\nALLOCATION: {:?}", ptr);
-        if ptr.is_none() {
-            printkln!("Allocation failed when it should have been able to service the request");
-            return Ok(());
-        }
-    }
+    // let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
+    //     .map_err(|_| "Error::MmapFailure")
+    //     .unwrap();
+    // printkln!("\nMMAP Memory: {:x}", cache_memory);
+    // let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
+    // for _ in 0..8 {
+    //     let ptr = bm.alloc(4096);
+    //     printkln!("\nALLOCATION: {:?}", ptr);
+    //     if ptr.is_none() {
+    //         printkln!("Allocation failed when it should have been able to service the request");
+    //         return Ok(());
+    //     }
+    // }
 
     Ok(())
 }
