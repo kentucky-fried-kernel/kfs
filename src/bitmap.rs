@@ -4,47 +4,6 @@
 // - 00: all nodes below are free, prefer if choice is possible
 // - 10/01: mixed subtree, if no 00 try both
 
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum BuddyAllocatorNode {
-    Free = 0b00,
-    PartiallyAllocated = 0b10,
-    FullyAllocated = 0b11,
-}
-
-impl core::fmt::Display for BuddyAllocatorNode {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_fmt(format_args!("0b{:02b}", u8::from(self)))
-    }
-}
-
-impl const From<u8> for BuddyAllocatorNode {
-    fn from(value: u8) -> Self {
-        match value {
-            0b00 => Self::Free,
-            0b10 => Self::PartiallyAllocated,
-            0b11 => Self::FullyAllocated,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl const From<&BuddyAllocatorNode> for u8 {
-    fn from(value: &BuddyAllocatorNode) -> Self {
-        match value {
-            BuddyAllocatorNode::Free => 0b00,
-            BuddyAllocatorNode::PartiallyAllocated => 0b10,
-            BuddyAllocatorNode::FullyAllocated => 0b11,
-        }
-    }
-}
-
-impl const From<BuddyAllocatorNode> for u8 {
-    fn from(value: BuddyAllocatorNode) -> Self {
-        value as u8
-    }
-}
-
 /// `N` (number): Total number of entries
 /// `G` (granularity): Entries per byte (one of 1, 2, 4, 8)
 #[derive(Clone, Copy, Debug)]

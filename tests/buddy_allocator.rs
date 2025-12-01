@@ -8,11 +8,15 @@ use core::panic::PanicInfo;
 
 #[cfg(test)]
 use kfs::boot::MultibootInfo;
-use kfs::vmm::{
-    allocators::buddy::BuddyAllocator,
-    paging::{
-        Access, Permissions,
-        mmap::{Mode, mmap},
+use kfs::{
+    printkln, serial_println,
+    vmm::{
+        self,
+        allocators::backend::buddy_allocator::BuddyAllocator,
+        paging::{
+            Access, Permissions,
+            mmap::{Mode, mmap},
+        },
     },
 };
 
@@ -23,10 +27,17 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[test_case]
 fn full_cache_usable() -> Result<(), &'static str> {
-    let cache_memory = mmap(None, 1 << 20, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| "Error::MmapFailure")?;
+    if let Err(_) = vmm::allocators::kmalloc::init() {
+        panic!("Failed to initialize kmalloc");
+    }
+
+    let cache_memory = mmap(None, 4096, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| "Error::MmapFailure")?;
+    serial_println!("\nMMAP Memory: {:x}", cache_memory);
     let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
     for _ in 0..8 {
-        if bm.alloc(4096).is_none() {
+        let ptr = bm.alloc(4096);
+        serial_println!("\nALLOCATION: {:?}", ptr);
+        if ptr.is_none() {
             return Err("Allocation failed when it should have been able to service the request");
         }
     }
@@ -36,19 +47,12 @@ fn full_cache_usable() -> Result<(), &'static str> {
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{
-        arch, qemu,
-        vmm::{self, paging::init::init_memory},
-    };
+    use kfs::{arch, qemu, vmm::paging::init::init_memory};
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
-
-    if let Err(_) = vmm::allocators::kmalloc::init() {
-        panic!("Failed to initialize kmalloc");
-    }
 
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };

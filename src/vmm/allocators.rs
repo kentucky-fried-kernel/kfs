@@ -1,3 +1,3 @@
-mod bitmap;
-pub mod buddy;
+pub mod backend;
+
 pub mod kmalloc;

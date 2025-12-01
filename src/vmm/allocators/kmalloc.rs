@@ -1,9 +1,10 @@
 #![allow(unused)]
 
 use crate::{
+    bitmap::BitMap,
     printkln,
     vmm::{
-        allocators::{bitmap::BitMap, buddy::BuddyAllocator},
+        allocators::backend::buddy_allocator::BuddyAllocator,
         paging::{
             Access, Permissions,
             mmap::{MmapError, Mode, mmap},
@@ -144,14 +145,41 @@ pub fn init() -> Result<(), Error> {
     //     CACHE_2048 = BlockCache::new(2048).unwrap();
     // }
 
-    let cache_memory = mmap(None, 1 << 20, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
-    let mut bm = BuddyAllocator::new(cache_memory as *const u8, 1 << 20);
-    for iter in 0..2 {
-        let addr = bm.alloc(4096 * 2).ok_or(Error::NoSpaceLeft)?;
-        printkln!("[{}] Received address: {:?}", iter, addr);
-        let addr = bm.alloc(4096).ok_or(Error::NoSpaceLeft)?;
-        printkln!("[{}] Received address: {:?}", iter, addr);
-        bm.free(addr);
+    // let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
+    // let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
+    // for iter in 0..8 {
+    //     let addr = bm.alloc(4096).ok_or(Error::NoSpaceLeft)?;
+    //     printkln!("[{}] Received address: {:?}", iter, addr);
+    //     // let addr = bm.alloc(4096).ok_or(Error::NoSpaceLeft)?;
+    //     // printkln!("[{}] Received address: {:?}", iter, addr);
+    //     // bm.free(addr);
+    // }
+
+    let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
+        .map_err(|_| "Error::MmapFailure")
+        .unwrap();
+    printkln!("\nMMAP Memory: {:x}", cache_memory);
+    let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
+    for _ in 0..8 {
+        let ptr = bm.alloc(4096);
+        printkln!("\nALLOCATION: {:?}", ptr);
+        if ptr.is_none() {
+            panic!("Allocation failed when it should have been able to service the request");
+        }
+    }
+
+    let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
+        .map_err(|_| "Error::MmapFailure")
+        .unwrap();
+    printkln!("\nMMAP Memory: {:x}", cache_memory);
+    let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
+    for _ in 0..8 {
+        let ptr = bm.alloc(4096);
+        printkln!("\nALLOCATION: {:?}", ptr);
+        if ptr.is_none() {
+            printkln!("Allocation failed when it should have been able to service the request");
+            return Ok(());
+        }
     }
 
     Ok(())

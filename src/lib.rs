@@ -13,6 +13,7 @@
 use core::panic::PanicInfo;
 
 pub mod arch;
+pub mod bitmap;
 pub mod boot;
 pub mod conv;
 pub mod macros;

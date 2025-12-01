@@ -1,7 +1,4 @@
-use crate::{
-    printkln,
-    vmm::{allocators::bitmap::BitMap, paging::PAGE_SIZE},
-};
+use crate::{bitmap::BitMap, printkln, vmm::paging::PAGE_SIZE};
 
 static mut LEVEL_0: BitMap<8, 4> = BitMap::<8, 4>::new();
 static mut LEVEL_1: BitMap<8, 4> = BitMap::<8, 4>::new();
@@ -23,6 +20,47 @@ static mut LEVEL_16: BitMap<{ 1 << 16 }, 4> = BitMap::<{ 1 << 16 }, 4>::new();
 static mut LEVEL_17: BitMap<{ 1 << 17 }, 4> = BitMap::<{ 1 << 17 }, 4>::new();
 static mut LEVEL_18: BitMap<{ 1 << 18 }, 4> = BitMap::<{ 1 << 18 }, 4>::new();
 static mut LEVEL_19: BitMap<{ 1 << 19 }, 4> = BitMap::<{ 1 << 19 }, 4>::new();
+
+#[repr(u8)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BuddyAllocatorNode {
+    Free = 0b00,
+    PartiallyAllocated = 0b10,
+    FullyAllocated = 0b11,
+}
+
+impl core::fmt::Display for BuddyAllocatorNode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_fmt(format_args!("0b{:02b}", u8::from(self)))
+    }
+}
+
+impl const From<u8> for BuddyAllocatorNode {
+    fn from(value: u8) -> Self {
+        match value {
+            0b00 => Self::Free,
+            0b10 => Self::PartiallyAllocated,
+            0b11 => Self::FullyAllocated,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl const From<&BuddyAllocatorNode> for u8 {
+    fn from(value: &BuddyAllocatorNode) -> Self {
+        match value {
+            BuddyAllocatorNode::Free => 0b00,
+            BuddyAllocatorNode::PartiallyAllocated => 0b10,
+            BuddyAllocatorNode::FullyAllocated => 0b11,
+        }
+    }
+}
+
+impl const From<BuddyAllocatorNode> for u8 {
+    fn from(value: BuddyAllocatorNode) -> Self {
+        value as u8
+    }
+}
 
 macro_rules! bitmap_ptr_cast_mut {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr, $size:expr) => {{
@@ -114,12 +152,12 @@ impl BuddyAllocator {
         );
 
         let current_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
-        if current_state == 0b11 {
+        if current_state == BuddyAllocatorNode::FullyAllocated as u8 {
             return None;
         }
 
         if allocation_size >= level_block_size || level == self.levels.len() {
-            if current_state == 0b00 {
+            if current_state == BuddyAllocatorNode::Free as u8 {
                 with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, 0b11));
                 return Some(root);
             }
@@ -163,13 +201,6 @@ impl BuddyAllocator {
     pub fn alloc(&mut self, size: usize) -> Option<*const u8> {
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
         assert!(size < self.size, "The buddy allocator cannot allocate more than its size");
-
-        // if size > self.size {
-        //     // probably dynamically grow here?
-        //     // - would have to grow by a factor of at least 4 to satisfy the request,
-        //     //   might make more sense to just pass on the request to mmap directly
-        //     //   return mmap(size, ...);
-        // }
 
         self.alloc_internal(size, self.root, self.size, self.root_level, 0)
     }
