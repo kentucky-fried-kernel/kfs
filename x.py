@@ -91,11 +91,6 @@ def run_tests(type: typing.Literal["E2E", "Unit"]):
     ko = 0
     LOGGER.info(f"Running {type} tests...")
 
-    # QEMU_ARGS="-boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 4G"
-
-    # log "Running tests in QEMU"
-    # ./scripts/run.sh ./build/kernel.iso $QEMU_ARGS
-
     for path in test_paths:
         LOGGER.info(f"Building ISO for {path}")
         proc = run_with_output(["./scripts/build_iso.sh", str(path)])

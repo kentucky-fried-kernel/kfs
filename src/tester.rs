@@ -40,7 +40,8 @@ pub fn test_runner(tests: &[&dyn Testable]) {
         }
     }
     serial_println!("test result: {}. {} passed; {} failed.", if ko == 0 { "ok" } else { "FAILED" }, ok, ko);
-    unsafe { qemu::exit(qemu::ExitCode::Success) };
+
+    unsafe { qemu::exit(if ko == 0 { qemu::ExitCode::Success } else { qemu::ExitCode::Failed }) };
 }
 
 // This panic handler is not marked as `#[panic_handler]` to make it
