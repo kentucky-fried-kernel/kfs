@@ -246,7 +246,6 @@ impl BuddyAllocator {
                 self.coalesce(level, index);
                 return;
             }
-            // Every pair of [even, odd] has the same parent
             index = if index % 2 == 1 { index - 1 } else { index } / 2;
         }
     }
