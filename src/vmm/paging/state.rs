@@ -1,8 +1,9 @@
 use crate::vmm::{
-    MEMORY_MAX, paging::{
+    MEMORY_MAX,
+    paging::{
         Access,
         page_entries::{PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
-    }
+    },
 };
 
 pub const USED_PAGES_SIZE: usize = MEMORY_MAX / super::PAGE_SIZE;
@@ -25,7 +26,6 @@ pub const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
 pub static mut KERNEL_PAGE_DIRECTORY_TABLE: PageDirectory = {
-
     let mut dir: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from_usize(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
 
     dir[0] = PageDirectoryEntry::from_usize((0 << 22) | 0b10000011);

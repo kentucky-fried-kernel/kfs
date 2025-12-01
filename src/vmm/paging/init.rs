@@ -1,11 +1,13 @@
 use core::arch::asm;
 
 use crate::{
-    boot::KERNEL_BASE, printkln, vmm::paging::{
+    boot::KERNEL_BASE,
+    printkln,
+    vmm::paging::{
         Access, PAGE_SIZE,
         page_entries::{PageDirectoryEntry, PageTableEntry},
         state::{KERNEL_PAGE_DIRECTORY_TABLE, KERNEL_PAGE_TABLES, PAGE_TABLE_SIZE, USED_PAGES},
-    }
+    },
 };
 
 unsafe extern "C" {
@@ -71,7 +73,7 @@ fn page_directory_fill_empty() {
 
     #[allow(static_mut_refs)]
     unsafe {
-        for  (i, entry)   in KERNEL_PAGE_DIRECTORY_TABLE.0.iter_mut().enumerate() {
+        for (i, entry) in KERNEL_PAGE_DIRECTORY_TABLE.0.iter_mut().enumerate() {
             let already_set = entry.address() != 0;
             if already_set {
                 continue;
@@ -92,7 +94,6 @@ fn unset_identity_mapping() {
 
     invalidate(0);
 }
-
 
 fn enable_read_write_enforcement() {
     let mut cr0: u32;
