@@ -4,11 +4,19 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::boot::MultibootInfo;
+use kfs::{
+    boot::MultibootInfo,
+    vmm::paging::{
+        Access, PAGE_SIZE, Permissions,
+        init::init_memory,
+        mmap::{mmap, munmap},
+        page_entries::PageDirectory,
+    },
+};
 
 mod panic;
 
-#[cfg(not(test))]
+// #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     use kfs::{arch, printkln, shell, terminal, vmm};
@@ -24,37 +32,61 @@ pub extern "C" fn kmain(magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    let mut i = 0;
-    printkln!("start table");
-    loop {
-        use kfs::boot::MultibootMmapEntry;
+    init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-        unsafe {
-            let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
-            printkln!("addr: 0x{:09X} | len : 0x{:08X} | type : {:x}", (*entry).addr , (*entry).len , (*entry).ty);
-            i += (*entry).size + 4;
-            if i >= info.mmap_length {
-                break;
-            }
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let addr = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
         }
-    }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let addr = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    let _ = munmap(addr - PAGE_SIZE, 2 * PAGE_SIZE);
 
-    vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    let addr = mmap(None, PAGE_SIZE, Permissions::ReadWrite, Access::User, vmm::paging::mmap::Mode::Continous);
+    let addr = match addr {
+        Ok(addr) => {
+            printkln!("return addr: 0x{:x}", addr);
+            addr
+        }
+        Err(err) => {
+            printkln!("{:?}", err);
+            0
+        }
+    };
+    // unsafe {
+    //     *(0x8000 as *mut u8) = 3;
+    // }
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
 }
 
-#[cfg(test)]
-#[unsafe(no_mangle)]
-pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, qemu, vmm};
+// #[cfg(test)]
+// #[unsafe(no_mangle)]
+// pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+//     use kfs::{arch, qemu, vmm};
 
-    arch::x86::gdt::init();
-    arch::x86::idt::init();
+//     arch::x86::gdt::init();
+//     arch::x86::idt::init();
 
-    vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+//     vmm::init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    test_main();
-    unsafe { qemu::exit(qemu::ExitCode::Success) };
-}
+//     test_main();
+//     unsafe { qemu::exit(qemu::ExitCode::Success) };
+// }

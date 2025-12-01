@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "bitstruct"
 version = "0.1.0"
-source = "git+https://github.com/winstonallo/bitstruct.git#e67dd93010f49b38c9234a9267c5c3ac9c00085a"
+source = "git+https://github.com/winstonallo/bitstruct.git#fb7c9fdd02c8dbbb61dd961468c8748fff470499"
 dependencies = [
  "macros",
 ]
@@ -20,7 +20,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.1.0"
-source = "git+https://github.com/winstonallo/bitstruct.git#e67dd93010f49b38c9234a9267c5c3ac9c00085a"
+source = "git+https://github.com/winstonallo/bitstruct.git#fb7c9fdd02c8dbbb61dd961468c8748fff470499"
 dependencies = [
  "proc-macro2",
  "quote",
