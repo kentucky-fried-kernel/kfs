@@ -77,6 +77,10 @@ def discover_e2e_tests():
     return test_paths
 
 
+QEMU_ARGS = "-boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 4G"
+ISO_PATH = "./build/kernel.iso"
+
+
 def run_tests(type: typing.Literal["E2E", "Unit"]):
     LOGGER.info(f"Building {type} tests...")
     build_output = build_tests()
@@ -87,9 +91,16 @@ def run_tests(type: typing.Literal["E2E", "Unit"]):
     ko = 0
     LOGGER.info(f"Running {type} tests...")
 
+    # QEMU_ARGS="-boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 4G"
+
+    # log "Running tests in QEMU"
+    # ./scripts/run.sh ./build/kernel.iso $QEMU_ARGS
+
     for path in test_paths:
-        LOGGER.info("")
-        proc = run_with_output(["./scripts/run.sh", str(path)])
+        LOGGER.info(f"Building ISO for {path}")
+        proc = run_with_output(["./scripts/build_iso.sh", str(path)])
+        LOGGER.info(f"Running tests for {path}")
+        proc = run_with_output(["./scripts/run.sh", ISO_PATH, QEMU_ARGS])
         ok += int(proc.returncode == 0)
         ko += int(proc.returncode != 0)
 

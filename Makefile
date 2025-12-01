@@ -7,6 +7,8 @@ ISO := $(NAME).iso
 LD_SCRIPT := ./src/arch/x86/linker.ld
 TARGET_CONFIG := ./src/arch/x86/i386-unknown-none.json
 
+QEMU_FLAGS := -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G
+DEBUG_QEMU_FLAGS := $(QEMU_FLAGS) -monitor stdio
 
 LIB := target/i386-unknown-none/release/libkfs.a
 
@@ -31,7 +33,7 @@ iso: all
 	@grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
 
 run: iso
-	@qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G
+	@./scripts/run.sh $(BUILD_DIR)/$(NAME).iso $(QEMU_FLAGS)
 
 debug-iso: all
 	@mkdir -p $(BUILD_DIR)/iso/boot/grub
@@ -40,7 +42,7 @@ debug-iso: all
 	@grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
 
 debug: debug-iso
-	@qemu-system-i386 -cdrom $(BUILD_DIR)/$(NAME).iso -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G -monitor stdio
+	./scripts/run.sh $(BUILD_DIR)/$(NAME).iso $(DEBUG_QEMU_FLAGS)
 
 test:
 	@LOGLEVEL=INFO ./x.py --end-to-end-tests
