@@ -14,6 +14,18 @@ where
     bits: [u8; N / G],
 }
 
+impl<const N: usize, const G: usize> Default for BitMap<N, G>
+where
+    [(); N / G]:,
+{
+    fn default() -> Self
+    where
+        [(); N / G]:,
+    {
+        Self::new()
+    }
+}
+
 impl<const N: usize, const G: usize> BitMap<N, G>
 where
     [(); N / G]:,
