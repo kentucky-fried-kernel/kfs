@@ -3,6 +3,7 @@
 #![feature(const_ops)]
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
+#![deny(clippy::unwrap_used)]
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 #![feature(custom_test_frameworks)]

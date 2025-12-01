@@ -96,7 +96,7 @@ impl Buffer {
     /// ```
     pub fn flush(&self) {
         for (i, e) in self.buffer.iter().enumerate() {
-            write_entry_to_vga(i, *e).unwrap();
+            write_entry_to_vga(i, *e).expect("Could not write entry to VGA buffer");
         }
         match self.cursor {
             Some(c) => {
@@ -176,7 +176,7 @@ fn write_entry_to_vga(index: usize, entry: u16) -> Result<(), OutOfBoundsErr> {
         return Err(OutOfBoundsErr);
     }
 
-    let written_entry = read_entry_from_vga(index).unwrap(); // Have to think about how we want to handle this
+    let written_entry = read_entry_from_vga(index).expect("Could not read from VGA buffer");
     if entry == written_entry {
         return Ok(());
     }
