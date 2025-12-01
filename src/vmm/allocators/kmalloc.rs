@@ -21,9 +21,12 @@ pub struct Page {
 }
 
 #[derive(Debug)]
-pub enum Error {
-    NoSpaceLeft,
-    MmapFailure,
+pub enum KmallocError {
+    NotEnoughMemory,
+}
+
+#[derive(Debug)]
+pub enum KfreeError {
     InvalidPointer,
     DoubleFree,
 }
@@ -63,17 +66,17 @@ impl BlockCache {
         None
     }
 
-    pub fn free(&mut self, addr: *const u8) -> Result<(), Error> {
+    pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
             if object == addr {
                 if bit == 0 {
-                    return Err(Error::InvalidPointer);
+                    return Err(KfreeError::InvalidPointer);
                 }
                 self.bitmap.clear(idx);
                 return Ok(());
             }
         }
-        Err(Error::InvalidPointer)
+        Err(KfreeError::InvalidPointer)
     }
 }
 
@@ -126,20 +129,24 @@ static mut CACHE_512: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_1024: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_2048: BlockCache = unsafe { core::mem::zeroed() };
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 20;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
 static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null(), BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
 
 #[allow(static_mut_refs)]
-pub fn kmalloc(size: usize) -> Option<*const u8> {
-    unsafe { BUDDY_ALLOCATOR.alloc(size) }
+pub fn kmalloc(size: usize) -> Result<*const u8, KmallocError> {
+    unsafe { BUDDY_ALLOCATOR.alloc(size).map_err(|_| KmallocError::NotEnoughMemory) }
 }
 
 #[allow(static_mut_refs)]
-pub fn init() -> Result<(), Error> {
-    let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
+pub fn init() -> Result<(), KmallocError> {
+    let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
 
+    printkln!(
+        "Initialized Buddy Allocator of size 0x{:x}, root memory: 0x{:x}",
+        BUDDY_ALLOCATOR_SIZE,
+        cache_memory
+    );
     let mut bm = unsafe { &mut BUDDY_ALLOCATOR };
     bm.set_root(cache_memory as *const u8);
-
     Ok(())
 }
