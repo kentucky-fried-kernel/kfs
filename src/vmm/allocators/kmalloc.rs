@@ -4,13 +4,15 @@ use crate::{
     bitmap::BitMap,
     printkln,
     vmm::{
-        allocators::backend::buddy_allocator::BuddyAllocator,
+        allocators::{backend::buddy_allocator::BuddyAllocator, kmalloc::state::*},
         paging::{
             Access, Permissions,
             mmap::{MmapError, Mode, mmap},
         },
     },
 };
+
+mod state;
 
 #[repr(C, align(0x1000))]
 #[derive(Clone, Copy)]
@@ -124,63 +126,20 @@ static mut CACHE_512: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_1024: BlockCache = unsafe { core::mem::zeroed() };
 static mut CACHE_2048: BlockCache = unsafe { core::mem::zeroed() };
 
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 20;
+static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null(), BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
+
 #[allow(static_mut_refs)]
-pub fn kmalloc(size: usize) -> usize {
-    let ptr = mmap(None, size, Permissions::Read, Access::Root, Mode::Continous).unwrap();
-    printkln!("{:x}", ptr);
-    ptr
+pub fn kmalloc(size: usize) -> Option<*const u8> {
+    unsafe { BUDDY_ALLOCATOR.alloc(size) }
 }
 
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), Error> {
-    // unsafe {
-    //     CACHE_8 = BlockCache::new(8).unwrap();
-    //     CACHE_16 = BlockCache::new(16).unwrap();
-    //     CACHE_32 = BlockCache::new(32).unwrap();
-    //     CACHE_64 = BlockCache::new(64).unwrap();
-    //     CACHE_128 = BlockCache::new(128).unwrap();
-    //     CACHE_256 = BlockCache::new(256).unwrap();
-    //     CACHE_512 = BlockCache::new(512).unwrap();
-    //     CACHE_1024 = BlockCache::new(1024).unwrap();
-    //     CACHE_2048 = BlockCache::new(2048).unwrap();
-    // }
+    let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
 
-    // let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
-    // let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
-    // for iter in 0..8 {
-    //     let addr = bm.alloc(4096).ok_or(Error::NoSpaceLeft)?;
-    //     printkln!("[{}] Received address: {:?}", iter, addr);
-    //     // let addr = bm.alloc(4096).ok_or(Error::NoSpaceLeft)?;
-    //     // printkln!("[{}] Received address: {:?}", iter, addr);
-    //     // bm.free(addr);
-    // }
-
-    // let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
-    //     .map_err(|_| "Error::MmapFailure")
-    //     .unwrap();
-    // printkln!("\nMMAP Memory: {:x}", cache_memory);
-    // let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
-    // for _ in 0..8 {
-    //     let ptr = bm.alloc(4096);
-    //     printkln!("\nALLOCATION: {:?}", ptr);
-    //     if ptr.is_none() {
-    //         panic!("Allocation failed when it should have been able to service the request");
-    //     }
-    // }
-
-    // let cache_memory = mmap(None, 4096 * 8, Permissions::ReadWrite, Access::Root, Mode::Continous)
-    //     .map_err(|_| "Error::MmapFailure")
-    //     .unwrap();
-    // printkln!("\nMMAP Memory: {:x}", cache_memory);
-    // let mut bm = BuddyAllocator::new(cache_memory as *const u8, 4096 * 8);
-    // for _ in 0..8 {
-    //     let ptr = bm.alloc(4096);
-    //     printkln!("\nALLOCATION: {:?}", ptr);
-    //     if ptr.is_none() {
-    //         printkln!("Allocation failed when it should have been able to service the request");
-    //         return Ok(());
-    //     }
-    // }
+    let mut bm = unsafe { &mut BUDDY_ALLOCATOR };
+    bm.set_root(cache_memory as *const u8);
 
     Ok(())
 }
