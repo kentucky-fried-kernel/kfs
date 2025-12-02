@@ -6,6 +6,7 @@
 #![deny(clippy::unwrap_used)]
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
+#![feature(pointer_is_aligned_to)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
