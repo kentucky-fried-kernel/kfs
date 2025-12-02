@@ -121,11 +121,11 @@ impl Iterator for SlabIntoIterator {
     type Item = (*const u8, SlabObjectInfo);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.pos as usize + self.slab.object_size as usize >= (self.pos as usize & !0xFFF) + 0x1000 {
+        if self.pos + self.slab.object_size >= (self.pos & !0xFFF) + 0x1000 {
             return None;
         }
 
-        let current_addr = unsafe { self.slab.addr.add(self.slab.object_size as usize * self.pos) };
+        let current_addr = unsafe { self.slab.addr.add(self.slab.object_size * self.pos) };
         let status = SlabObjectInfo::from(self.slab.bitmap.get(self.pos));
 
         self.pos += 1;
