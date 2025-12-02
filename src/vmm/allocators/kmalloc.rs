@@ -4,7 +4,10 @@ use crate::{
     bitmap::BitMap,
     printkln, serial_println,
     vmm::{
-        allocators::{backend::buddy_allocator::BuddyAllocator, kmalloc::state::*},
+        allocators::{
+            backend::{buddy_allocator::BuddyAllocator, slab_allocator::Slab},
+            kmalloc::state::*,
+        },
         paging::{
             Access, Permissions,
             mmap::{MmapError, Mode, mmap},
@@ -46,9 +49,20 @@ pub fn init() -> Result<(), KmallocError> {
         BUDDY_ALLOCATOR_SIZE,
         cache_memory
     );
-    let mut bm = unsafe { &mut BUDDY_ALLOCATOR };
 
+    let mut bm = unsafe { &mut BUDDY_ALLOCATOR };
     bm.set_root(cache_memory as *const u8);
+
+    let slab_addr = bm.alloc(4096).map_err(|_| KmallocError::NotEnoughMemory)?;
+
+    let mut slab = unsafe { Slab::new(slab_addr, 256) };
+
+    for _ in 0..15 {
+        let ptr = slab.alloc().map_err(|_| KmallocError::NotEnoughMemory)?;
+        printkln!("0x{:x}", ptr as usize);
+        slab.free(ptr);
+        let ptr = slab.alloc().map_err(|_| KmallocError::NotEnoughMemory)?;
+    }
 
     Ok(())
 }
