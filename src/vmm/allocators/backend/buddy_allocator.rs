@@ -1,4 +1,7 @@
-use crate::{bitmap::BitMap, vmm::paging::PAGE_SIZE};
+use crate::{
+    bitmap::BitMap,
+    vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
+};
 
 pub enum BuddyAllocationError {
     NotEnoughMemory,
@@ -192,12 +195,12 @@ impl BuddyAllocator {
         let right_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index | 1));
 
         let parent_state = match (left_state, right_state) {
-            (0b00, 0b00) => BuddyAllocatorNode::Free as u8,
-            (0b11, 0b11) => BuddyAllocatorNode::FullyAllocated as u8,
-            _ => 0b10,
+            (0b00, 0b00) => BuddyAllocatorNode::Free,
+            (0b11, 0b11) => BuddyAllocatorNode::FullyAllocated,
+            _ => BuddyAllocatorNode::PartiallyAllocated,
         };
 
-        with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, parent_state));
+        with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, parent_state as u8));
 
         self.update_parent_states(level - 1, parent_index);
     }
