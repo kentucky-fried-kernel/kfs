@@ -56,3 +56,13 @@ pub fn panic_handler(info: &PanicInfo) -> ! {
     #[allow(clippy::empty_loop)]
     loop {}
 }
+
+// This panic handler function can be used as a `#[panic_handler]` for tests
+// that are expected to panic.
+pub fn should_panic_panic_handler() -> ! {
+    use crate::qemu;
+    serial_println!("[ok]");
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
+    #[allow(clippy::empty_loop)]
+    loop {}
+}
