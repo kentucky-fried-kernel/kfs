@@ -231,7 +231,7 @@ impl BuddyAllocator {
         }
     }
 
-    pub fn free(&mut self, addr: *const u8) {
+    pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         assert!(!addr.is_null(), "Cannot free null pointer");
         assert!(!self.root.is_null());
 
@@ -242,9 +242,10 @@ impl BuddyAllocator {
             if state == 0b11 {
                 with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, BuddyAllocatorNode::Free as u8));
                 self.coalesce(level, index);
-                return;
+                return Ok(());
             }
             index = if index % 2 == 1 { index - 1 } else { index } / 2;
         }
+        Err(KfreeError::InvalidPointer)
     }
 }
