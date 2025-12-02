@@ -2,7 +2,7 @@
 
 use crate::{
     bitmap::BitMap,
-    printkln,
+    printkln, serial_println,
     vmm::{
         allocators::{backend::buddy_allocator::BuddyAllocator, kmalloc::state::*},
         paging::{
@@ -28,7 +28,6 @@ pub enum KmallocError {
 #[derive(Debug)]
 pub enum KfreeError {
     InvalidPointer,
-    DoubleFree,
 }
 
 const PAGES_PER_CACHE: usize = 8;
