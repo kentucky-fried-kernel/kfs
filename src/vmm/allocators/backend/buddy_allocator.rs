@@ -162,7 +162,7 @@ impl BuddyAllocator {
 
     pub fn alloc(&mut self, size: usize) -> Result<*const u8, BuddyAllocationError> {
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
-        assert!(size < self.size, "The buddy allocator cannot allocate more than its size");
+        assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
         assert!(!self.root.is_null());
 
         self.alloc_internal(size, self.root, self.size, self.root_level, 0)
