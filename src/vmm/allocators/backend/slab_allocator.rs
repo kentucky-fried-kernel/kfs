@@ -51,6 +51,7 @@ pub struct SlabHeader {
 #[derive(Clone, Copy, Debug)]
 pub struct Slab {
     addr: *const u8,
+    next: *mut Slab,
 }
 
 impl Slab {
@@ -99,7 +100,20 @@ impl Slab {
             (*header).next = objects_start_addr as *const FreeList;
         }
 
-        Self { addr }
+        Self {
+            addr,
+            next: core::ptr::null_mut(),
+        }
+    }
+
+    #[inline]
+    pub fn next(&self) -> *const Slab {
+        self.next
+    }
+
+    #[inline]
+    pub fn set_next(&mut self, next: *mut Slab) {
+        self.next = next;
     }
 
     #[inline]
@@ -164,34 +178,3 @@ impl Slab {
         Ok(())
     }
 }
-
-// impl IntoIterator for Slab {
-//     type Item = *const u8;
-//     type IntoIter = SlabIntoIterator;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         Self::IntoIter { slab: self, pos: 0 }
-//     }
-// }
-
-// pub struct SlabIntoIterator {
-//     slab: Slab,
-//     pos: usize,
-// }
-
-// impl Iterator for SlabIntoIterator {
-//     type Item = *const u8;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.pos + self.slab.header().object_size >= (self.pos & !0xFFF) + 0x1000 {
-//             return None;
-//         }
-
-//         let current_addr = unsafe { self.slab.addr.add(self.slab.header().object_size * self.pos) };
-//         let status = SlabObjectStatus::from(self.slab.bitmap.get(self.pos));
-
-//         self.pos += 1;
-
-//         Some(current_addr)
-//     }
-// }

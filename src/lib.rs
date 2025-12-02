@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(const_ops)]
+#![feature(const_default)]
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
 #![deny(clippy::unwrap_used)]
