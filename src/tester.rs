@@ -61,7 +61,7 @@ pub fn panic_handler(info: &PanicInfo) -> ! {
 // that are expected to panic.
 pub fn should_panic_panic_handler() -> ! {
     use crate::qemu;
-    serial_println!("[ok]");
+    serial_println!("[ok]\n");
     unsafe { qemu::exit(qemu::ExitCode::Success) };
     #[allow(clippy::empty_loop)]
     loop {}
