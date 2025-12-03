@@ -33,7 +33,7 @@ static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null
 const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 const PAGES_PER_SLAB_CACHE: usize = 8;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct SlabCache {
     empty_slabs: *mut Slab,
     partial_slabs: *mut Slab,
@@ -57,7 +57,14 @@ impl SlabCache {
     pub fn add_slab(&mut self, addr: *mut Slab) -> Result<(), SlabAllocationError> {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
+        printkln!("head: 0x{:x}", self.empty_slabs as usize);
+        printkln!("Address of slab to be added: 0x{:x}", addr as usize);
+
         let mut head = self.empty_slabs;
+        if head.is_null() {
+            self.empty_slabs = addr;
+            return Ok(());
+        }
 
         while !unsafe { (*head).next().is_null() } {
             head = unsafe { (*head).next() as *mut Slab };
