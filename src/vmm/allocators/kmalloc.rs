@@ -129,7 +129,7 @@ impl const Default for SlabAllocator {
             idx += 1;
         }
 
-        Self { caches: caches }
+        Self { caches }
     }
 }
 
@@ -161,13 +161,13 @@ pub fn init() -> Result<(), KmallocError> {
     let mut slab = unsafe { Slab::new(slab_addr, 1024) };
 
     sa.caches[0]
-        .add_slab(NonNull::new(&mut slab as *mut Slab).unwrap())
+        .add_slab(NonNull::new(&mut slab as *mut Slab).ok_or(KmallocError::NotEnoughMemory)?)
         .map_err(|_| KmallocError::NotEnoughMemory)?;
 
     let slab_addr = buddy_allocator.alloc(4096).map_err(|_| KmallocError::NotEnoughMemory)?;
     let mut slab = unsafe { Slab::new(slab_addr, 1024) };
     sa.caches[0]
-        .add_slab(NonNull::new(&mut slab as *mut Slab).unwrap())
+        .add_slab(NonNull::new(&mut slab as *mut Slab).ok_or(KmallocError::NotEnoughMemory)?)
         .map_err(|_| KmallocError::NotEnoughMemory)?;
 
     printkln!("{:?}", sa);
