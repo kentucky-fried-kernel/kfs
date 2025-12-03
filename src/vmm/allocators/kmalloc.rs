@@ -4,7 +4,7 @@ use crate::{
         allocators::{
             backend::{
                 buddy_allocator::BuddyAllocator,
-                slab_allocator::{Slab, SlabAllocationError},
+                slab_allocator::{IntrusiveLink, List, Slab, SlabAllocationError},
             },
             kmalloc::state::*,
         },
@@ -46,7 +46,7 @@ impl Iterator for SlabListIntoIterator {
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.current.take()?;
 
-        self.current = unsafe { NonNull::new((*current.as_ptr()).next() as *mut Slab) };
+        self.current = unsafe { NonNull::new((*current.as_ptr()).next_ptr()?.as_ptr() as *mut Slab) };
 
         Some(current)
     }
@@ -71,7 +71,7 @@ impl SlabList {
 
         match last {
             None => self.head = NonNull::new(addr),
-            Some(last) => unsafe { (*last.as_ptr()).set_next(addr) },
+            Some(last) => unsafe { (*last.as_ptr()).set_next(NonNull::new(addr).expect("let me cook for a minute")) },
         }
     }
 }
@@ -98,7 +98,7 @@ impl IntoIterator for SlabList {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SlabCache {
-    empty_slabs: SlabList,
+    empty_slabs: List<Slab>,
     partial_slabs: SlabList,
     full_slabs: SlabList,
 
@@ -109,7 +109,7 @@ pub struct SlabCache {
 impl SlabCache {
     pub const fn new(object_size: usize) -> Self {
         Self {
-            empty_slabs: SlabList::default(),
+            empty_slabs: List::<Slab>::default(),
             partial_slabs: SlabList::default(),
             full_slabs: SlabList::default(),
             n_slabs: 0,
@@ -120,7 +120,7 @@ impl SlabCache {
     pub fn add_slab(&mut self, addr: NonNull<Slab>) -> Result<(), SlabAllocationError> {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
-        match self.empty_slabs.head {
+        match self.empty_slabs.head() {
             Some(head) => printkln!("head: {:?}", head),
             None => printkln!("head: None"),
         }
@@ -132,8 +132,8 @@ impl SlabCache {
         self.n_slabs += 1;
 
         match last {
-            None => self.empty_slabs.head = Some(addr),
-            Some(last) => unsafe { (*last.as_ptr()).set_next(addr.as_ptr()) },
+            None => self.empty_slabs.set_head(addr),
+            Some(last) => unsafe { (*last.as_ptr()).set_next(addr) },
         }
 
         Ok(())

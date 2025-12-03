@@ -1,8 +1,61 @@
+use core::ptr::NonNull;
+
 use crate::vmm::paging::PAGE_SIZE;
 
-/// BitMap type specifically for slabs, which may only store up to 512 entries
-/// (for `object_size == 8`). This wastes a little bit of memory for larger
-/// `object_size` values, but I think the simplicity is worth it here.
+pub trait IntrusiveLink {
+    fn next_ptr(&self) -> Option<NonNull<Self>>
+    where
+        Self: Sized;
+
+    fn next_ptr_mut(&mut self) -> &mut Option<NonNull<Self>>
+    where
+        Self: Sized;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct List<T> {
+    head: Option<NonNull<T>>,
+}
+
+impl<T: IntrusiveLink> const Default for List<T> {
+    fn default() -> Self {
+        Self { head: None }
+    }
+}
+
+impl<T: IntrusiveLink> List<T> {
+    pub fn head(&self) -> Option<NonNull<T>> {
+        self.head
+    }
+
+    pub fn set_head(&mut self, head: NonNull<T>) {
+        self.head = Some(head);
+    }
+}
+
+impl<T: IntrusiveLink> IntoIterator for List<T> {
+    type IntoIter = ListIntoIterator<T>;
+    type Item = NonNull<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter { current: self.head }
+    }
+}
+
+pub struct ListIntoIterator<T> {
+    current: Option<NonNull<T>>,
+}
+
+impl<T: IntrusiveLink> Iterator for ListIntoIterator<T> {
+    type Item = NonNull<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current.take()?;
+
+        self.current = unsafe { current.as_ref() }.next_ptr();
+        Some(current)
+    }
+}
 
 #[repr(u8)]
 pub enum SlabObjectStatus {
@@ -28,9 +81,9 @@ impl From<u8> for SlabObjectStatus {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct FreeList {
-    next: *const FreeList,
+#[derive(Clone, Copy, Debug)]
+pub struct Payload {
+    next: Option<NonNull<Payload>>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -40,7 +93,25 @@ pub struct SlabHeader {
     /// allocations from fuller slabs to maximize the number of empty slabs to give
     /// back to the main allocator in case of memory pressure.
     allocated: usize,
-    next: *const FreeList,
+    next: List<Payload>,
+}
+
+impl IntrusiveLink for Slab {
+    #[inline]
+    fn next_ptr(&self) -> Option<NonNull<Self>>
+    where
+        Self: Sized,
+    {
+        self.next
+    }
+
+    #[inline]
+    fn next_ptr_mut(&mut self) -> &mut Option<NonNull<Self>>
+    where
+        Self: Sized,
+    {
+        &mut self.next
+    }
 }
 
 /// Order 0 Slab.
@@ -100,20 +171,12 @@ impl Slab {
             (*header).next = objects_start_addr as *const FreeList;
         }
 
-        Self {
-            addr,
-            next: core::ptr::null_mut(),
-        }
+        Self { addr, next: None }
     }
 
     #[inline]
-    pub fn next(&self) -> *const Slab {
-        self.next
-    }
-
-    #[inline]
-    pub fn set_next(&mut self, next: *mut Slab) {
-        self.next = next;
+    pub fn set_next(&mut self, next: NonNull<Slab>) {
+        self.next = Some(next);
     }
 
     #[inline]
