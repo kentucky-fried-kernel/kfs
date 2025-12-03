@@ -36,71 +36,11 @@ static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null
 const SLAB_CACHE_SIZES: [u16; 1] = [1024];
 const PAGES_PER_SLAB_CACHE: usize = 8;
 
-pub struct SlabListIntoIterator {
-    current: Option<NonNull<Slab>>,
-}
-
-impl Iterator for SlabListIntoIterator {
-    type Item = NonNull<Slab>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.current.take()?;
-
-        self.current = unsafe { NonNull::new((*current.as_ptr()).next_ptr()?.as_ptr() as *mut Slab) };
-
-        Some(current)
-    }
-
-    fn last(self) -> Option<Self::Item>
-    where
-        Self: Sized,
-    {
-        let mut last = self.current;
-
-        for slab in self {
-            last = Some(slab);
-        }
-
-        last
-    }
-}
-
-impl SlabList {
-    pub fn add_back(&mut self, addr: *mut Slab) {
-        let last = self.into_iter().last();
-
-        match last {
-            None => self.head = NonNull::new(addr),
-            Some(last) => unsafe { (*last.as_ptr()).set_next(NonNull::new(addr).expect("let me cook for a minute")) },
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct SlabList {
-    head: Option<NonNull<Slab>>,
-}
-
-impl const Default for SlabList {
-    fn default() -> Self {
-        Self { head: None }
-    }
-}
-
-impl IntoIterator for SlabList {
-    type IntoIter = SlabListIntoIterator;
-    type Item = NonNull<Slab>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter { current: self.head }
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct SlabCache {
     empty_slabs: List<Slab>,
-    partial_slabs: SlabList,
-    full_slabs: SlabList,
+    partial_slabs: List<Slab>,
+    full_slabs: List<Slab>,
 
     n_slabs: usize,
     object_size: usize,
@@ -110,8 +50,8 @@ impl SlabCache {
     pub const fn new(object_size: usize) -> Self {
         Self {
             empty_slabs: List::<Slab>::default(),
-            partial_slabs: SlabList::default(),
-            full_slabs: SlabList::default(),
+            partial_slabs: List::<Slab>::default(),
+            full_slabs: List::<Slab>::default(),
             n_slabs: 0,
             object_size,
         }

@@ -1,61 +1,8 @@
 use core::ptr::NonNull;
 
-use crate::vmm::paging::PAGE_SIZE;
+use crate::vmm::{allocators::kmalloc::IntrusiveLink, paging::PAGE_SIZE};
 
-pub trait IntrusiveLink {
-    fn next_ptr(&self) -> Option<NonNull<Self>>
-    where
-        Self: Sized;
-
-    fn next_ptr_mut(&mut self) -> &mut Option<NonNull<Self>>
-    where
-        Self: Sized;
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct List<T> {
-    head: Option<NonNull<T>>,
-}
-
-impl<T: IntrusiveLink> const Default for List<T> {
-    fn default() -> Self {
-        Self { head: None }
-    }
-}
-
-impl<T: IntrusiveLink> List<T> {
-    pub fn head(&self) -> Option<NonNull<T>> {
-        self.head
-    }
-
-    pub fn set_head(&mut self, head: NonNull<T>) {
-        self.head = Some(head);
-    }
-}
-
-impl<T: IntrusiveLink> IntoIterator for List<T> {
-    type IntoIter = ListIntoIterator<T>;
-    type Item = NonNull<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter { current: self.head }
-    }
-}
-
-pub struct ListIntoIterator<T> {
-    current: Option<NonNull<T>>,
-}
-
-impl<T: IntrusiveLink> Iterator for ListIntoIterator<T> {
-    type Item = NonNull<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.current.take()?;
-
-        self.current = unsafe { current.as_ref() }.next_ptr();
-        Some(current)
-    }
-}
+const SLAB_HEADER_OVERHEAD: usize = (size_of::<SlabHeader>() & !(0x08 - 1)) + 0x08;
 
 #[repr(u8)]
 pub enum SlabObjectStatus {
