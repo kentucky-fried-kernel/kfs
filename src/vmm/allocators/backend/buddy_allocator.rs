@@ -1,3 +1,5 @@
+use core::ptr::NonNull;
+
 use crate::{
     bitmap::BitMap,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
@@ -81,7 +83,7 @@ pub struct BuddyAllocator {
     /// `levels[19]`: 1.048.576 * 4096 B
     levels: [*const u8; 20],
     /// Address from which the root block starts.
-    root: *const u8,
+    root: Option<NonNull<u8>>,
     /// Index of the root bitmap
     root_level: usize,
     /// Size of the root block.
@@ -90,7 +92,7 @@ pub struct BuddyAllocator {
 
 impl BuddyAllocator {
     #[allow(static_mut_refs)]
-    pub const fn new(root: *const u8, size: usize, levels: [*const u8; 20]) -> Self {
+    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [*const u8; 20]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
         assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
 
@@ -104,13 +106,13 @@ impl BuddyAllocator {
         }
     }
 
-    pub fn set_root(&mut self, root: *const u8) {
-        self.root = root;
+    pub fn set_root(&mut self, root: NonNull<u8>) {
+        self.root = Some(root);
     }
 
     #[inline]
     #[allow(static_mut_refs)]
-    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*const u8> {
+    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*mut u8> {
         assert!(
             allocation_size.is_multiple_of(PAGE_SIZE),
             "The buddy allocator can only allocate multiples of 4096"
@@ -124,7 +126,7 @@ impl BuddyAllocator {
         if allocation_size >= level_block_size || level == self.levels.len() {
             if current_state == BuddyAllocatorNode::Free as u8 {
                 with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, BuddyAllocatorNode::FullyAllocated as u8));
-                return Some(root);
+                return Some(root as *mut u8);
             }
             return None;
         }
@@ -163,12 +165,12 @@ impl BuddyAllocator {
         allocation
     }
 
-    pub fn alloc(&mut self, size: usize) -> Result<*const u8, BuddyAllocationError> {
+    pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
         assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
-        assert!(!self.root.is_null());
+        let root = self.root.expect("alloc called on BuddyAllocator without root");
 
-        self.alloc_internal(size, self.root, self.size, self.root_level, 0)
+        self.alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
             .ok_or(BuddyAllocationError::NotEnoughMemory)
     }
 
@@ -176,12 +178,13 @@ impl BuddyAllocator {
     /// Used to recurse back from there and find an allocation by address.
     #[inline]
     fn get_base_index(&self, addr: *const u8) -> usize {
+        let root = self.root.expect("get_base_index called on BuddyAllocator without root");
         assert!(
-            (self.root as usize..(self.root as usize + self.size)).contains(&(addr as usize)),
+            (root.as_ptr() as usize..(root.as_ptr() as usize + self.size)).contains(&(addr as usize)),
             "addr is out of range for this allocator"
         );
 
-        (addr as usize - self.root as usize) / PAGE_SIZE
+        (addr as usize - root.as_ptr() as usize) / PAGE_SIZE
     }
 
     fn update_parent_states(&mut self, level: usize, index: usize) {
@@ -233,7 +236,7 @@ impl BuddyAllocator {
 
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         assert!(!addr.is_null(), "Cannot free null pointer");
-        assert!(!self.root.is_null());
+        assert!(!self.root.is_some(), "free called on BuddyAllocator without root");
 
         let mut index = self.get_base_index(addr);
 
