@@ -10,10 +10,12 @@ pub enum SlabObjectStatus {
     Allocated = 1,
 }
 
+#[derive(Debug)]
 pub enum SlabAllocationError {
     NotEnoughMemory,
 }
 
+#[derive(Debug)]
 pub enum SlabFreeError {
     InvalidPointer,
 }
@@ -40,7 +42,7 @@ pub struct SlabHeader {
     /// allocations from fuller slabs to maximize the number of empty slabs to give
     /// back to the main allocator in case of memory pressure.
     allocated: usize,
-    next: List<Payload>,
+    next: Option<NonNull<Payload>>,
 }
 
 impl IntrusiveLink for Slab {
@@ -69,7 +71,7 @@ impl IntrusiveLink for Slab {
 #[derive(Clone, Copy, Debug)]
 pub struct Slab {
     addr: *const u8,
-    next: *mut Slab,
+    next: Option<NonNull<Slab>>,
 }
 
 impl Slab {
@@ -83,7 +85,7 @@ impl Slab {
 
         let header: *mut SlabHeader = addr as *mut SlabHeader;
 
-        let objects_start_addr = unsafe { addr.add((size_of::<SlabHeader>() & !(0x08 - 1)) + 0x08) };
+        let objects_start_addr = unsafe { addr.add(SLAB_HEADER_OVERHEAD) };
         let header_overhead = objects_start_addr as usize - addr as usize;
 
         let available_space = PAGE_SIZE - header_overhead;
@@ -115,10 +117,15 @@ impl Slab {
         }
 
         unsafe {
-            (*header).next = objects_start_addr as *const FreeList;
+            (*header).next = NonNull::new(objects_start_addr as *mut Payload);
         }
 
         Self { addr, next: None }
+    }
+
+    #[inline]
+    pub fn address(&self) -> *const u8 {
+        self.addr
     }
 
     #[inline]
@@ -132,7 +139,6 @@ impl Slab {
 
         // SAFETY: The constructor guarantees self.addr points to a valid page
         // where the SlabHeader is correctly initialized at the start.
-        // We dereference the immutable pointer to get an immutable reference.
         unsafe { &*header_ptr }
     }
 
@@ -141,33 +147,36 @@ impl Slab {
 
         // SAFETY: The constructor guarantees self.addr points to a valid page
         // where the SlabHeader is correctly initialized at the start.
-        // We dereference the immutable pointer to get an immutable reference.
         unsafe { &mut (*header_ptr) }
     }
 
     #[inline]
+    pub fn full(&self) -> bool {
+        self.header().allocated == self.max_objects()
+    }
+
+    #[inline]
     fn max_objects(&self) -> usize {
-        PAGE_SIZE / self.header().object_size
+        (PAGE_SIZE - SLAB_HEADER_OVERHEAD) / self.header().object_size
     }
 
     /// Returns a pointer to a free memory region of size `object_size`, or a
     /// `SlabAllocationError` if no more space is left.
-    pub fn alloc(&mut self) -> Result<*const u8, SlabAllocationError> {
+    pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
         if self.header().allocated == self.max_objects() {
             return Err(SlabAllocationError::NotEnoughMemory);
         }
 
-        let header = self.header_mut();
-        let allocation = header.next;
+        let allocation = {
+            let header = self.header_mut();
+            let allocation = header.next.ok_or(SlabAllocationError::NotEnoughMemory)?;
 
-        if allocation.is_null() {
-            return Err(SlabAllocationError::NotEnoughMemory);
-        }
+            header.next = unsafe { *allocation.as_ptr() }.next;
+            header.allocated += 1;
+            allocation
+        };
 
-        header.next = unsafe { *(header.next as *mut FreeList) }.next;
-        header.allocated += 1;
-
-        Ok(allocation as *const u8)
+        Ok(allocation.as_ptr() as *mut u8)
     }
 
     pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
@@ -178,12 +187,12 @@ impl Slab {
 
         let header = self.header_mut();
 
-        let next = unsafe { &mut *(header.next as *mut FreeList) };
+        let next = header.next;
 
-        header.next = addr as *const FreeList;
+        header.next = NonNull::new(addr as *mut Payload);
         header.allocated -= 1;
 
-        unsafe { (*(addr as *mut FreeList)).next = next as *const FreeList };
+        unsafe { (*(addr as *mut Payload)).next = next };
 
         Ok(())
     }
