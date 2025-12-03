@@ -175,10 +175,10 @@ pub fn init() -> Result<(), KmallocError> {
     let mut sa = SlabAllocator::default();
 
     for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
-        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 32).map_err(|_| KmallocError::NotEnoughMemory)?;
+        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
 
         let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
-        unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 32) }?;
+        unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 8) }?;
 
         printkln!("{:?}", sa.caches[idx]);
     }

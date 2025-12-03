@@ -20,6 +20,7 @@ pub static mut LEVEL_16: BitMap<{ 1 << 16 }, 4> = BitMap::<{ 1 << 16 }, 4>::new(
 pub static mut LEVEL_17: BitMap<{ 1 << 17 }, 4> = BitMap::<{ 1 << 17 }, 4>::new();
 pub static mut LEVEL_18: BitMap<{ 1 << 18 }, 4> = BitMap::<{ 1 << 18 }, 4>::new();
 pub static mut LEVEL_19: BitMap<{ 1 << 19 }, 4> = BitMap::<{ 1 << 19 }, 4>::new();
+pub static mut LEVEL_20: BitMap<{ 1 << 20 }, 4> = BitMap::<{ 1 << 20 }, 4>::new();
 
 #[allow(static_mut_refs)]
 pub static mut LEVELS: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS] = unsafe {
