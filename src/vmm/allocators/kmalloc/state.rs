@@ -1,4 +1,4 @@
-use crate::bitmap::BitMap;
+use crate::{bitmap::BitMap, vmm::allocators::backend::buddy_allocator::MAX_BUDDY_ALLOCATOR_LEVELS};
 
 pub static mut LEVEL_0: BitMap<8, 4> = BitMap::<8, 4>::new();
 pub static mut LEVEL_1: BitMap<8, 4> = BitMap::<8, 4>::new();
@@ -22,7 +22,7 @@ pub static mut LEVEL_18: BitMap<{ 1 << 18 }, 4> = BitMap::<{ 1 << 18 }, 4>::new(
 pub static mut LEVEL_19: BitMap<{ 1 << 19 }, 4> = BitMap::<{ 1 << 19 }, 4>::new();
 
 #[allow(static_mut_refs)]
-pub static mut LEVELS: [*const u8; 20] = unsafe {
+pub static mut LEVELS: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS] = unsafe {
     [
         LEVEL_0.as_ptr(),
         LEVEL_1.as_ptr(),
@@ -44,5 +44,6 @@ pub static mut LEVELS: [*const u8; 20] = unsafe {
         LEVEL_17.as_ptr(),
         LEVEL_18.as_ptr(),
         LEVEL_19.as_ptr(),
+        // LEVEL_20.as_ptr(),
     ]
 };

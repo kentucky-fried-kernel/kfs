@@ -77,11 +77,13 @@ macro_rules! with_bitmap_at_level {
     };
 }
 
+pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = 20;
+
 pub struct BuddyAllocator {
     /// `levels[0]`: 1 * 2 GiB
     ///
     /// `levels[19]`: 1.048.576 * 4096 B
-    levels: [*const u8; 20],
+    levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS],
     /// Address from which the root block starts.
     root: Option<NonNull<u8>>,
     /// Index of the root bitmap
@@ -92,7 +94,7 @@ pub struct BuddyAllocator {
 
 impl BuddyAllocator {
     #[allow(static_mut_refs)]
-    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [*const u8; 20]) -> Self {
+    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
         assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
 
@@ -236,7 +238,7 @@ impl BuddyAllocator {
 
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         assert!(!addr.is_null(), "Cannot free null pointer");
-        assert!(!self.root.is_some(), "free called on BuddyAllocator without root");
+        assert!(self.root.is_some(), "free called on BuddyAllocator without root");
 
         let mut index = self.get_base_index(addr);
 
