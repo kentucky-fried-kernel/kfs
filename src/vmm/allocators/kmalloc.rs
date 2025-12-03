@@ -15,6 +15,8 @@ use crate::{
     },
 };
 
+use core::ptr::NonNull;
+
 mod state;
 
 #[derive(Debug)]
@@ -27,17 +29,78 @@ pub enum KfreeError {
     InvalidPointer,
 }
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 27;
 static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null(), BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
 
-const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+// const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+const SLAB_CACHE_SIZES: [u16; 1] = [1024];
 const PAGES_PER_SLAB_CACHE: usize = 8;
+
+pub struct SlabListIntoIterator {
+    current: Option<NonNull<Slab>>,
+}
+
+impl Iterator for SlabListIntoIterator {
+    type Item = NonNull<Slab>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current.take()?;
+
+        self.current = unsafe { NonNull::new((*current.as_ptr()).next() as *mut Slab) };
+
+        Some(current)
+    }
+
+    fn last(self) -> Option<Self::Item>
+    where
+        Self: Sized,
+    {
+        let mut last = self.current;
+
+        for slab in self {
+            last = Some(slab);
+        }
+
+        last
+    }
+}
+
+impl SlabList {
+    pub fn add_back(&mut self, addr: *mut Slab) {
+        let last = self.into_iter().last();
+
+        match last {
+            None => self.head = NonNull::new(addr),
+            Some(last) => unsafe { (*last.as_ptr()).set_next(addr) },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct SlabList {
+    head: Option<NonNull<Slab>>,
+}
+
+impl const Default for SlabList {
+    fn default() -> Self {
+        Self { head: None }
+    }
+}
+
+impl IntoIterator for SlabList {
+    type IntoIter = SlabListIntoIterator;
+    type Item = NonNull<Slab>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter { current: self.head }
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct SlabCache {
-    empty_slabs: *mut Slab,
-    partial_slabs: *mut Slab,
-    full_slabs: *mut Slab,
+    empty_slabs: SlabList,
+    partial_slabs: SlabList,
+    full_slabs: SlabList,
 
     n_slabs: usize,
     object_size: usize,
@@ -46,48 +109,51 @@ pub struct SlabCache {
 impl SlabCache {
     pub const fn new(object_size: usize) -> Self {
         Self {
-            empty_slabs: core::ptr::null_mut(),
-            partial_slabs: core::ptr::null_mut(),
-            full_slabs: core::ptr::null_mut(),
+            empty_slabs: SlabList::default(),
+            partial_slabs: SlabList::default(),
+            full_slabs: SlabList::default(),
             n_slabs: 0,
             object_size,
         }
     }
 
-    pub fn add_slab(&mut self, addr: *mut Slab) -> Result<(), SlabAllocationError> {
+    pub fn add_slab(&mut self, addr: NonNull<Slab>) -> Result<(), SlabAllocationError> {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
-        printkln!("head: 0x{:x}", self.empty_slabs as usize);
-        printkln!("Address of slab to be added: 0x{:x}", addr as usize);
-
-        let mut head = self.empty_slabs;
-        if head.is_null() {
-            self.empty_slabs = addr;
-            return Ok(());
+        match self.empty_slabs.head {
+            Some(head) => printkln!("head: {:?}", head),
+            None => printkln!("head: None"),
         }
 
-        while !unsafe { (*head).next().is_null() } {
-            head = unsafe { (*head).next() as *mut Slab };
-        }
+        printkln!("Address of slab to be added: {:?}", addr);
 
-        unsafe { (*head).set_next(addr) };
+        let last = self.empty_slabs.into_iter().last();
+
+        self.n_slabs += 1;
+
+        match last {
+            None => self.empty_slabs.head = Some(addr),
+            Some(last) => unsafe { (*last.as_ptr()).set_next(addr.as_ptr()) },
+        }
 
         Ok(())
     }
 
     pub fn alloc(&mut self) -> Result<*const u8, SlabAllocationError> {
-        let mut from = self.partial_slabs;
+        unimplemented!()
+        // let mut from = self.partial_slabs;
 
-        if from.is_null() {
-            from = self.empty_slabs;
-            unsafe { (*self.empty_slabs).set_next((*self.empty_slabs).next() as *mut Slab) };
-            self.partial_slabs = from;
-        }
+        // if from.is_null() {
+        //     from = self.empty_slabs;
+        //     unsafe { (*self.empty_slabs).set_next((*self.empty_slabs).next() as *mut Slab) };
+        //     self.partial_slabs = from;
+        // }
 
-        unsafe { (*from).alloc() }
+        // unsafe { (*from).alloc() }
     }
 }
 
+#[derive(Debug)]
 pub struct SlabAllocator {
     caches: [SlabCache; SLAB_CACHE_SIZES.len()],
 }
@@ -131,26 +197,27 @@ pub fn init() -> Result<(), KmallocError> {
         cache_memory
     );
 
-    let mut bm = unsafe { &mut BUDDY_ALLOCATOR };
+    let bm = unsafe { &mut BUDDY_ALLOCATOR };
     bm.set_root(cache_memory as *const u8);
 
+    let mut sa = SlabAllocator::default();
+    printkln!("Initialized empty SlabAllocator: {:?}", sa);
     let slab_addr = bm.alloc(4096).map_err(|_| KmallocError::NotEnoughMemory)?;
-
     let mut slab = unsafe { Slab::new(slab_addr, 1024) };
-    for idx in 0..16 {
-        printkln!("{:?}", slab.header());
-        let ptr = slab.alloc().map_err(|_| KmallocError::NotEnoughMemory);
-        if ptr.is_err() {
-            printkln!("{:?}", ptr);
-            return Ok(());
-        }
-        let ptr = ptr.unwrap();
-        printkln!("[{}] 0x{:x}", idx, ptr as usize);
-        slab.free(ptr);
-        let ptr = slab.alloc().map_err(|_| KmallocError::NotEnoughMemory);
-        if ptr.is_err() {
-            printkln!("{:?}", ptr);
-        }
+    printkln!("Initialized empty {:?}", slab);
+    sa.caches[0]
+        .add_slab(NonNull::new(&mut slab as *mut Slab).unwrap())
+        .map_err(|_| KmallocError::NotEnoughMemory)?;
+    printkln!("Added slab to {:?}", sa);
+    let slab_addr = bm.alloc(4096).map_err(|_| KmallocError::NotEnoughMemory)?;
+    let mut slab = unsafe { Slab::new(slab_addr, 1024) };
+    sa.caches[0]
+        .add_slab(NonNull::new(&mut slab as *mut Slab).unwrap())
+        .map_err(|_| KmallocError::NotEnoughMemory)?;
+    printkln!("Added slab to {:?}", sa);
+
+    for slab in sa.caches[0].empty_slabs {
+        printkln!("{:?}", slab);
     }
 
     Ok(())
