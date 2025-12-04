@@ -9,7 +9,7 @@ index 6625be7..bf0290d 100644
      bitmap::BitMap,
      vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 @@ -81,7 +83,7 @@ pub struct BuddyAllocator {
-     /// `levels[19]`: 1.048.576 * 4096 B
+     /// `levels[19]`: 1.048.576 * 0x1000 B
      levels: [*const u8; 20],
      /// Address from which the root block starts.
 -    root: *const u8,
@@ -18,31 +18,31 @@ index 6625be7..bf0290d 100644
      root_level: usize,
      /// Size of the root block.
 @@ -90,7 +92,7 @@ pub struct BuddyAllocator {
- 
+
  impl BuddyAllocator {
      #[allow(static_mut_refs)]
 -    pub const fn new(root: *const u8, size: usize, levels: [*const u8; 20]) -> Self {
 +    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [*const u8; 20]) -> Self {
          assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
          assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
- 
+
 @@ -104,13 +106,13 @@ impl BuddyAllocator {
          }
      }
- 
+
 -    pub fn set_root(&mut self, root: *const u8) {
 -        self.root = root;
 +    pub fn set_root(&mut self, root: NonNull<u8>) {
 +        self.root = Some(root);
      }
- 
+
      #[inline]
      #[allow(static_mut_refs)]
 -    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*const u8> {
 +    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*mut u8> {
          assert!(
              allocation_size.is_multiple_of(PAGE_SIZE),
-             "The buddy allocator can only allocate multiples of 4096"
+             "The buddy allocator can only allocate multiples of 0x1000"
 @@ -124,7 +126,7 @@ impl BuddyAllocator {
          if allocation_size >= level_block_size || level == self.levels.len() {
              if current_state == BuddyAllocatorNode::Free as u8 {
@@ -55,19 +55,19 @@ index 6625be7..bf0290d 100644
 @@ -163,12 +165,12 @@ impl BuddyAllocator {
          allocation
      }
- 
+
 -    pub fn alloc(&mut self, size: usize) -> Result<*const u8, BuddyAllocationError> {
 +    pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
-         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
+         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 0x1000");
          assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
 -        assert!(!self.root.is_null());
 +        let root = self.root.expect("alloc called on BuddyAllocator without root");
- 
+
 -        self.alloc_internal(size, self.root, self.size, self.root_level, 0)
 +        self.alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
              .ok_or(BuddyAllocationError::NotEnoughMemory)
      }
- 
+
 @@ -176,12 +178,13 @@ impl BuddyAllocator {
      /// Used to recurse back from there and find an allocation by address.
      #[inline]
@@ -78,21 +78,21 @@ index 6625be7..bf0290d 100644
 +            (root.as_ptr() as usize..(root.as_ptr() as usize + self.size)).contains(&(addr as usize)),
              "addr is out of range for this allocator"
          );
- 
+
 -        (addr as usize - self.root as usize) / PAGE_SIZE
 +        (addr as usize - root.as_ptr() as usize) / PAGE_SIZE
      }
- 
+
      fn update_parent_states(&mut self, level: usize, index: usize) {
 @@ -233,7 +236,7 @@ impl BuddyAllocator {
- 
+
      pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
          assert!(!addr.is_null(), "Cannot free null pointer");
 -        assert!(!self.root.is_null());
 +        assert!(self.root.is_some(), "free called on BuddyAllocator without root");
- 
+
          let mut index = self.get_base_index(addr);
- 
+
 diff --git a/src/vmm/allocators/kmalloc.rs b/src/vmm/allocators/kmalloc.rs
 index fc6f57d..c39d43b 100644
 --- a/src/vmm/allocators/kmalloc.rs
@@ -108,31 +108,31 @@ index fc6f57d..c39d43b 100644
      },
 @@ -33,10 +33,10 @@ pub enum KfreeError {
  }
- 
+
  pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 27;
 -static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null(), BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
 +static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
- 
+
 -const SLAB_CACHE_SIZES: [u16; 1] = [1024];
 -// const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 +// const SLAB_CACHE_SIZES: [u16; 1] = [1024];
 +const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
  const PAGES_PER_SLAB_CACHE: usize = 8;
- 
+
  #[derive(Clone, Copy, Debug)]
 @@ -60,18 +60,12 @@ impl SlabCache {
          }
      }
- 
+
 -    pub fn add_slab(&mut self, addr: NonNull<Slab>) -> Result<(), SlabAllocationError> {
 +    pub fn add_slab(&mut self, mut addr: NonNull<Slab>, x: usize) -> Result<(), SlabAllocationError> {
          assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
- 
+
 -        let last = self.empty_slabs.into_iter().last();
 -
 +        self.empty_slabs.add_front(&mut addr);
          self.n_slabs += 1;
- 
+
 -        match last {
 -            None => self.empty_slabs.set_head(Some(addr)),
 -            Some(last) => unsafe { (*last.as_ptr()).set_next(addr) },
@@ -140,14 +140,14 @@ index fc6f57d..c39d43b 100644
 -
          Ok(())
      }
- 
+
 @@ -122,17 +116,40 @@ pub struct SlabAllocator {
  impl const Default for SlabAllocator {
      fn default() -> Self {
          let mut caches = [SlabCache::new(0); SLAB_CACHE_SIZES.len()];
 -        let mut idx = 0;
 +        let mut cache_idx = 0;
- 
+
 -        while idx < SLAB_CACHE_SIZES.len() {
 -            caches[idx] = SlabCache::new(SLAB_CACHE_SIZES[idx] as usize);
 -            idx += 1;
@@ -155,11 +155,11 @@ index fc6f57d..c39d43b 100644
 +            caches[cache_idx] = SlabCache::new(SLAB_CACHE_SIZES[cache_idx] as usize);
 +            cache_idx += 1;
          }
- 
+
          Self { caches }
      }
  }
- 
+
 +impl SlabAllocator {
 +    /// # Safety
 +    /// It is the caller's responsibility to ensure that `addr` points to a valid, allocated memory address,
@@ -188,41 +188,41 @@ index fc6f57d..c39d43b 100644
      slab_allocator: SlabAllocator,
 @@ -144,7 +161,7 @@ pub fn kfree(addr: *const u8) -> Result<(), KfreeError> {
  }
- 
+
  #[allow(static_mut_refs)]
 -pub fn kmalloc(size: usize) -> Result<*const u8, KmallocError> {
 +pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
      unsafe { BUDDY_ALLOCATOR.alloc(size).map_err(|_| KmallocError::NotEnoughMemory) }
  }
- 
+
 @@ -153,37 +170,18 @@ pub fn init() -> Result<(), KmallocError> {
      let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
- 
+
      let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
 -    buddy_allocator.set_root(cache_memory as *const u8);
 +    buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
- 
+
      let mut sa = SlabAllocator::default();
- 
--    let slab_addr = buddy_allocator.alloc(4096).map_err(|_| KmallocError::NotEnoughMemory)?;
+
+-    let slab_addr = buddy_allocator.alloc(0x1000).map_err(|_| KmallocError::NotEnoughMemory)?;
 -    let mut slab = unsafe { Slab::new(slab_addr, 1024) };
 -
 -    sa.caches[0]
 -        .add_slab(NonNull::new(&mut slab as *mut Slab).ok_or(KmallocError::NotEnoughMemory)?)
 -        .map_err(|_| KmallocError::NotEnoughMemory)?;
 -
--    let slab_addr = buddy_allocator.alloc(4096).map_err(|_| KmallocError::NotEnoughMemory)?;
+-    let slab_addr = buddy_allocator.alloc(0x1000).map_err(|_| KmallocError::NotEnoughMemory)?;
 -    let mut slab = unsafe { Slab::new(slab_addr, 1024) };
 -    sa.caches[0]
 -        .add_slab(NonNull::new(&mut slab as *mut Slab).ok_or(KmallocError::NotEnoughMemory)?)
 -        .map_err(|_| KmallocError::NotEnoughMemory)?;
 +    for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
 +        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 32).map_err(|_| KmallocError::NotEnoughMemory)?;
- 
+
 -    printkln!("{:?}", sa);
 +        let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
 +        unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 32) }?;
- 
+
 -    for _ in 0..8 {
 -        if let Ok(alloc) = sa.caches[0].alloc() {
 -            printkln!("{:x}", alloc as usize);
@@ -234,7 +234,7 @@ index fc6f57d..c39d43b 100644
 -        }
 +        printkln!("{:?}", sa.caches[idx]);
      }
- 
+
 -    printkln!("{:?}", sa);
 -
      Ok(())

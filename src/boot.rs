@@ -9,7 +9,7 @@ pub const KERNEL_BASE: usize = 0xC0000000;
 pub static mut STACK: Stack = Stack([0; STACK_SIZE]);
 
 #[allow(unused)]
-#[repr(align(4096))]
+#[repr(align(0x1000))]
 #[allow(static_mut_refs)]
 pub struct Stack([u8; STACK_SIZE]);
 

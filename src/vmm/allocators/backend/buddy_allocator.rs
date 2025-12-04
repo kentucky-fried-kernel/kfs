@@ -82,7 +82,7 @@ pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = 20;
 pub struct BuddyAllocator {
     /// `levels[0]`: 1 * 2 GiB
     ///
-    /// `levels[19]`: 1.048.576 * 4096 B
+    /// `levels[19]`: 1.048.576 * 0x1000 B
     levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS],
     /// Address from which the root block starts.
     root: Option<NonNull<u8>>,
@@ -117,7 +117,7 @@ impl BuddyAllocator {
     fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*mut u8> {
         assert!(
             allocation_size.is_multiple_of(PAGE_SIZE),
-            "The buddy allocator can only allocate multiples of 4096"
+            "The buddy allocator can only allocate multiples of 0x1000"
         );
 
         let current_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
@@ -168,7 +168,7 @@ impl BuddyAllocator {
     }
 
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
-        assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 4096");
+        assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 0x1000");
         assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
         let root = self.root.expect("alloc called on BuddyAllocator without root");
 

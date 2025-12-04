@@ -78,7 +78,7 @@ impl Slab {
     /// Creates a `Slab` object from `addr` and `object_size`.
     /// # Safety
     /// It is the caller's responsibility to ensure that `addr` points to a valid,
-    /// page-aligned address, with at least 4096 read-writable bytes.
+    /// page-aligned address, with at least 0x1000 read-writable bytes.
     pub unsafe fn new(addr: *const u8, object_size: usize) -> Self {
         assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
         assert!(object_size >= size_of::<*const u8>(), "object_size must be large enough to hold a pointer");

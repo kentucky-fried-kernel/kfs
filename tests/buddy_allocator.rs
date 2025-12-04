@@ -37,10 +37,10 @@ fn full_cache_usable() -> Result<(), &'static str> {
 
 #[test_case]
 fn alloc_free_alloc() -> Result<(), &'static str> {
-    let p1 = kmalloc(4096).map_err(|_| "Allocation failed")?;
+    let p1 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
     kfree(p1).map_err(|_| "Free failed")?;
 
-    let p2 = kmalloc(4096).map_err(|_| "Allocation failed")?;
+    let p2 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
 
     kassert_eq!(p1, p2);
 
