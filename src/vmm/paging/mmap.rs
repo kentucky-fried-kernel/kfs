@@ -1,9 +1,11 @@
 use crate::{
     boot::KERNEL_BASE,
+    serial_println,
     vmm::{
         MEMORY_MAX,
         paging::{
             Access, PAGE_SIZE, Permissions,
+            init::KERNEL_END,
             page_entries::PageTableEntry,
             state::{self, KERNEL_PAGE_TABLES, USED_PAGES},
         },
@@ -61,10 +63,18 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
 fn pages_physical_free_iter(pages_needed: usize, mode: Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
     let _lets_see = pages_physical_iter();
 
+    let kernel_end_phys = unsafe { KERNEL_END } as *const u8 as usize - KERNEL_BASE;
+
     let i = match mode {
         Mode::Continous => {
-            if pages_physical_iter().filter(|(_, p)| p.is_none()).take(pages_needed).count() == pages_needed {
-                Ok(0)
+            if pages_physical_iter()
+                .skip(kernel_end_phys / PAGE_SIZE)
+                .filter(|(_, p)| p.is_none())
+                .take(pages_needed)
+                .count()
+                == pages_needed
+            {
+                Ok(kernel_end_phys / PAGE_SIZE)
             } else {
                 Err(MmapError::NotEnoughMemory)
             }
@@ -105,7 +115,7 @@ pub fn virt_to_phys(vaddr: usize) -> Result<usize, VirtToPhysError> {
 
         if page_directory_entry.ps() == 1 {
             let phys_base = (page_directory_entry.address() as usize) << 12;
-            let offset_4mb = vaddr & 0x3FFFFF; // Lower 22 bits
+            let offset_4mb = vaddr & 0x3FFFFF;
             return Ok(phys_base + offset_4mb);
         }
 

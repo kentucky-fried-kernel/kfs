@@ -1,5 +1,5 @@
 use crate::{
-    printkln,
+    printkln, serial_println,
     terminal::SCREEN,
     vmm::{
         allocators::{
@@ -170,31 +170,63 @@ pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
 pub fn init() -> Result<(), KmallocError> {
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
 
-    // let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
-    // buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+    let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
+    buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
 
-    // let mut sa = SlabAllocator::default();
+    let mut sa = SlabAllocator::default();
 
-    printkln!(
-        "Address range allocated by mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
+    serial_println!(
+        "Virtual address range mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
         cache_memory,
         cache_memory + BUDDY_ALLOCATOR_SIZE,
         BUDDY_ALLOCATOR_SIZE
     );
-    printkln!("Address of VGA buffer: 0x{:x}", unsafe { SCREEN.buffer.as_ptr() as usize });
+    serial_println!(
+        "Physical address range mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
+        crate::vmm::paging::mmap::virt_to_phys(cache_memory).unwrap(),
+        crate::vmm::paging::mmap::virt_to_phys(cache_memory).unwrap() + BUDDY_ALLOCATOR_SIZE,
+        BUDDY_ALLOCATOR_SIZE
+    );
+
+    let vga_vaddr = unsafe { SCREEN.buffer.as_ptr() as usize };
+    serial_println!("VGA buffer virtual address: 0x{:x}", vga_vaddr);
+
+    match crate::vmm::paging::mmap::virt_to_phys(vga_vaddr) {
+        Ok(phys) => {
+            serial_println!("VGA buffer physical address: 0x{:x}", phys);
+        }
+        Err(e) => {
+            serial_println!("VGA buffer translation error: {:?}", e);
+        }
+    }
+
     let addr = (cache_memory + 259 * PAGE_SIZE) as *mut u8;
-    unsafe { *(addr as *mut u8) = 0x00 };
-    printkln!("Offending address: 0x{:x}", addr as usize);
+    serial_println!("Offending virtual address: 0x{:x}", addr as usize);
+
+    serial_println!("Offending virtual address offset: 0x{:x}", addr as usize - cache_memory);
+
+    match crate::vmm::paging::mmap::virt_to_phys(addr as usize) {
+        Ok(phys) => {
+            serial_println!("Offending physical address: 0x{:x}", phys);
+            if phys >= 0xB8000 && phys < 0xB8000 + unsafe { SCREEN.buffer.len() } {
+                serial_println!("WARNING: Physical address overlaps with VGA buffer!");
+            }
+        }
+        Err(e) => serial_println!("Address translation error: {:?}", e),
+    }
+
+    // unsafe { *addr = 0 };
+
     // for addr in (cache_memory as usize)..(cache_memory as usize + 258 * PAGE_SIZE) {}
 
-    // for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
-    //     let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
+    for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
+        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 32).map_err(|_| KmallocError::NotEnoughMemory)?;
 
-    //     let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
-    //     unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 8) }?;
+        let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
+        unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 32) }?;
 
-    //     printkln!("{:?}", sa.caches[idx]);
-    // }
+        printkln!("{:?}", sa.caches[idx]);
+    }
 
     Ok(())
 }
