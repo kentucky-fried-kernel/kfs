@@ -5,7 +5,7 @@ use crate::{
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 22;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
 
 pub enum BuddyAllocationError {
     NotEnoughMemory,
@@ -103,7 +103,7 @@ impl BuddyAllocator {
     #[allow(static_mut_refs)]
     pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
-        assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
+        assert!(size >= 1 << 15 && size <= usize::MAX, "size must be at least 32768 and at most 2147483648");
 
         let root_level = 32 - size.ilog2() as usize;
 
