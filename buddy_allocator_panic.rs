@@ -32,16 +32,16 @@ fn alloc_over_max_amount() -> Result<(), &'static str> {
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+    if let Err(_) = vmm::allocators::kmalloc::init() {
+        panic!("Failed to initialize kmalloc");
+    }
+
     use kfs::{arch, qemu, vmm::paging::init::init_memory};
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
-
-    if let Err(_) = vmm::allocators::kmalloc::init() {
-        panic!("Failed to initialize kmalloc");
-    }
 
     test_main();
     unsafe { qemu::exit(qemu::ExitCode::Success) };
