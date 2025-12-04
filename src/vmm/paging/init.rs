@@ -11,6 +11,12 @@ use crate::{
 };
 
 unsafe extern "C" {
+    #[link_name = "text_start"]
+    static TEXT_START: u8;
+    #[link_name = "data_start"]
+    static DATA_START: u8;
+    #[link_name = "_bss_start"]
+    static BSS_START: u8;
     #[link_name = "_kernel_end"]
     pub static KERNEL_END: u8;
 }
