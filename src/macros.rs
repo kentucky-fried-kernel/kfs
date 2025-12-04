@@ -23,3 +23,17 @@ macro_rules! kassert_eq {
         }
     };
 }
+
+#[macro_export]
+macro_rules! kassert {
+    ($a:expr, $b:expr) => {
+        if !($a) {
+            return Err(stringify!($b));
+        }
+    };
+    ($a:expr) => {
+        if !($a) {
+            return Err(concat!("Assertion failed: ", stringify!($a)));
+        }
+    };
+}

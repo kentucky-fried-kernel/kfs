@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 #[cfg(test)]
 use kfs::boot::MultibootInfo;
 use kfs::{
-    kassert_eq,
+    kassert, kassert_eq,
     vmm::{
         self,
         allocators::{
@@ -42,10 +42,13 @@ fn alloc_free_alloc() -> Result<(), &'static str> {
     kfree(p1).map_err(|_| "Free failed")?;
 
     let p2 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
+    let p3 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
 
     kassert_eq!(p1, p2);
+    kassert!(p1 != p3, "kmalloc allocated the same address twice");
 
     kfree(p1).map_err(|_| "Free failed")?;
+    kfree(p3).map_err(|_| "Free failed")?;
 
     Ok(())
 }
