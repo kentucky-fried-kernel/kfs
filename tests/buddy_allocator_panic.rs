@@ -8,12 +8,10 @@ use core::panic::PanicInfo;
 
 #[cfg(test)]
 use kfs::boot::MultibootInfo;
+use kfs::vmm::allocators::backend::slab_allocator::BUDDY_ALLOCATOR_SIZE;
 use kfs::{
     tester,
-    vmm::{
-        self,
-        allocators::kmalloc::{BUDDY_ALLOCATOR_SIZE, kmalloc},
-    },
+    vmm::{self, allocators::kmalloc::kmalloc},
 };
 
 #[panic_handler]
