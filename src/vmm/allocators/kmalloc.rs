@@ -54,12 +54,16 @@ pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
 }
 
 #[allow(static_mut_refs)]
-pub fn init() -> Result<(), KmallocError> {
+pub fn init_buddy_allocator() -> Result<(), KmallocError> {
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
 
     let buddy_allocator = unsafe { &mut KERNEL_ALLOCATOR.buddy_allocator };
     buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+    Ok(())
+}
 
+#[allow(static_mut_refs)]
+pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), KmallocError> {
     let slab_allocator = unsafe { &mut KERNEL_ALLOCATOR.slab_allocator };
 
     for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
@@ -70,6 +74,14 @@ pub fn init() -> Result<(), KmallocError> {
 
         printkln!("{:?}", slab_allocator.caches()[idx]);
     }
+
+    Ok(())
+}
+
+#[allow(static_mut_refs)]
+pub fn init() -> Result<(), KmallocError> {
+    init_buddy_allocator()?;
+    init_slab_allocator(unsafe { &mut KERNEL_ALLOCATOR.buddy_allocator })?;
 
     Ok(())
 }
