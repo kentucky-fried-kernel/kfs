@@ -64,7 +64,7 @@ macro_rules! generate_bitmap_match_arms {
             $(
                 $lv => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, { 1 << $lv }),
             )*
-            _ => unreachable!("BuddyAllocatorBitmap only has 20 levels (indices 0..19)"),
+            _ => unreachable!("BuddyAllocatorBitmap only has 21 levels (indices 0..20)"),
         }
     };
 }
@@ -73,16 +73,21 @@ macro_rules! generate_bitmap_match_arms {
 /// to the correct type based on its size.
 macro_rules! with_bitmap_at_level {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr) => {
-        generate_bitmap_match_arms!($self, $level, |$bitmap| $body, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        generate_bitmap_match_arms!(
+            $self,
+            $level,
+            |$bitmap| $body,
+            [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        )
     };
 }
 
 pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = 21;
 
 pub struct BuddyAllocator {
-    /// `levels[0]`: 1 * 2 GiB
+    /// `levels[0]`: 1 * 4 GiB
     ///
-    /// `levels[19]`: 1.048.576 * 0x1000 B
+    /// `levels[20]`: 1.048.576 * 0x1000 B
     levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS],
     /// Address from which the root block starts.
     root: Option<NonNull<u8>>,
@@ -98,7 +103,7 @@ impl BuddyAllocator {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
         assert!(size >= 1 << 15 && size <= 1 << 31, "size must be at least 32768 and at most 2147483648");
 
-        let root_level = 31 - size.ilog2() as usize;
+        let root_level = 32 - size.ilog2() as usize;
 
         Self {
             levels,

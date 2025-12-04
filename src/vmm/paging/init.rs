@@ -27,26 +27,6 @@ fn invalidate(vaddr: usize) {
 
 #[allow(static_mut_refs)]
 pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
-    serial_println!("VIRT text_start: 0x{:x}", unsafe { (&TEXT_START) as *const u8 as usize });
-    serial_println!(
-        "PHYS text_start: 0x{:x}",
-        super::mmap::virt_to_phys(unsafe { (&TEXT_START) as *const u8 as usize }).expect("This page should definitely be mapped")
-    );
-    serial_println!("VIRT data_start: 0x{:x}", unsafe { (&DATA_START) as *const u8 as usize });
-    serial_println!(
-        "PHYS data_start: 0x{:x}",
-        super::mmap::virt_to_phys(unsafe { (&DATA_START) as *const u8 as usize }).expect("This page should definitely be mapped")
-    );
-    serial_println!("VIRT _bss_start: 0x{:x}", unsafe { (&BSS_START) as *const u8 as usize });
-    serial_println!(
-        "PHYS _bss_start: 0x{:x}",
-        super::mmap::virt_to_phys(unsafe { (&BSS_START) as *const u8 as usize }).expect("This page should definitely be mapped")
-    );
-    serial_println!("VIRT _kernel_end: 0x{:x}", unsafe { (&KERNEL_END) as *const u8 as usize });
-    serial_println!(
-        "PHYS _kernel_end: 0x{:x}",
-        super::mmap::virt_to_phys(unsafe { (&KERNEL_END) as *const u8 as usize }).expect("This page should definitely be mapped")
-    );
     kernel_page_mappings_create();
     unset_identity_mapping();
     page_directory_fill_empty();

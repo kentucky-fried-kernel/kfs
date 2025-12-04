@@ -1,18 +1,14 @@
-use crate::{
-    printkln, serial_println,
-    terminal::SCREEN,
-    vmm::{
-        allocators::{
-            backend::{
-                buddy_allocator::BuddyAllocator,
-                slab_allocator::{Slab, SlabAllocationError, SlabFreeError},
-            },
-            kmalloc::state::*,
+use crate::vmm::{
+    allocators::{
+        backend::{
+            buddy_allocator::BuddyAllocator,
+            slab_allocator::{Slab, SlabAllocationError, SlabFreeError},
         },
-        paging::{
-            Access, PAGE_SIZE, Permissions,
-            mmap::{Mode, mmap},
-        },
+        kmalloc::state::*,
+    },
+    paging::{
+        Access, PAGE_SIZE, Permissions,
+        mmap::{Mode, mmap},
     },
 };
 
@@ -171,6 +167,7 @@ pub fn init() -> Result<(), KmallocError> {
 
     let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
     buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+    // let _ = kmalloc(BUDDY_ALLOCATOR_SIZE * 2).map_err(|_| "Allocation failed");
 
     // let mut sa = SlabAllocator::default();
 
