@@ -53,6 +53,30 @@ pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
     unsafe { KERNEL_ALLOCATOR.buddy_allocator.alloc(size).map_err(|_| KmallocError::NotEnoughMemory) }
 }
 
+/// Direct access to buddy allocator for testing purposes.
+///
+/// # Safety
+/// This bypasses the slab allocator and should only be used in tests.
+/// Normal code should use `kmalloc()` instead.
+#[doc(hidden)]
+#[allow(static_mut_refs)]
+#[cfg(any(test, feature = "test-utils"))]
+pub fn buddy_allocator_alloc(size: usize) -> Result<*mut u8, KmallocError> {
+    unsafe { KERNEL_ALLOCATOR.buddy_allocator.alloc(size).map_err(|_| KmallocError::NotEnoughMemory) }
+}
+
+/// Direct access to buddy allocator for testing purposes.
+///
+/// # Safety
+/// This bypasses the slab allocator and should only be used in tests.
+/// Normal code should use `kmalloc()` instead.
+#[doc(hidden)]
+#[allow(static_mut_refs)]
+#[cfg(any(test, feature = "test-utils"))]
+pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
+    unsafe { KERNEL_ALLOCATOR.buddy_allocator.free(addr) }
+}
+
 #[allow(static_mut_refs)]
 pub fn init_buddy_allocator() -> Result<(), KmallocError> {
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;

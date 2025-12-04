@@ -14,7 +14,7 @@ use kfs::{
         self,
         allocators::{
             backend::buddy_allocator::BUDDY_ALLOCATOR_SIZE,
-            kmalloc::{kfree, kmalloc},
+            kmalloc::{buddy_allocator_alloc, buddy_allocator_free},
         },
     },
 };
@@ -28,7 +28,7 @@ fn panic(info: &PanicInfo) -> ! {
 fn full_cache_usable() -> Result<(), &'static str> {
     let mut ptrs = [core::ptr::null() as *const u8; 8];
     for idx in 0..8 {
-        let ptr = kmalloc(BUDDY_ALLOCATOR_SIZE / 8).map_err(|_| "Allocation failed when it should have been able to service the request")?;
+        let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE / 8).map_err(|_| "Allocation failed when it should have been able to service the request")?;
 
         ptrs[idx] = ptr;
     }
@@ -38,26 +38,26 @@ fn full_cache_usable() -> Result<(), &'static str> {
 
 #[test_case]
 fn alloc_free_alloc() -> Result<(), &'static str> {
-    let p1 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
-    kfree(p1).map_err(|_| "Free failed")?;
+    let p1 = buddy_allocator_alloc(0x1000).map_err(|_| "Allocation failed")?;
+    buddy_allocator_free(p1).map_err(|_| "Free failed")?;
 
-    let p2 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
-    let p3 = kmalloc(0x1000).map_err(|_| "Allocation failed")?;
+    let p2 = buddy_allocator_alloc(0x1000).map_err(|_| "Allocation failed")?;
+    let p3 = buddy_allocator_alloc(0x1000).map_err(|_| "Allocation failed")?;
 
     kassert_eq!(p1, p2);
-    kassert!(p1 != p3, "kmalloc allocated the same address twice");
+    kassert!(p1 != p3, "buddy_allocator_alloc allocated the same address twice");
 
-    kfree(p1).map_err(|_| "Free failed")?;
-    kfree(p3).map_err(|_| "Free failed")?;
+    buddy_allocator_free(p1).map_err(|_| "Free failed")?;
+    buddy_allocator_free(p3).map_err(|_| "Free failed")?;
 
     Ok(())
 }
 
 #[test_case]
 fn alloc_full_size() -> Result<(), &'static str> {
-    let ptr = kmalloc(BUDDY_ALLOCATOR_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
+    let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
 
-    kfree(ptr).map_err(|_| "Free failed")?;
+    buddy_allocator_free(ptr).map_err(|_| "Free failed")?;
 
     Ok(())
 }
@@ -73,7 +73,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
     if let Err(_) = vmm::allocators::kmalloc::init_buddy_allocator() {
-        panic!("Failed to initialize kmalloc");
+        panic!("Failed to initialize buddy allocator");
     }
 
     test_main();

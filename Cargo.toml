@@ -8,5 +8,8 @@ name = "kfs"
 test = true
 bench = false
 
+[features]
+test-utils = []
+
 [dependencies]
 bitstruct = { git = "https://github.com/winstonallo/bitstruct.git", version = "0.1.0" }

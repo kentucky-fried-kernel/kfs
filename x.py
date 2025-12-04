@@ -34,7 +34,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def build_tests() -> str:
     proc = subprocess.Popen(
-        ["cargo", "build", "--tests", "--release", "--lib", "--message-format=json"],
+        ["cargo", "build", "--tests", "--release", "--lib", "--features", "test-utils", "--message-format=json"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
