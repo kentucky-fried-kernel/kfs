@@ -77,7 +77,7 @@ macro_rules! with_bitmap_at_level {
     };
 }
 
-pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = 20;
+pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = 21;
 
 pub struct BuddyAllocator {
     /// `levels[0]`: 1 * 2 GiB

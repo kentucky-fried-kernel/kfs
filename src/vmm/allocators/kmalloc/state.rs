@@ -45,6 +45,6 @@ pub static mut LEVELS: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS] = unsafe {
         LEVEL_17.as_ptr(),
         LEVEL_18.as_ptr(),
         LEVEL_19.as_ptr(),
-        // LEVEL_20.as_ptr(),
+        LEVEL_20.as_ptr(),
     ]
 };

@@ -36,9 +36,7 @@ pub enum KfreeError {
 pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 22;
 static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
 
-// const SLAB_CACHE_SIZES: [u16; 1] = [1024];
 const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
-const PAGES_PER_SLAB_CACHE: usize = 8;
 
 #[derive(Clone, Copy, Debug)]
 pub struct SlabCache {
@@ -61,7 +59,7 @@ impl SlabCache {
         }
     }
 
-    pub fn add_slab(&mut self, mut addr: NonNull<Slab>, x: usize) -> Result<(), SlabAllocationError> {
+    pub fn add_slab(&mut self, mut addr: NonNull<Slab>) -> Result<(), SlabAllocationError> {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
         self.empty_slabs.add_front(&mut addr);
@@ -139,9 +137,9 @@ impl SlabAllocator {
             .expect("Called SlabAllocator::init_slab_cache with an invalid object_size");
 
         let mut addr = addr;
-        for x in 0..n_slabs {
+        for _ in 0..n_slabs {
             self.caches[slab_cache_index]
-                .add_slab(addr.cast::<Slab>(), x)
+                .add_slab(addr.cast::<Slab>())
                 .map_err(|_| KmallocError::NotEnoughMemory)?;
 
             addr = unsafe { addr.add(PAGE_SIZE) };
@@ -151,6 +149,7 @@ impl SlabAllocator {
     }
 }
 
+#[allow(unused)]
 pub struct KernelAllocator {
     buddy_allocator: BuddyAllocator,
     slab_allocator: SlabAllocator,
@@ -173,60 +172,61 @@ pub fn init() -> Result<(), KmallocError> {
     let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
     buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
 
-    let mut sa = SlabAllocator::default();
+    // let mut sa = SlabAllocator::default();
 
-    serial_println!(
-        "Virtual address range mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
-        cache_memory,
-        cache_memory + BUDDY_ALLOCATOR_SIZE,
-        BUDDY_ALLOCATOR_SIZE
-    );
-    serial_println!(
-        "Physical address range mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
-        crate::vmm::paging::mmap::virt_to_phys(cache_memory).unwrap(),
-        crate::vmm::paging::mmap::virt_to_phys(cache_memory).unwrap() + BUDDY_ALLOCATOR_SIZE,
-        BUDDY_ALLOCATOR_SIZE
-    );
+    // serial_println!(
+    //     "Virtual address range mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
+    //     cache_memory,
+    //     cache_memory + BUDDY_ALLOCATOR_SIZE,
+    //     BUDDY_ALLOCATOR_SIZE
+    // );
+    // let phys = crate::vmm::paging::mmap::virt_to_phys(cache_memory).unwrap_or_default();
+    // serial_println!(
+    //     "Physical address range mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
+    //     phys,
+    //     phys + BUDDY_ALLOCATOR_SIZE,
+    //     BUDDY_ALLOCATOR_SIZE
+    // );
 
-    let vga_vaddr = unsafe { SCREEN.buffer.as_ptr() as usize };
-    serial_println!("VGA buffer virtual address: 0x{:x}", vga_vaddr);
+    // let vga_vaddr = unsafe { SCREEN.buffer.as_ptr() as usize };
+    // serial_println!("VGA buffer virtual address: 0x{:x}", vga_vaddr);
 
-    match crate::vmm::paging::mmap::virt_to_phys(vga_vaddr) {
-        Ok(phys) => {
-            serial_println!("VGA buffer physical address: 0x{:x}", phys);
-        }
-        Err(e) => {
-            serial_println!("VGA buffer translation error: {:?}", e);
-        }
-    }
+    // match crate::vmm::paging::mmap::virt_to_phys(vga_vaddr) {
+    //     Ok(phys) => {
+    //         serial_println!("VGA buffer physical address: 0x{:x}", phys);
+    //     }
+    //     Err(e) => {
+    //         serial_println!("VGA buffer translation error: {:?}", e);
+    //     }
+    // }
 
-    let addr = (cache_memory + 259 * PAGE_SIZE) as *mut u8;
-    serial_println!("Offending virtual address: 0x{:x}", addr as usize);
+    // let addr = (cache_memory + 259 * PAGE_SIZE) as *mut u8;
+    // serial_println!("Offending virtual address: 0x{:x}", addr as usize);
 
-    serial_println!("Offending virtual address offset: 0x{:x}", addr as usize - cache_memory);
+    // serial_println!("Offending virtual address offset: 0x{:x}", addr as usize - cache_memory);
 
-    match crate::vmm::paging::mmap::virt_to_phys(addr as usize) {
-        Ok(phys) => {
-            serial_println!("Offending physical address: 0x{:x}", phys);
-            if phys >= 0xB8000 && phys < 0xB8000 + unsafe { SCREEN.buffer.len() } {
-                serial_println!("WARNING: Physical address overlaps with VGA buffer!");
-            }
-        }
-        Err(e) => serial_println!("Address translation error: {:?}", e),
-    }
+    // match crate::vmm::paging::mmap::virt_to_phys(addr as usize) {
+    //     Ok(phys) => {
+    //         serial_println!("Offending physical address: 0x{:x}", phys);
+    //         if phys >= 0xB8000 && phys < 0xB8000 + unsafe { SCREEN.buffer.len() } {
+    //             serial_println!("WARNING: Physical address overlaps with VGA buffer!");
+    //         }
+    //     }
+    //     Err(e) => serial_println!("Address translation error: {:?}", e),
+    // }
 
-    // unsafe { *addr = 0 };
+    // // unsafe { *addr = 0 };
 
-    // for addr in (cache_memory as usize)..(cache_memory as usize + 258 * PAGE_SIZE) {}
+    // // for addr in (cache_memory as usize)..(cache_memory as usize + 258 * PAGE_SIZE) {}
 
-    for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
-        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 32).map_err(|_| KmallocError::NotEnoughMemory)?;
+    // for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
+    //     let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 32).map_err(|_| KmallocError::NotEnoughMemory)?;
 
-        let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
-        unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 32) }?;
+    //     let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
+    //     unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 32) }?;
 
-        printkln!("{:?}", sa.caches[idx]);
-    }
+    //     printkln!("{:?}", sa.caches[idx]);
+    // }
 
     Ok(())
 }

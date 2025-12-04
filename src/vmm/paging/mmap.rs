@@ -1,6 +1,5 @@
 use crate::{
     boot::KERNEL_BASE,
-    serial_println,
     vmm::{
         MEMORY_MAX,
         paging::{
