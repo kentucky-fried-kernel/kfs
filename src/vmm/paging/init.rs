@@ -2,6 +2,7 @@ use core::arch::asm;
 
 use crate::{
     boot::KERNEL_BASE,
+    printkln,
     vmm::paging::{
         Access, PAGE_SIZE,
         page_entries::{PageDirectoryEntry, PageTableEntry},
@@ -10,6 +11,10 @@ use crate::{
 };
 
 unsafe extern "C" {
+    #[link_name = "data_start"]
+    static DATA_START: u8;
+    #[link_name = "_bss_start"]
+    static BSS_START: u8;
     #[link_name = "_kernel_end"]
     static KERNEL_END: u8;
 }
@@ -20,6 +25,9 @@ fn invalidate(vaddr: usize) {
 
 #[allow(static_mut_refs)]
 pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
+    printkln!("data_start: 0x{:x}", unsafe { (&DATA_START) as *const u8 as usize });
+    printkln!("_bss_start: 0x{:x}", unsafe { (&BSS_START) as *const u8 as usize });
+    printkln!("_kernel_end: 0x{:x}", unsafe { (&KERNEL_END) as *const u8 as usize });
     kernel_page_mappings_create();
     unset_identity_mapping();
     page_directory_fill_empty();

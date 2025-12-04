@@ -26,6 +26,8 @@ SECTIONS
         *(.rodata)
     }
 
+    data_start = .;
+
     .data ALIGN(4K): AT(ADDR(.data) - 0xC0000000) {
         *(.data)
     }

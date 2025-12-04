@@ -84,6 +84,42 @@ fn pages_physical_free_iter(pages_needed: usize, mode: Mode) -> Result<impl Iter
     Ok(pages_physical_iter().skip(i).filter(|(_, p)| p.is_none()).take(pages_needed))
 }
 
+#[derive(Debug)]
+pub enum VirtToPhysError {
+    PageNotPresent,
+    PageDirectoryNotPresent,
+}
+
+#[allow(static_mut_refs)]
+pub fn virt_to_phys(vaddr: usize) -> Result<usize, VirtToPhysError> {
+    let page_directory_index = vaddr >> 22;
+    let page_table_index = (vaddr >> 12) & 0x3FF;
+    let offset = vaddr & 0xFFF;
+
+    unsafe {
+        let page_directory_entry = &state::KERNEL_PAGE_DIRECTORY_TABLE.0[page_directory_index];
+
+        if page_directory_entry.present() == 0 {
+            return Err(VirtToPhysError::PageDirectoryNotPresent);
+        }
+
+        if page_directory_entry.ps() == 1 {
+            let phys_base = (page_directory_entry.address() as usize) << 12;
+            let offset_4mb = vaddr & 0x3FFFFF; // Lower 22 bits
+            return Ok(phys_base + offset_4mb);
+        }
+
+        let page_table_entry = &KERNEL_PAGE_TABLES[page_directory_index].0[page_table_index];
+
+        if page_table_entry.present() == 0 {
+            return Err(VirtToPhysError::PageNotPresent);
+        }
+
+        let phys_page = (page_table_entry.address() as usize) << 12;
+        Ok(phys_page + offset)
+    }
+}
+
 #[allow(static_mut_refs)]
 pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access, mode: Mode) -> Result<usize, MmapError> {
     if vaddr.is_some() {

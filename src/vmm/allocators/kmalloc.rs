@@ -1,5 +1,6 @@
 use crate::{
     printkln,
+    terminal::SCREEN,
     vmm::{
         allocators::{
             backend::{
@@ -32,7 +33,7 @@ pub enum KfreeError {
     InvalidPointer,
 }
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 27;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 22;
 static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
 
 // const SLAB_CACHE_SIZES: [u16; 1] = [1024];
@@ -169,19 +170,31 @@ pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
 pub fn init() -> Result<(), KmallocError> {
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
 
-    let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
-    buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+    // let buddy_allocator = unsafe { &mut BUDDY_ALLOCATOR };
+    // buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
 
-    let mut sa = SlabAllocator::default();
+    // let mut sa = SlabAllocator::default();
 
-    for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
-        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
+    printkln!(
+        "Address range allocated by mmap: 0x{:x}-0x{:x}, Size: 0x{:x}",
+        cache_memory,
+        cache_memory + BUDDY_ALLOCATOR_SIZE,
+        BUDDY_ALLOCATOR_SIZE
+    );
+    printkln!("Address of VGA buffer: 0x{:x}", unsafe { SCREEN.buffer.as_ptr() as usize });
+    let addr = (cache_memory + 259 * PAGE_SIZE) as *mut u8;
+    unsafe { *(addr as *mut u8) = 0x00 };
+    printkln!("Offending address: 0x{:x}", addr as usize);
+    // for addr in (cache_memory as usize)..(cache_memory as usize + 258 * PAGE_SIZE) {}
 
-        let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
-        unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 8) }?;
+    // for (idx, size) in SLAB_CACHE_SIZES.iter().enumerate() {
+    //     let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
 
-        printkln!("{:?}", sa.caches[idx]);
-    }
+    //     let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
+    //     unsafe { sa.init_slab_cache(slab_allocator_addr, *size as usize, 8) }?;
+
+    //     printkln!("{:?}", sa.caches[idx]);
+    // }
 
     Ok(())
 }
