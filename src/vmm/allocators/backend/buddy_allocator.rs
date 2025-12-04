@@ -5,6 +5,8 @@ use crate::{
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 22;
+
 pub enum BuddyAllocationError {
     NotEnoughMemory,
 }

@@ -12,7 +12,10 @@ use kfs::{
     kassert_eq,
     vmm::{
         self,
-        allocators::kmalloc::{kfree, kfs::vmm::allocators::backend::slab_allocator::BUDDY_ALLOCATOR_SIZE, kmalloc},
+        allocators::{
+            backend::buddy_allocator::BUDDY_ALLOCATOR_SIZE,
+            kmalloc::{kfree, kmalloc},
+        },
     },
 };
 

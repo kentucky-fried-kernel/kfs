@@ -7,8 +7,6 @@ use crate::vmm::{
 
 const SLAB_HEADER_OVERHEAD: usize = (size_of::<SlabHeader>() & !(0x08 - 1)) + 0x08;
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 27;
-
 pub const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 
 #[derive(Clone, Copy, Debug)]

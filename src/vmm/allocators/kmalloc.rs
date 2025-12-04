@@ -3,8 +3,8 @@ use crate::{
     vmm::{
         allocators::{
             backend::{
-                buddy_allocator::BuddyAllocator,
-                slab_allocator::{BUDDY_ALLOCATOR_SIZE, SLAB_CACHE_SIZES, SlabAllocator},
+                buddy_allocator::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
+                slab_allocator::{SLAB_CACHE_SIZES, SlabAllocator},
             },
             kmalloc::state::*,
         },
