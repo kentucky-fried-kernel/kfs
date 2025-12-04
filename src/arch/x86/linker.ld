@@ -18,8 +18,6 @@ SECTIONS
 
     . += 0xC0000000;
 
-    text_start = .;
-
     .text ALIGN(4K): AT(ADDR(.text) - 0xC0000000) {
         *(.text)
     }
@@ -27,8 +25,6 @@ SECTIONS
     .rodata ALIGN(4K): AT(ADDR(.rodata) - 0xC0000000) {
         *(.rodata)
     }
-
-    data_start = .;
 
     .data ALIGN(4K): AT(ADDR(.data) - 0xC0000000) {
         *(.data)
