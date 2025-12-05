@@ -5,7 +5,11 @@ use crate::{
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
+#[cfg(all(not(test), not(feature = "test-utils")))]
 pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 25;
 
 pub enum BuddyAllocationError {
     NotEnoughMemory,
@@ -54,7 +58,7 @@ impl const From<BuddyAllocatorNode> for u8 {
 
 macro_rules! bitmap_ptr_cast_mut {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr, $size:expr) => {{
-        let $bitmap = unsafe { &mut *$self.levels[$level].cast::<BitMap<$size, 4>>().cast_mut() };
+        let $bitmap = unsafe { &mut *$self.levels[$level].cast::<BitMap<$size, 4>>().as_ptr() };
         $body
     }};
 }
@@ -66,7 +70,7 @@ macro_rules! generate_bitmap_match_arms {
             $(
                 $lv => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, { 1 << $lv }),
             )*
-            _ => unreachable!("BuddyAllocatorBitmap only has 21 levels (indices 0..20)"),
+            _ => unreachable!("BuddyAllocatorBitmap only has 20 levels (indices 0..=19)"),
         }
     };
 }
@@ -75,25 +79,22 @@ macro_rules! generate_bitmap_match_arms {
 /// to the correct type based on its size.
 macro_rules! with_bitmap_at_level {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr) => {
-        generate_bitmap_match_arms!(
-            $self,
-            $level,
-            |$bitmap| $body,
-            [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        )
+        generate_bitmap_match_arms!($self, $level, |$bitmap| $body, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
     };
 }
 
-pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = 21;
+pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = ((1u64 << 32).ilog2() - 4096u64.ilog2()) as usize;
 
 pub struct BuddyAllocator {
-    /// `levels[0]`: 1 * 4 GiB
-    ///
-    /// `levels[20]`: 1.048.576 * 0x1000 B
-    levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS],
-    /// Address from which the root block starts.
+    /// Stores all possible levels of the bitmap. In order to span 4GiB with page
+    /// granularity (where the root block is 4GiB, and the leaf nodes are 4096B),
+    /// we need 20 levels (`log2(4294967296) - log2(4096)`).
+    levels: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS],
+    /// Address from which the memory block managed by the `BuddyAllocator` starts.
     root: Option<NonNull<u8>>,
-    /// Index of the root bitmap
+    /// Index of the root bitmap (if `size == 4GiB`, use the full span of the tree
+    /// (`root_level = 0`),  if `size == 2GiB`, start one level below (`root_level = 1`)
+    /// , and so on).
     root_level: usize,
     /// Size of the root block.
     size: usize,
@@ -101,11 +102,11 @@ pub struct BuddyAllocator {
 
 impl BuddyAllocator {
     #[allow(static_mut_refs)]
-    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [*const u8; MAX_BUDDY_ALLOCATOR_LEVELS]) -> Self {
+    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
         assert!(size >= 1 << 15 && size <= usize::MAX, "size must be at least 32768 and at most 2147483648");
 
-        let root_level = 32 - size.ilog2() as usize;
+        let root_level = 31 - size.ilog2() as usize;
 
         Self {
             levels,
