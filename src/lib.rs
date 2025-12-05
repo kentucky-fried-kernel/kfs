@@ -16,7 +16,7 @@
 #[cfg(test)]
 use core::panic::PanicInfo;
 
-extern crate alloc;
+pub extern crate alloc;
 
 pub mod arch;
 pub mod bitmap;

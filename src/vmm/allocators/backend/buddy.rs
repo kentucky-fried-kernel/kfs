@@ -5,10 +5,6 @@ use crate::{
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
-#[cfg(all(not(test), not(feature = "test-utils")))]
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 26;
-
-#[cfg(any(test, feature = "test-utils"))]
 pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 25;
 
 pub enum BuddyAllocationError {
