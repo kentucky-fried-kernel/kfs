@@ -146,9 +146,9 @@ impl BuddyAllocator {
     ///
     /// # Safety
     /// 1. It is the caller's responsibility to ensure that `root`, if `Some(_)`, points to valid memory with at least `size`
-    /// reserved bytes.
+    ///    reserved bytes.
     /// 2. Since each bitmap size is a different type, we have to resort to dynamic dispatch. It is the caller's responsibility
-    /// to ensure that each `levels[i]` actually refers to a `BitMap<{ (1 << i).min(8) }, 4>`, otherwise bad things will happen.
+    ///    to ensure that each `levels[i]` actually refers to a `BitMap<{ (1 << i).min(8) }, 4>`, otherwise bad things will happen.
     #[allow(static_mut_refs)]
     pub const unsafe fn new(root: Option<NonNull<u8>>, size: usize, levels: [&'static mut dyn StaticBitmap; BUDDY_ALLOCATOR_LEVELS_SIZE]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
@@ -208,10 +208,8 @@ impl BuddyAllocator {
             right_child_index,
         );
 
-        if allocation.is_some() {
-            if self.levels[level].get(index) == BuddyAllocatorNode::Free as u8 {
-                self.levels[level].set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
-            }
+        if allocation.is_some() && self.levels[level].get(index) == BuddyAllocatorNode::Free as u8 {
+            self.levels[level].set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
         }
 
         allocation
