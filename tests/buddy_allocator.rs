@@ -9,13 +9,14 @@ use core::panic::PanicInfo;
 #[cfg(test)]
 use kfs::boot::MultibootInfo;
 use kfs::{
-    kassert, kassert_eq,
+    kassert, kassert_eq, serial_println,
     vmm::{
         self,
         allocators::{
             backend::buddy::BUDDY_ALLOCATOR_SIZE,
             kmalloc::{buddy_allocator_alloc, buddy_allocator_free},
         },
+        paging::PAGE_SIZE,
     },
 };
 
@@ -38,11 +39,11 @@ fn full_cache_usable() -> Result<(), &'static str> {
 
 #[test_case]
 fn alloc_free_alloc() -> Result<(), &'static str> {
-    let p1 = buddy_allocator_alloc(0x1000).map_err(|_| "Allocation failed")?;
+    let p1 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Allocation failed")?;
     buddy_allocator_free(p1).map_err(|_| "Free failed")?;
 
-    let p2 = buddy_allocator_alloc(0x1000).map_err(|_| "Allocation failed")?;
-    let p3 = buddy_allocator_alloc(0x1000).map_err(|_| "Allocation failed")?;
+    let p2 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Allocation failed")?;
+    let p3 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Allocation failed")?;
 
     kassert_eq!(p1, p2);
     kassert!(p1 != p3, "buddy_allocator_alloc allocated the same address twice");
@@ -58,6 +59,19 @@ fn alloc_full_size() -> Result<(), &'static str> {
     let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
 
     buddy_allocator_free(ptr).map_err(|_| "Free failed")?;
+
+    Ok(())
+}
+
+#[test_case]
+fn alloc_page_size() -> Result<(), &'static str> {
+    let p1 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
+    let p2 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
+
+    kassert_eq!(p2 as usize - p1 as usize, PAGE_SIZE);
+
+    buddy_allocator_free(p1).map_err(|_| "Free failed")?;
+    buddy_allocator_free(p2).map_err(|_| "Free failed")?;
 
     Ok(())
 }
