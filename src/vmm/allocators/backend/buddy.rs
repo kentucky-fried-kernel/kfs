@@ -20,8 +20,10 @@ pub enum BuddyAllocationError {
 pub enum BuddyAllocatorNode {
     /// This node + all its children are free
     Free = 0b00,
+
     /// One or more of this node's children are allocated
     PartiallyAllocated = 0b10,
+
     /// This node and all its children are allocated
     FullyAllocated = 0b11,
 }
@@ -68,6 +70,10 @@ pub const BUDDY_ALLOCATOR_LEVELS_SIZE: usize = MAX_BUDDY_ALLOCATOR_LEVEL_INDEX +
 /// The tree is represented as an array of bitmaps with 2 bits per node, meaning the total size
 /// of the bitmaps referenced by the `levels` array ≈ 524288 bytes `((4GiB / 4096B) / 4) * 2`.
 ///
+/// Since data structure needs to be statically allocated, its size is hardcoded and will waste
+/// memory when managing sizes `< 4GiB`. The alternative would be to have a generic BuddyAllocator
+/// struct, which I may consider but for now it's not that deep.
+///
 /// A node can have [3 different states][BuddyAllocatorNode]:
 /// ```
 /// enum BuddyAllocatorNode {
@@ -90,7 +96,7 @@ pub const BUDDY_ALLOCATOR_LEVELS_SIZE: usize = MAX_BUDDY_ALLOCATOR_LEVEL_INDEX +
 /// level.
 /// ```
 /// pub struct BuddyAllocator {
-///    levels: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE],
+///    levels: [&'static mut dyn StaticBitmap; BUDDY_ALLOCATOR_LEVELS_SIZE],
 ///    free_lists: [Option<NonNull<FreeBlock>>; BUDDY_ALLOCATOR_LEVELS_SIZE],
 ///    // [...]
 /// }
