@@ -105,7 +105,7 @@ def run_tests(type: typing.Literal["E2E", "Unit"]):
         ok += int(proc.returncode == 0)
         ko += int(proc.returncode != 0)
 
-    LOGGER.info(f"\n{type} test results: {'ok' if ko == 0 else 'FAILED'}. {ok} suite passed; {ko} failed.")
+    LOGGER.info(f"\n{type} test results: {'ok' if ko == 0 else 'FAILED'}. {ok} suite{'s' if ok > 1 else ''} passed; {ko} failed.")
 
 
 if __name__ == "__main__":
