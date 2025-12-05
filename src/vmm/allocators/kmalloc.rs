@@ -1,5 +1,5 @@
 use crate::{
-    buddy_allocator_levels, printkln, serial_println,
+    buddy_allocator_levels,
     vmm::{
         allocators::backend::{
             buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
@@ -37,14 +37,17 @@ pub struct KernelAllocator {
 
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        let size = layout.size().max(layout.align());
-        let ptr = kmalloc(size).expect("shit");
-        serial_println!("allocating {} bytes 0x{:x}", size, ptr as usize);
-        ptr
+        match kmalloc(layout.size().max(layout.align())) {
+            Ok(p) => p,
+            Err(_) => panic!("Could not allocate"),
+        }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
-        serial_println!("-- FREE(0x{:x}) {:?}", ptr as usize, kfree(ptr));
+        match unsafe { kfree(ptr) } {
+            Ok(_) => {}
+            Err(_) => panic!("Freed invalid pointer"),
+        }
     }
 }
 
@@ -54,11 +57,15 @@ static mut KERNEL_ALLOCATOR: KernelAllocator = KernelAllocator {
     slab_allocator: SlabAllocator::default(),
 };
 
+/// # Safety
+/// This function will interact with the kernel allocator, and therefore dereference
+/// raw pointers and all other sorts of bad stuff. It is the caller's responsibility
+/// to only _ever_ call this if the kernel allocator is properly initialized.
 #[allow(static_mut_refs)]
-pub fn kfree(addr: *const u8) -> Result<(), KfreeError> {
-    match { unsafe { KERNEL_ALLOCATOR.slab_allocator.free(addr) } } {
+pub unsafe fn kfree(addr: *const u8) -> Result<(), KfreeError> {
+    match unsafe { KERNEL_ALLOCATOR.slab_allocator.free(addr) } {
         Ok(()) => Ok(()),
-        Err(_) => match { unsafe { KERNEL_ALLOCATOR.buddy_allocator.free(addr) } } {
+        Err(_) => match unsafe { KERNEL_ALLOCATOR.buddy_allocator.free(addr) } {
             Ok(()) => Ok(()),
             Err(_) => Err(KfreeError::InvalidPointer),
         },
@@ -94,7 +101,7 @@ pub fn buddy_allocator_alloc(size: usize) -> Result<*mut u8, KmallocError> {
 ///
 /// # Safety
 /// This bypasses the slab allocator and should only be used in tests.
-/// Normal code should use `kmalloc()` instead.
+/// Normal code should use `kfree()` instead.
 #[doc(hidden)]
 #[allow(static_mut_refs)]
 #[cfg(any(test, feature = "test-utils"))]

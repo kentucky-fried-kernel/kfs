@@ -1,14 +1,11 @@
 use core::ptr::NonNull;
 
-use crate::{
-    serial_println,
-    vmm::{
-        allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
-        paging::PAGE_SIZE,
-    },
+use crate::vmm::{
+    allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
+    paging::PAGE_SIZE,
 };
 
-const SLAB_HEADER_OVERHEAD: usize = (size_of::<SlabHeader>() & !(0x08 - 1)) + 0x08;
+const SLAB_HEADER_OVERHEAD: usize = (size_of::<Slab>() & !(0x08 - 1)) + 0x08;
 
 pub const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 
@@ -112,7 +109,8 @@ impl SlabAllocator {
 
         let mut addr = addr;
         for _ in 0..n_slabs {
-            unsafe { addr.cast().write(Slab::new(addr.as_ptr(), object_size)) };
+            let slab_ptr = addr.cast::<Slab>().as_ptr();
+            unsafe { Slab::init(slab_ptr, object_size) };
             self.caches[slab_cache_index].add_slab(addr.cast()).map_err(|_| KmallocError::NotEnoughMemory)?;
 
             addr = unsafe { addr.add(PAGE_SIZE) };
@@ -125,6 +123,9 @@ impl SlabAllocator {
         &self.caches
     }
 
+    /// # Safety
+    /// This function handles raw pointers. It is the caller's responsibility to ensure
+    /// that the `Slab`s stored in this `SlabCache` object are properly initialized.
     pub unsafe fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
         let slab_cache_index = if size <= 8 {
             0
@@ -133,16 +134,19 @@ impl SlabAllocator {
                 .iter()
                 .map_windows(|[x, y]| size > **x as usize && size <= **y as usize)
                 .position(|x| x)
-                .expect("Called SlabAllocator::init_slab_cache with an invalid object_size")
+                .expect("Called SlabAllocator::alloc with an invalid size")
                 + 1
         };
 
         self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)
     }
 
+    /// # Safety
+    /// This function handles raw pointers. It is the caller's responsibility to ensure
+    /// that the `Slab`s stored in this `SlabCache` object are properly initialized.
     pub unsafe fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         for mut cache in self.caches {
-            if let Ok(_) = cache.free(addr) {
+            if cache.free(addr).is_ok() {
                 return Ok(());
             }
         }
@@ -181,23 +185,13 @@ pub struct Payload {
     next: Option<NonNull<Payload>>,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct SlabHeader {
-    object_size: usize,
-    /// Tracks the number of allocated objects in this slab. Allows prioritizing
-    /// allocations from fuller slabs to maximize the number of empty slabs to give
-    /// back to the main allocator in case of memory pressure.
-    allocated: usize,
-    next: Option<NonNull<Payload>>,
-}
-
 impl IntrusiveLink for Slab {
     #[inline]
     fn next_ptr(&self) -> Option<NonNull<Self>>
     where
         Self: Sized,
     {
-        self.next
+        self.list_next
     }
 
     #[inline]
@@ -205,32 +199,40 @@ impl IntrusiveLink for Slab {
     where
         Self: Sized,
     {
-        &mut self.next
+        &mut self.list_next
     }
 }
 
 /// Order 0 Slab.
+/// This struct is stored at the beginning of each slab page and contains both
+/// the intrusive list link (for SlabCache lists) and the free list management data.
 // TODO: add different slab orders:
 // Order 0: spans one contiguous page (8 - 256 bytes objects)
 // Order 1: spans four contiguous pages (512 - 1024 bytes)
 // Order 2: spans eight pages (2048+ bytes)
 #[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub struct Slab {
-    addr: *const u8,
-    next: Option<NonNull<Slab>>,
+    /// Intrusive list link for SlabCache lists (empty/partial/full)
+    list_next: Option<NonNull<Slab>>,
+    /// Size of each object in this slab
+    object_size: usize,
+    /// Number of currently allocated objects
+    allocated: usize,
+    /// Free list head - points to the next available object
+    free_list_next: Option<NonNull<Payload>>,
 }
 
 impl Slab {
-    /// Creates a `Slab` object from `addr` and `object_size`.
+    /// Initializes a slab in place at the given address.
     ///
     /// # Safety
-    /// It is the caller's responsibility to ensure that `addr` points to a valid,
+    /// It is the caller's responsibility to ensure that `slab_ptr` points to a valid,
     /// page-aligned address, with at least `0x1000` reserved bytes.
-    pub unsafe fn new(addr: *const u8, object_size: usize) -> Self {
+    pub unsafe fn init(slab_ptr: *mut Slab, object_size: usize) {
+        let addr = slab_ptr as *const u8;
         assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
         assert!(object_size >= size_of::<*const u8>(), "object_size must be large enough to hold a pointer");
-
-        let header: *mut SlabHeader = addr as *mut SlabHeader;
 
         let objects_start_addr = unsafe { addr.add(SLAB_HEADER_OVERHEAD) };
         let header_overhead = objects_start_addr as usize - addr as usize;
@@ -241,8 +243,9 @@ impl Slab {
         assert!(n_objects > 0, "object_size is too large for a single page slab");
 
         unsafe {
-            (*header).allocated = 0;
-            (*header).object_size = object_size;
+            (*slab_ptr).list_next = None;
+            (*slab_ptr).object_size = object_size;
+            (*slab_ptr).allocated = 0;
         }
 
         let mut current_obj_ptr = objects_start_addr;
@@ -264,75 +267,50 @@ impl Slab {
         }
 
         unsafe {
-            (*header).next = NonNull::new(objects_start_addr as *mut Payload);
+            (*slab_ptr).free_list_next = NonNull::new(objects_start_addr as *mut Payload);
         }
-
-        Self { addr, next: None }
     }
 
     #[inline]
     pub fn address(&self) -> *const u8 {
-        self.addr
+        self as *const Slab as *const u8
     }
 
     #[inline]
     pub fn set_next(&mut self, next: NonNull<Slab>) {
-        self.next = Some(next);
-    }
-
-    #[inline]
-    pub fn header(&self) -> &SlabHeader {
-        let header_ptr = self.addr as *const SlabHeader;
-
-        // SAFETY: The constructor guarantees self.addr points to a valid page
-        // where the SlabHeader is correctly initialized at the start.
-        unsafe { &*header_ptr }
-    }
-
-    fn header_mut(&mut self) -> &mut SlabHeader {
-        let header_ptr = self.addr as *mut SlabHeader;
-
-        // SAFETY: The constructor guarantees self.addr points to a valid page
-        // where the SlabHeader is correctly initialized at the start.
-        unsafe { &mut (*header_ptr) }
+        self.list_next = Some(next);
     }
 
     #[inline]
     pub fn full(&self) -> bool {
-        self.header().allocated == self.max_objects()
+        self.allocated == self.max_objects()
     }
 
     #[inline]
     fn max_objects(&self) -> usize {
-        (PAGE_SIZE - SLAB_HEADER_OVERHEAD) / self.header().object_size
+        (PAGE_SIZE - SLAB_HEADER_OVERHEAD) / self.object_size
     }
 
     /// Returns a pointer to a free memory region of size `object_size`, or a
     /// `SlabAllocationError` if no more space is left.
     pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
-        if self.header().allocated == self.max_objects() {
+        if self.allocated == self.max_objects() {
             return Err(SlabAllocationError::NotEnoughMemory);
         }
 
-        let allocation = {
-            let header = self.header_mut();
-            let allocation = header.next.ok_or(SlabAllocationError::NotEnoughMemory)?;
+        let allocation = self.free_list_next.ok_or(SlabAllocationError::NotEnoughMemory)?;
 
-            header.next = unsafe { *allocation.as_ptr() }.next;
-            header.allocated += 1;
-            allocation
-        };
+        self.free_list_next = unsafe { *allocation.as_ptr() }.next;
+        self.allocated += 1;
 
         Ok(allocation.as_ptr() as *mut u8)
     }
 
     pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
-        let header = self.header_mut();
+        let next = self.free_list_next;
 
-        let next = header.next;
-
-        header.next = NonNull::new(addr as *mut Payload);
-        header.allocated -= 1;
+        self.free_list_next = NonNull::new(addr as *mut Payload);
+        self.allocated -= 1;
 
         unsafe { (*(addr as *mut Payload)).next = next };
 

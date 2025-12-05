@@ -2,7 +2,6 @@ use core::ptr::NonNull;
 
 use crate::{
     bitmap::StaticBitmap,
-    serial_println,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
