@@ -1,8 +1,11 @@
 use core::ptr::NonNull;
 
-use crate::vmm::{
-    allocators::kmalloc::{IntrusiveLink, KmallocError, List},
-    paging::PAGE_SIZE,
+use crate::{
+    serial_println,
+    vmm::{
+        allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
+        paging::PAGE_SIZE,
+    },
 };
 
 const SLAB_HEADER_OVERHEAD: usize = (size_of::<SlabHeader>() & !(0x08 - 1)) + 0x08;
@@ -109,9 +112,8 @@ impl SlabAllocator {
 
         let mut addr = addr;
         for _ in 0..n_slabs {
-            self.caches[slab_cache_index]
-                .add_slab(addr.cast::<Slab>())
-                .map_err(|_| KmallocError::NotEnoughMemory)?;
+            unsafe { addr.cast().write(Slab::new(addr.as_ptr(), object_size)) };
+            self.caches[slab_cache_index].add_slab(addr.cast()).map_err(|_| KmallocError::NotEnoughMemory)?;
 
             addr = unsafe { addr.add(PAGE_SIZE) };
         }
@@ -121,6 +123,30 @@ impl SlabAllocator {
 
     pub fn caches(&self) -> &[SlabCache] {
         &self.caches
+    }
+
+    pub unsafe fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
+        let slab_cache_index = if size <= 8 {
+            0
+        } else {
+            SLAB_CACHE_SIZES
+                .iter()
+                .map_windows(|[x, y]| size > **x as usize && size <= **y as usize)
+                .position(|x| x)
+                .expect("Called SlabAllocator::init_slab_cache with an invalid object_size")
+                + 1
+        };
+
+        self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)
+    }
+
+    pub unsafe fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
+        for mut cache in self.caches {
+            if let Ok(_) = cache.free(addr) {
+                return Ok(());
+            }
+        }
+        Err(KfreeError::InvalidPointer)
     }
 }
 
@@ -196,9 +222,10 @@ pub struct Slab {
 
 impl Slab {
     /// Creates a `Slab` object from `addr` and `object_size`.
+    ///
     /// # Safety
     /// It is the caller's responsibility to ensure that `addr` points to a valid,
-    /// page-aligned address, with at least 0x1000 read-writable bytes.
+    /// page-aligned address, with at least `0x1000` reserved bytes.
     pub unsafe fn new(addr: *const u8, object_size: usize) -> Self {
         assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
         assert!(object_size >= size_of::<*const u8>(), "object_size must be large enough to hold a pointer");
@@ -300,11 +327,6 @@ impl Slab {
     }
 
     pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
-        assert!(
-            addr >= self.addr && addr < (self.addr as usize + 0x1000) as *const u8,
-            "addr is out of range for this slab"
-        );
-
         let header = self.header_mut();
 
         let next = header.next;

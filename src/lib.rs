@@ -5,6 +5,7 @@
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
 #![deny(clippy::unwrap_used)]
+#![feature(iter_map_windows)]
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 #![feature(pointer_is_aligned_to)]
@@ -14,6 +15,8 @@
 
 #[cfg(test)]
 use core::panic::PanicInfo;
+
+extern crate alloc;
 
 pub mod arch;
 pub mod bitmap;

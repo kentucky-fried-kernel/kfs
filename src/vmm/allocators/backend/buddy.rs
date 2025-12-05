@@ -2,11 +2,12 @@ use core::ptr::NonNull;
 
 use crate::{
     bitmap::StaticBitmap,
+    serial_println,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
 #[cfg(all(not(test), not(feature = "test-utils")))]
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 26;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 25;
@@ -72,7 +73,7 @@ pub const BUDDY_ALLOCATOR_LEVELS_SIZE: usize = MAX_BUDDY_ALLOCATOR_LEVEL_INDEX +
 ///
 /// Since data structure needs to be statically allocated, its size is hardcoded and will waste
 /// memory when managing sizes `< 4GiB`. The alternative would be to have a generic BuddyAllocator
-/// struct, which I may consider but for now it's not that deep.
+/// struct, which I may consider at some point but for now it's not that deep.
 ///
 /// A node can have [3 different states][BuddyAllocatorNode]:
 /// ```
