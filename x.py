@@ -61,11 +61,17 @@ def build_tests() -> str:
 
 def discover_unit_tests(build_output: str) -> list[str]:
     executables: list[str] = []
-    parsed_output: list[dict[str, str | typing.Any]] = [json.loads(o) for o in build_output.split("\n") if o != ""]
+    parsed_output: list[dict[str, typing.Any]] = [json.loads(o) for o in build_output.split("\n") if o != ""]
     for o in parsed_output:
-        if not (exe := o.get("executable")) or "target/i386-unknown-none/release/deps/kfs-" not in exe:
+        exe = o.get("executable")
+        if not exe or "target/i386-unknown-none/release/deps/kfs-" not in exe:
             continue
-        if o["target"]["kind"][0] == "bin" or o["target"]["src_path"].endswith("lib.rs"):
+
+        target = o.get("target")
+        if not isinstance(target, dict):
+            continue
+
+        if target.get("kind", [None])[0] == "bin" or target.get("src_path", "").endswith("lib.rs"):
             executables.append(exe)
 
     return executables
