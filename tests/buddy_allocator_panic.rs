@@ -13,7 +13,7 @@ use kfs::{
     tester,
     vmm::{
         self,
-        allocators::{backend::buddy_allocator::BUDDY_ALLOCATOR_SIZE, kmalloc::kmalloc},
+        allocators::{backend::buddy::BUDDY_ALLOCATOR_SIZE, kmalloc::kmalloc},
     },
 };
 

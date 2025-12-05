@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 
-use crate::{bitmap::BitMap, vmm::allocators::backend::buddy_allocator::MAX_BUDDY_ALLOCATOR_LEVELS};
+use crate::{bitmap::BitMap, vmm::allocators::backend::buddy::MAX_BUDDY_ALLOCATOR_LEVELS};
 
 pub static mut LEVEL_0: BitMap<8, 4> = BitMap::<8, 4>::new();
 pub static mut LEVEL_1: BitMap<8, 4> = BitMap::<8, 4>::new();

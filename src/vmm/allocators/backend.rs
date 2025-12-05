@@ -1,2 +1,2 @@
-pub mod buddy_allocator;
-pub mod slab_allocator;
+pub mod buddy;
+pub mod slab;
