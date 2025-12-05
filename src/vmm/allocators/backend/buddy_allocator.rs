@@ -104,7 +104,7 @@ impl BuddyAllocator {
     #[allow(static_mut_refs)]
     pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
-        assert!(size >= 1 << 15 && size <= usize::MAX, "size must be at least 32768 and at most 2147483648");
+        assert!(size >= 1 << 15, "size must be at least 32768 and at most 4294967296");
 
         let root_level = 31 - size.ilog2() as usize;
 
