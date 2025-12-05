@@ -1,7 +1,7 @@
 use core::ptr::NonNull;
 
 use crate::{
-    bitmap::BitMap,
+    bitmap::StaticBitmap,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
@@ -56,59 +56,101 @@ impl const From<BuddyAllocatorNode> for u8 {
     }
 }
 
-macro_rules! bitmap_ptr_cast_mut {
-    ($self:expr, $level:expr, |$bitmap:ident| $body:expr, $size:expr) => {{
-        let $bitmap = unsafe { &mut *$self.levels[$level].cast::<BitMap<$size, 4>>().as_ptr() };
-        $body
-    }};
-}
+const MAX_BUDDY_ALLOCATOR_LEVEL_INDEX: usize = ((1u64 << 32).ilog2() - 4096u64.ilog2()) as usize;
+pub const BUDDY_ALLOCATOR_LEVELS_SIZE: usize = MAX_BUDDY_ALLOCATOR_LEVEL_INDEX + 1;
 
-macro_rules! generate_bitmap_match_arms {
-    ($self:expr, $level:expr, |$bitmap:ident| $body:expr, [$($lv:literal),* $(,)?]) => {
-        match $level {
-            0..=2 => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, 8),
-            $(
-                $lv => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, { 1 << $lv }),
-            )*
-            _ => unreachable!("BuddyAllocatorBitmap has 21 levels (indices 0..=20)"),
-        }
-    };
-}
-
-/// Gets the bitmap from `self` (`BuddyAllocatorBitmap`) for `level`, casting it
-/// to the correct type based on its size.
-macro_rules! with_bitmap_at_level {
-    ($self:expr, $level:expr, |$bitmap:ident| $body:expr) => {
-        generate_bitmap_match_arms!(
-            $self,
-            $level,
-            |$bitmap| $body,
-            [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-        )
-    };
-}
-
-pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = ((1u64 << 32).ilog2() - 4096u64.ilog2()) as usize;
-
+/// [Buddy Allocator](https://en.wikipedia.org/wiki/Buddy_memory_allocation).
+///
+/// This allocator manages a block of up to 4GiB with a granularity of 4096B (page size).
+/// The tree is represented as an array of bitmaps with 2 bits per node. A node can have
+/// [3 different states][BuddyAllocatorNode]:
+/// ```
+/// enum BuddyAllocatorNode {
+///     Free = 0b00,                // all children are free
+///     PartiallyAllocated = 0b10,  // some children are allocated
+///     FullyAllocated = 0b11,      // all children are allocated
+/// }
+/// ```
+/// When walking the tree looking for free space, this allows for pruning sub-trees that
+/// we know will not contain any block of the size we are looking for (which would not be
+/// possible with 1-bit nodes).
+///
+/// Allocation operations are O(log N) on average, O(N) in the worst case (highly fragmented
+/// memory, causing a scan of the whole tree).
+///
+/// Free operations are guaranteed to be O(log N).
+///
+/// ## Future optimizations
+/// We can get rid of the O(N) worst case for allocations by keeping a free list for each
+/// level.
+/// ```
+/// pub struct BuddyAllocator {
+///    levels: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE],
+///    free_lists: [Option<NonNull<FreeBlock>>; BUDDY_ALLOCATOR_LEVELS_SIZE],
+///    // [...]
+/// }
+///
+/// #[repr(C)]
+/// struct FreeBlock {
+///    next: Option<NonNull<FreeBlock>>,
+///    prev: Option<NonNull<FreeBlock>>,
+/// }
+///
+/// // allocation becomes
+/// pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
+///     if let Some(block) = self.free_lists[get_target_level(size)].take() {
+///         self.remove_from_free_list(target_level, block);
+///         return Ok(block.as_ptr() as *mut u8);
+///     }
+///
+///     // Split blocks until we find the right size, adding the blocks that we are not
+///     // entering to the free list as we go.
+/// }
+/// ```
 pub struct BuddyAllocator {
     /// Stores all possible levels of the bitmap. In order to span 4GiB with page
     /// granularity (where the root block is 4GiB, and the leaf nodes are 4096B),
     /// we need 21 levels (`log2(4294967296) - log2(4096)` gives us the level index
-    /// as the smallest granularity, add 1 for the required size of the array).
-    levels: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE],
-    /// Address from which the memory block managed by the `BuddyAllocator` starts.
+    /// at the smallest granularity, add 1 for the required size of the array).
+    levels: [&'static mut dyn StaticBitmap; BUDDY_ALLOCATOR_LEVELS_SIZE],
+
+    /// Start address of the memory managed by the BuddyAllocator.
     root: Option<NonNull<u8>>,
+
     /// Index of the root bitmap (if `size == 4GiB`, use the full span of the tree
     /// (`root_level = 0`),  if `size == 2GiB`, start one level below (`root_level = 1`)
     /// , and so on).
     root_level: usize,
-    /// Size of the root block.
+
+    /// Size of the block managed by the buddy allocator.
     size: usize,
 }
 
 impl BuddyAllocator {
+    /// Creates a new `BuddyAllocator` managing `size` bytes starting from `root`. If `root` cannot be determined
+    /// at compile-time (which will be the case if the allocator manages dynamically allocated memory), `None` can
+    /// be passed, and `root` can be set later:
+    /// ```
+    /// // Allocate statically
+    /// pub static mut BUDDY_ALLOCATOR: BuddyAllocator = unsafe { BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, LEVELS) };
+    ///
+    /// // Initialize at runtime
+    /// #[allow(static_mut_refs)]
+    /// fn init() {
+    ///     let ptr = mmap([...], BUDDY_ALLOCATOR_SIZE, [...]);
+    ///     unsafe { BUDDY_ALLOCATOR.set_root(NonNull::new(ptr)) };
+    /// }
+    /// ```
+    /// Please note that calling _any_ other function than `set_root` on a [`BuddyAllocator`] with an uninitialized `root` will
+    /// crash the kernel.
+    ///
+    /// # Safety
+    /// 1. It is the caller's responsibility to ensure that `root`, if `Some(_)`, points to valid memory with at least `size`
+    /// reserved bytes.
+    /// 2. Since each bitmap size is a different type, we have to resort to dynamic dispatch. It is the caller's responsibility
+    /// to ensure that each `levels[i]` actually refers to a `BitMap<{ (1 << i).min(8) }, 4>`, otherwise bad things will happen.
     #[allow(static_mut_refs)]
-    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE]) -> Self {
+    pub const unsafe fn new(root: Option<NonNull<u8>>, size: usize, levels: [&'static mut dyn StaticBitmap; BUDDY_ALLOCATOR_LEVELS_SIZE]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
         assert!(size >= 1 << 15, "size must be at least 32768 and at most 4294967296");
 
@@ -134,14 +176,14 @@ impl BuddyAllocator {
             "The buddy allocator can only allocate multiples of 0x1000"
         );
 
-        let current_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
+        let current_state = self.levels[level].get(index);
         if current_state == BuddyAllocatorNode::FullyAllocated as u8 {
             return None;
         }
 
         if allocation_size >= level_block_size || level == self.levels.len() {
             if current_state == BuddyAllocatorNode::Free as u8 {
-                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, BuddyAllocatorNode::FullyAllocated as u8));
+                self.levels[level].set(index, BuddyAllocatorNode::FullyAllocated as u8);
                 return Some(root as *mut u8);
             }
             return None;
@@ -151,12 +193,9 @@ impl BuddyAllocator {
         let allocation = self.alloc_internal(allocation_size, root, level_block_size / 2, level + 1, left_child_index);
 
         if allocation.is_some() {
-            with_bitmap_at_level!(self, level, |bitmap| {
-                let state = bitmap.get(index);
-                if state == BuddyAllocatorNode::Free as u8 {
-                    bitmap.set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
-                }
-            });
+            if self.levels[level].get(index) == BuddyAllocatorNode::Free as u8 {
+                self.levels[level].set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
+            }
             return allocation;
         }
 
@@ -170,17 +209,16 @@ impl BuddyAllocator {
         );
 
         if allocation.is_some() {
-            with_bitmap_at_level!(self, level, |bitmap| {
-                let state = bitmap.get(index);
-                if state == BuddyAllocatorNode::Free as u8 {
-                    bitmap.set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
-                }
-            });
+            if self.levels[level].get(index) == BuddyAllocatorNode::Free as u8 {
+                self.levels[level].set(index, BuddyAllocatorNode::PartiallyAllocated as u8);
+            }
         }
 
         allocation
     }
 
+    /// Allocates a block of memory of size `size` from the buddy allocator, updating its parents
+    /// accordingly. Returns [BuddyAllocationError] if not enough memory is available.
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 0x1000");
         assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
@@ -210,8 +248,8 @@ impl BuddyAllocator {
 
         let parent_index = index / 2;
 
-        let left_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index & !1));
-        let right_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index | 1));
+        let left_state = self.levels[level].get(index & !1);
+        let right_state = self.levels[level].get(index | 1);
 
         let parent_state = match (left_state, right_state) {
             (0b00, 0b00) => BuddyAllocatorNode::Free,
@@ -219,7 +257,7 @@ impl BuddyAllocator {
             _ => BuddyAllocatorNode::PartiallyAllocated,
         };
 
-        with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, parent_state as u8));
+        self.levels[level].set(parent_index, parent_state as u8);
 
         self.update_parent_states(level - 1, parent_index);
     }
@@ -230,19 +268,15 @@ impl BuddyAllocator {
         }
 
         let buddy_index = if index % 2 == 1 { index - 1 } else { index + 1 };
-        let buddy_state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(buddy_index));
 
         let parent_index = index / 2;
-        if buddy_state == BuddyAllocatorNode::Free as u8 {
-            with_bitmap_at_level!(self, level - 1, |bitmap| bitmap.set(parent_index, BuddyAllocatorNode::Free as u8));
+        if self.levels[level].get(buddy_index) == BuddyAllocatorNode::Free as u8 {
+            self.levels[level - 1].set(parent_index, BuddyAllocatorNode::Free as u8);
             self.coalesce(level - 1, index);
         } else {
-            with_bitmap_at_level!(self, level - 1, |bitmap| {
-                let parent_state = bitmap.get(parent_index);
-                if parent_state == BuddyAllocatorNode::FullyAllocated as u8 {
-                    bitmap.set(parent_index, BuddyAllocatorNode::PartiallyAllocated as u8);
-                }
-            });
+            if self.levels[level - 1].get(parent_index) == BuddyAllocatorNode::FullyAllocated as u8 {
+                self.levels[level - 1].set(parent_index, BuddyAllocatorNode::PartiallyAllocated as u8);
+            }
 
             if level > self.root_level + 1 {
                 self.update_parent_states(level - 1, parent_index);
@@ -250,6 +284,9 @@ impl BuddyAllocator {
         }
     }
 
+    /// Frees the memory block pointed to by `addr` and walks the tree backwards, coalescing the freed block
+    /// with its parents. Currently returns an error when passed a pointer the BuddyAllocator does not own,
+    /// not sure about this design yet.
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         assert!(!addr.is_null(), "Cannot free null pointer");
         assert!(self.root.is_some(), "free called on BuddyAllocator without root");
@@ -257,14 +294,14 @@ impl BuddyAllocator {
         let mut index = self.get_base_index(addr);
 
         for level in (self.root_level..=self.levels.len() - 1).rev() {
-            let state = with_bitmap_at_level!(self, level, |bitmap| bitmap.get(index));
-            if state == 0b11 {
-                with_bitmap_at_level!(self, level, |bitmap| bitmap.set(index, BuddyAllocatorNode::Free as u8));
+            if self.levels[level].get(index) == BuddyAllocatorNode::FullyAllocated as u8 {
+                self.levels[level].set(index, BuddyAllocatorNode::Free as u8);
                 self.coalesce(level, index);
                 return Ok(());
             }
             index = if index % 2 == 1 { index - 1 } else { index } / 2;
         }
+
         Err(KfreeError::InvalidPointer)
     }
 }

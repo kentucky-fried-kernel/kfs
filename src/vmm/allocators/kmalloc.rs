@@ -1,12 +1,9 @@
 use crate::{
-    printkln,
+    buddy_allocator_levels, printkln,
     vmm::{
-        allocators::{
-            backend::{
-                buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
-                slab::{SLAB_CACHE_SIZES, SlabAllocator},
-            },
-            kmalloc::state::*,
+        allocators::backend::{
+            buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
+            slab::{SLAB_CACHE_SIZES, SlabAllocator},
         },
         paging::{
             Access, PAGE_SIZE, Permissions,
@@ -39,7 +36,7 @@ pub struct KernelAllocator {
 }
 
 static mut KERNEL_ALLOCATOR: KernelAllocator = KernelAllocator {
-    buddy_allocator: BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS }),
+    buddy_allocator: unsafe { BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, buddy_allocator_levels!()) },
     slab_allocator: SlabAllocator::default(),
 };
 
