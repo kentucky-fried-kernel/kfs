@@ -39,7 +39,7 @@ unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         match kmalloc(layout.size().max(layout.align())) {
             Ok(p) => p,
-            Err(_) => panic!("Could not allocate"),
+            Err(_) => core::ptr::null::<u8>() as *mut u8,
         }
     }
 

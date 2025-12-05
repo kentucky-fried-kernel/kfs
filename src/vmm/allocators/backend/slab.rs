@@ -307,6 +307,9 @@ impl Slab {
     }
 
     pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
+        if addr < self.address() || addr > (self.address() as usize + PAGE_SIZE) as *const u8 {
+            return Err(SlabFreeError::InvalidPointer);
+        }
         let next = self.free_list_next;
 
         self.free_list_next = NonNull::new(addr as *mut Payload);

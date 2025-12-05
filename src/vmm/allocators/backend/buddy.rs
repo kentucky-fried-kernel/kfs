@@ -184,6 +184,7 @@ impl BuddyAllocator {
         );
 
         let current_state = self.levels[level].get(index);
+
         if current_state == BuddyAllocatorNode::FullyAllocated as u8 {
             return None;
         }
@@ -277,7 +278,7 @@ impl BuddyAllocator {
         let parent_index = index / 2;
         if self.levels[level].get(buddy_index) == BuddyAllocatorNode::Free as u8 {
             self.levels[level - 1].set(parent_index, BuddyAllocatorNode::Free as u8);
-            self.coalesce(level - 1, index);
+            self.coalesce(level - 1, parent_index);
         } else {
             if self.levels[level - 1].get(parent_index) == BuddyAllocatorNode::FullyAllocated as u8 {
                 self.levels[level - 1].set(parent_index, BuddyAllocatorNode::PartiallyAllocated as u8);
@@ -304,7 +305,7 @@ impl BuddyAllocator {
                 self.coalesce(level, index);
                 return Ok(());
             }
-            index = if index % 2 == 1 { index - 1 } else { index } / 2;
+            index /= 2;
         }
 
         Err(KfreeError::InvalidPointer)

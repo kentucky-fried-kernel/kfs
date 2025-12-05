@@ -51,6 +51,9 @@ fn alloc_free_alloc() -> Result<(), &'static str> {
     buddy_allocator_free(p1).map_err(|_| "Free failed")?;
     buddy_allocator_free(p3).map_err(|_| "Free failed")?;
 
+    let p = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE).map_err(|_| "Allocation failed")?;
+    buddy_allocator_free(p).map_err(|_| "Free failed")?;
+
     Ok(())
 }
 
