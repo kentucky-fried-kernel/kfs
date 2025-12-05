@@ -70,7 +70,7 @@ macro_rules! generate_bitmap_match_arms {
             $(
                 $lv => bitmap_ptr_cast_mut!($self, $level, |$bitmap| $body, { 1 << $lv }),
             )*
-            _ => unreachable!("BuddyAllocatorBitmap only has 20 levels (indices 0..=19)"),
+            _ => unreachable!("BuddyAllocatorBitmap has 21 levels (indices 0..=20)"),
         }
     };
 }
@@ -79,7 +79,12 @@ macro_rules! generate_bitmap_match_arms {
 /// to the correct type based on its size.
 macro_rules! with_bitmap_at_level {
     ($self:expr, $level:expr, |$bitmap:ident| $body:expr) => {
-        generate_bitmap_match_arms!($self, $level, |$bitmap| $body, [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+        generate_bitmap_match_arms!(
+            $self,
+            $level,
+            |$bitmap| $body,
+            [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        )
     };
 }
 
@@ -88,8 +93,9 @@ pub const MAX_BUDDY_ALLOCATOR_LEVELS: usize = ((1u64 << 32).ilog2() - 4096u64.il
 pub struct BuddyAllocator {
     /// Stores all possible levels of the bitmap. In order to span 4GiB with page
     /// granularity (where the root block is 4GiB, and the leaf nodes are 4096B),
-    /// we need 20 levels (`log2(4294967296) - log2(4096)`).
-    levels: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS],
+    /// we need 21 levels (`log2(4294967296) - log2(4096)` gives us the level index
+    /// as the smallest granularity, add 1 for the required size of the array).
+    levels: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE],
     /// Address from which the memory block managed by the `BuddyAllocator` starts.
     root: Option<NonNull<u8>>,
     /// Index of the root bitmap (if `size == 4GiB`, use the full span of the tree
@@ -102,11 +108,11 @@ pub struct BuddyAllocator {
 
 impl BuddyAllocator {
     #[allow(static_mut_refs)]
-    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS]) -> Self {
+    pub const fn new(root: Option<NonNull<u8>>, size: usize, levels: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
         assert!(size >= 1 << 15, "size must be at least 32768 and at most 4294967296");
 
-        let root_level = 31 - size.ilog2() as usize;
+        let root_level = 32 - size.ilog2() as usize;
 
         Self {
             levels,

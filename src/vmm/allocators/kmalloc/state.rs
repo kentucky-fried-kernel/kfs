@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 
-use crate::{bitmap::BitMap, vmm::allocators::backend::buddy::MAX_BUDDY_ALLOCATOR_LEVELS};
+use crate::{bitmap::BitMap, vmm::allocators::backend::buddy::BUDDY_ALLOCATOR_LEVELS_SIZE};
 
 pub static mut LEVEL_0: BitMap<8, 4> = BitMap::<8, 4>::new();
 pub static mut LEVEL_1: BitMap<8, 4> = BitMap::<8, 4>::new();
@@ -22,9 +22,10 @@ pub static mut LEVEL_16: BitMap<{ 1 << 16 }, 4> = BitMap::<{ 1 << 16 }, 4>::new(
 pub static mut LEVEL_17: BitMap<{ 1 << 17 }, 4> = BitMap::<{ 1 << 17 }, 4>::new();
 pub static mut LEVEL_18: BitMap<{ 1 << 18 }, 4> = BitMap::<{ 1 << 18 }, 4>::new();
 pub static mut LEVEL_19: BitMap<{ 1 << 19 }, 4> = BitMap::<{ 1 << 19 }, 4>::new();
+pub static mut LEVEL_20: BitMap<{ 1 << 20 }, 4> = BitMap::<{ 1 << 20 }, 4>::new();
 
 #[allow(static_mut_refs)]
-pub static mut LEVELS: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS] = unsafe {
+pub static mut LEVELS: [NonNull<u8>; BUDDY_ALLOCATOR_LEVELS_SIZE] = unsafe {
     [
         NonNull::new(LEVEL_0.as_ptr() as *mut u8).unwrap(),
         NonNull::new(LEVEL_1.as_ptr() as *mut u8).unwrap(),
@@ -46,6 +47,6 @@ pub static mut LEVELS: [NonNull<u8>; MAX_BUDDY_ALLOCATOR_LEVELS] = unsafe {
         NonNull::new(LEVEL_17.as_ptr() as *mut u8).unwrap(),
         NonNull::new(LEVEL_18.as_ptr() as *mut u8).unwrap(),
         NonNull::new(LEVEL_19.as_ptr() as *mut u8).unwrap(),
-        // NonNull::new(LEVEL_20.as_ptr() as *mut u8).unwrap(),
+        NonNull::new(LEVEL_20.as_ptr() as *mut u8).unwrap(),
     ]
 };
