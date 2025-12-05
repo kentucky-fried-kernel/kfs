@@ -18,8 +18,11 @@ pub enum BuddyAllocationError {
 #[repr(u8)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BuddyAllocatorNode {
+    /// This node + all its children are free
     Free = 0b00,
+    /// One or more of this node's children are allocated
     PartiallyAllocated = 0b10,
+    /// This node and all its children are allocated
     FullyAllocated = 0b11,
 }
 
@@ -62,8 +65,10 @@ pub const BUDDY_ALLOCATOR_LEVELS_SIZE: usize = MAX_BUDDY_ALLOCATOR_LEVEL_INDEX +
 /// [Buddy Allocator](https://en.wikipedia.org/wiki/Buddy_memory_allocation).
 ///
 /// This allocator manages a block of up to 4GiB with a granularity of 4096B (page size).
-/// The tree is represented as an array of bitmaps with 2 bits per node. A node can have
-/// [3 different states][BuddyAllocatorNode]:
+/// The tree is represented as an array of bitmaps with 2 bits per node, meaning the total size
+/// of the bitmaps referenced by the `levels` array ≈ 524288 bytes `((4GiB / 4096B) / 4) * 2`.
+///
+/// A node can have [3 different states][BuddyAllocatorNode]:
 /// ```
 /// enum BuddyAllocatorNode {
 ///     Free = 0b00,                // all children are free
