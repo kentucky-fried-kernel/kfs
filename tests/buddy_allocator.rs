@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 #[cfg(test)]
 use kfs::boot::MultibootInfo;
 use kfs::{
-    kassert, kassert_eq, serial_println,
+    kassert, kassert_eq,
     vmm::{
         self,
         allocators::{
