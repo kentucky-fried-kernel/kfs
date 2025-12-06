@@ -44,6 +44,7 @@ impl Buffer {
     ///
     /// # Returns
     /// A new `Buffer` with the formatted data from the `Screen` and the updated cursor position.
+    #[must_use]
     pub fn from_screen(s: &Screen) -> Self {
         let mut view_padding_whitespace: usize = 0;
 
@@ -74,8 +75,8 @@ impl Buffer {
                     let padding = VIEW_WIDTH - (padded_relative_index % VIEW_WIDTH) - 1;
                     view_padding_whitespace += padding;
 
-                    for _ in 0..(padding + 1) {
-                        vga_buffer.buffer[padded_relative_index] = Entry::new(b' ').to_u16()
+                    for _ in 0..=padding {
+                        vga_buffer.buffer[padded_relative_index] = Entry::new(b' ').to_u16();
                     }
                 }
                 _ => vga_buffer.buffer[padded_relative_index] = entry, // _ => write_entry_to_vga(padded_relative_index, entry).unwrap(),
@@ -94,9 +95,13 @@ impl Buffer {
     /// let buffer = Buffer::from_screen(&screen);
     /// buffer.flush();
     /// ```
+    /// # Panics
+    /// If for whatever reason, [`write_entry_to_vga`] fails, this function will panic.
     pub fn flush(&self) {
         for (i, e) in self.buffer.iter().enumerate() {
-            write_entry_to_vga(i, *e).expect("Could not write entry to VGA buffer");
+            if write_entry_to_vga(i, *e).is_err() {
+                panic!("Could not write entry to VGA buffer")
+            }
         }
         match self.cursor {
             Some(c) => {
@@ -176,7 +181,10 @@ fn write_entry_to_vga(index: usize, entry: u16) -> Result<(), OutOfBoundsErr> {
         return Err(OutOfBoundsErr);
     }
 
-    let written_entry = read_entry_from_vga(index).expect("Could not read from VGA buffer");
+    let Ok(written_entry) = read_entry_from_vga(index) else {
+        panic!("Could not read from VGA buffer");
+    };
+
     if entry == written_entry {
         return Ok(());
     }
@@ -218,6 +226,7 @@ impl Entry {
     ///
     /// ### Parameters:
     /// - `character`: The character to be storedy.
+    #[must_use]
     pub const fn new(character: u8) -> Self {
         Entry {
             color: Color::Default as u8,
@@ -236,6 +245,7 @@ impl Entry {
     /// - `character`: The character to be displayed (e.g., an ASCII value representing a letter or symbol).
     /// - `color`: The color code for the character (an 8-bit value that determines the character's color).
     ///   - The value should correspond to a color in the VGA color palette (for example, `0x0F` for white, `0x01` for blue, etc.).
+    #[must_use]
     pub fn new_with_color(character: u8, color: u8) -> Self {
         Entry { color, character }
     }
@@ -246,6 +256,7 @@ impl Entry {
     ///
     /// ### Returns:
     /// A `u16` value representing this `Entry`.
+    #[must_use]
     pub const fn to_u16(&self) -> u16 {
         ((self.color as u16) << 8) | (self.character as u16)
     }
@@ -265,6 +276,7 @@ pub enum Color {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod test {
     use super::*;
     use crate::kassert_eq;
@@ -273,12 +285,12 @@ mod test {
     fn hello_world() -> Result<(), &'static str> {
         let test_string = "Hello World";
         let mut s = Screen::default();
-        s.write_str(&test_string);
+        s.write_str(test_string);
         let b = Buffer::from_screen(&s);
         kassert_eq!(b.cursor.unwrap().x, 11, "Cursor x position != 11");
         kassert_eq!(b.cursor.unwrap().y, 0, "Cursor y position != 0");
         for (i, c) in test_string.as_bytes().iter().enumerate() {
-            kassert_eq!(b.buffer[i], Entry::new(*c).to_u16(), "buffer value does not have expected value")
+            kassert_eq!(b.buffer[i], Entry::new(*c).to_u16(), "buffer value does not have expected value");
         }
         Ok(())
     }
@@ -289,9 +301,9 @@ mod test {
         let test_string_1 = "Coka";
         let test_string_2 = "Cola";
 
-        s.write_str(&test_string_1);
+        s.write_str(test_string_1);
         s.handle_key(crate::ps2::Key::Enter);
-        s.write_str(&test_string_2);
+        s.write_str(test_string_2);
 
         let b = Buffer::from_screen(&s);
 
@@ -324,7 +336,7 @@ mod test {
     fn backspacing() -> Result<(), &'static str> {
         let mut s = Screen::default();
         let test_string = "123";
-        s.write_str(&test_string);
+        s.write_str(test_string);
         s.handle_key(crate::ps2::Key::Backspace);
 
         let b = Buffer::from_screen(&s);

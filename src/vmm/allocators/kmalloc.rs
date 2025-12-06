@@ -126,7 +126,7 @@ pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), K
         let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
 
         let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
-        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, size as usize, 8) }?;
+        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, size as usize, 8) };
     }
 
     Ok(())

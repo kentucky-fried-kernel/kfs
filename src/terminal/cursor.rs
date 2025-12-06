@@ -14,6 +14,7 @@ impl Cursor {
     const REG_START: u8 = 0x0A;
     const REG_END: u8 = 0x0B;
 
+    #[must_use]
     pub fn new(x: u16, y: u16) -> Self {
         Cursor { x, y }
     }
@@ -81,7 +82,7 @@ impl Cursor {
                 value = in(reg_byte) (value),
                 out("dx") _,
                 out("al") _,
-            )
+            );
         }
     }
 

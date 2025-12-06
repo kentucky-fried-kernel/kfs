@@ -2,6 +2,7 @@ use core::ptr::NonNull;
 
 use crate::{
     bitmap::StaticBitmap,
+    expect_opt,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
@@ -67,7 +68,7 @@ pub const BUDDY_ALLOCATOR_LEVELS_SIZE: usize = MAX_BUDDY_ALLOCATOR_LEVEL_INDEX +
 /// of the bitmaps referenced by the `levels` array ≈ 524288 bytes `((4GiB / 4096B) / 4) * 2`.
 ///
 /// Since data structure needs to be statically allocated, its size is hardcoded and will waste
-/// memory when managing sizes `< 4GiB`. The alternative would be to have a generic BuddyAllocator
+/// memory when managing sizes `< 4GiB`. The alternative would be to have a generic `BuddyAllocator`
 /// struct, which I may consider at some point but for now it's not that deep.
 ///
 /// A node can have [3 different states][BuddyAllocatorNode]:
@@ -121,7 +122,7 @@ pub struct BuddyAllocator {
     /// at the smallest granularity, add 1 for the required size of the array).
     levels: [&'static mut dyn StaticBitmap; BUDDY_ALLOCATOR_LEVELS_SIZE],
 
-    /// Start address of the memory managed by the BuddyAllocator.
+    /// Start address of the memory managed by the `BuddyAllocator`.
     root: Option<NonNull<u8>>,
 
     /// Index of the root bitmap (if `size == 4GiB`, use the full span of the tree
@@ -156,6 +157,10 @@ impl BuddyAllocator {
     ///    reserved bytes.
     /// 2. Since each bitmap size is a different type, we have to resort to dynamic dispatch. It is the caller's responsibility
     ///    to ensure that each `levels[i]` actually refers to a `BitMap<{ (1 << i).min(8) }, 4>`, otherwise bad things will happen.
+    ///
+    /// # Panics
+    /// This function will panic if passed incorrect arguments, like a `size` which is not a power of 2, or if
+    /// `size < 32768 || size > 4294967296`.
     #[allow(static_mut_refs)]
     pub const unsafe fn new(root: Option<NonNull<u8>>, size: usize, levels: [&'static mut dyn StaticBitmap; BUDDY_ALLOCATOR_LEVELS_SIZE]) -> Self {
         assert!(2usize.pow(size.ilog2()) == size, "size must be a power of 2");
@@ -177,7 +182,7 @@ impl BuddyAllocator {
 
     #[inline]
     #[allow(static_mut_refs)]
-    fn alloc_internal(&mut self, allocation_size: usize, root: *const u8, level_block_size: usize, level: usize, index: usize) -> Option<*mut u8> {
+    fn alloc_internal(&mut self, allocation_size: usize, root: *mut u8, level_block_size: usize, level: usize, index: usize) -> Option<*mut u8> {
         assert!(
             allocation_size.is_multiple_of(PAGE_SIZE),
             "The buddy allocator can only allocate multiples of 0x1000"
@@ -192,7 +197,7 @@ impl BuddyAllocator {
         if allocation_size >= level_block_size || level == self.levels.len() {
             if current_state == BuddyAllocatorNode::Free as u8 {
                 self.levels[level].set(index, BuddyAllocatorNode::FullyAllocated as u8);
-                return Some(root as *mut u8);
+                return Some(root);
             }
             return None;
         }
@@ -210,7 +215,7 @@ impl BuddyAllocator {
         let right_child_index = index * 2 + 1;
         let allocation = self.alloc_internal(
             allocation_size,
-            (root as usize + level_block_size / 2) as *const u8,
+            (root as usize + level_block_size / 2) as *mut u8,
             level_block_size / 2,
             level + 1,
             right_child_index,
@@ -224,11 +229,18 @@ impl BuddyAllocator {
     }
 
     /// Allocates a block of memory of size `size` from the buddy allocator, updating its parents
-    /// accordingly. Returns [BuddyAllocationError] if not enough memory is available.
+    /// accordingly. Returns [`BuddyAllocationError`] if not enough memory is available.
+    ///
+    /// # Panics
+    /// This function will panic if passed incorrect parameters, like a `size` which is not a multiple
+    /// of `PAGE_SIZE`, or a `size` larger than `self.size`.
+    ///
+    /// # Errors
+    /// This function will return an error if no fitting memory block is found for the allocation.
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 0x1000");
         assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
-        let root = self.root.expect("alloc called on BuddyAllocator without root");
+        let root = expect_opt!(self.root, "alloc called on BuddyAllocator without root");
 
         self.alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
             .ok_or(BuddyAllocationError::NotEnoughMemory)
@@ -238,7 +250,7 @@ impl BuddyAllocator {
     /// Used to recurse back from there and find an allocation by address.
     #[inline]
     fn get_base_index(&self, addr: *const u8) -> usize {
-        let root = self.root.expect("get_base_index called on BuddyAllocator without root");
+        let root = expect_opt!(self.root, "get_base_index called on BuddyAllocator without root");
         assert!(
             (root.as_ptr() as usize..(root.as_ptr() as usize + self.size)).contains(&(addr as usize)),
             "addr is out of range for this allocator"
@@ -291,15 +303,22 @@ impl BuddyAllocator {
     }
 
     /// Frees the memory block pointed to by `addr` and walks the tree backwards, coalescing the freed block
-    /// with its parents. Currently returns an error when passed a pointer the BuddyAllocator does not own,
+    /// with its parents.
+    ///
+    /// # Errors
+    /// Returns an error when passed a pointer the `BuddyAllocator` does not own,
     /// not sure about this design yet.
+    ///
+    /// # Panics
+    /// This function will panic if passed invalid arguments, like if `addr` is null, or if the `BuddyAllocator`
+    /// is not initialized (`self.root.is_none()`).
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         assert!(!addr.is_null(), "Cannot free null pointer");
         assert!(self.root.is_some(), "free called on BuddyAllocator without root");
 
         let mut index = self.get_base_index(addr);
 
-        for level in (self.root_level..=self.levels.len() - 1).rev() {
+        for level in (self.root_level..self.levels.len()).rev() {
             if self.levels[level].get(index) == BuddyAllocatorNode::FullyAllocated as u8 {
                 self.levels[level].set(index, BuddyAllocatorNode::Free as u8);
                 self.coalesce(level, index);

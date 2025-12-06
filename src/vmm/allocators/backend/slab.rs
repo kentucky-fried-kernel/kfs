@@ -1,8 +1,11 @@
 use core::ptr::NonNull;
 
-use crate::vmm::{
-    allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
-    paging::PAGE_SIZE,
+use crate::{
+    expect_opt,
+    vmm::{
+        allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
+        paging::PAGE_SIZE,
+    },
 };
 
 const SLAB_HEADER_OVERHEAD: usize = (size_of::<Slab>() & !(0x08 - 1)) + 0x08;
@@ -20,6 +23,7 @@ pub struct SlabCache {
 }
 
 impl SlabCache {
+    #[must_use]
     pub const fn new(object_size: usize) -> Self {
         Self {
             empty_slabs: List::<Slab>::default(),
@@ -30,13 +34,13 @@ impl SlabCache {
         }
     }
 
-    pub fn add_slab(&mut self, mut addr: NonNull<Slab>) -> Result<(), SlabAllocationError> {
+    /// # Panics
+    /// This function will panic if called on an uninitialized `SlabCache`.
+    pub fn add_slab(&mut self, mut addr: NonNull<Slab>) {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
         self.empty_slabs.add_front(&mut addr);
         self.n_slabs += 1;
-
-        Ok(())
     }
 
     pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
@@ -101,22 +105,18 @@ impl SlabAllocator {
     /// # Safety
     /// It is the caller's responsibility to ensure that `addr` points to a valid, allocated memory address,
     /// containing **at least** `PAGE_SIZE * n_slabs` read-writable bytes.
-    pub unsafe fn init_slab_cache(&mut self, addr: NonNull<u8>, object_size: usize, n_slabs: usize) -> Result<(), KmallocError> {
-        let slab_cache_index = SLAB_CACHE_SIZES
-            .iter()
-            .position(|x| *x as usize == object_size)
-            .expect("Called SlabAllocator::init_slab_cache with an invalid object_size");
+    pub unsafe fn init_slab_cache(&mut self, addr: NonNull<u8>, object_size: usize, n_slabs: usize) {
+        let slab_cache_index = SLAB_CACHE_SIZES.iter().position(|x| *x as usize == object_size);
+        let slab_cache_index = expect_opt!(slab_cache_index, "Called SlabAllocator::init_slab_cache with an invalid object_size");
 
         let mut addr = addr;
         for _ in 0..n_slabs {
             let slab_ptr = addr.cast::<Slab>().as_ptr();
             unsafe { Slab::init(slab_ptr, object_size) };
-            self.caches[slab_cache_index].add_slab(addr.cast()).map_err(|_| KmallocError::NotEnoughMemory)?;
+            self.caches[slab_cache_index].add_slab(addr.cast());
 
             addr = unsafe { addr.add(PAGE_SIZE) };
         }
-
-        Ok(())
     }
 
     pub fn caches(&self) -> &[SlabCache] {

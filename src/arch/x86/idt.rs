@@ -1,5 +1,6 @@
-#![allow(static_mut_refs)]
 #![allow(unused)]
+#![allow(static_mut_refs)]
+#![allow(clippy::cast_possible_truncation)]
 
 use crate::{printk, printkln};
 
@@ -52,7 +53,7 @@ impl InterruptDescriptor {
     }
 
     pub fn offset(&self) -> u32 {
-        ((self.isr_high as u32) << 16) | self.isr_low as u32
+        (u32::from(self.isr_high) << 16) | u32::from(self.isr_low)
     }
 }
 
@@ -78,7 +79,7 @@ impl InterruptDescriptorTable {
             };
 
             core::arch::asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags));
-            core::arch::asm!("sti")
+            core::arch::asm!("sti");
         }
     }
 

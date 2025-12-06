@@ -14,6 +14,7 @@ impl Terminal {
     ///
     /// # Returns
     /// A `Terminal` instance with the default screen state.
+    #[must_use]
     #[allow(unused)]
     pub const fn default() -> Terminal {
         Terminal {
