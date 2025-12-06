@@ -8,11 +8,11 @@ use core::panic::PanicInfo;
 
 use kfs::alloc::vec::Vec;
 use kfs::boot::MultibootInfo;
-use kfs::printkln;
 use kfs::{
     alloc::string::String,
     vmm::{self, allocators::backend::buddy::BUDDY_ALLOCATOR_SIZE, paging::PAGE_SIZE},
 };
+use kfs::{kassert_eq, printkln, serial_println};
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
@@ -25,6 +25,34 @@ fn alloc_string() -> Result<(), &'static str> {
 
     for _ in 0..(PAGE_SIZE * 16) {
         s.push_str("LET THE BUFFER GROW");
+    }
+
+    Ok(())
+}
+
+#[test_case]
+fn pointers() -> Result<(), &'static str> {
+    {
+        let p1 = Vec::<u8>::with_capacity(PAGE_SIZE);
+        let p2 = Vec::<u8>::with_capacity(PAGE_SIZE);
+        let p3 = Vec::<u8>::with_capacity(PAGE_SIZE);
+        let p4 = Vec::<u8>::with_capacity(PAGE_SIZE);
+
+        let p1_ptr = p1.as_ptr();
+        let p2_ptr = p2.as_ptr();
+        let p3_ptr = p3.as_ptr();
+        let p4_ptr = p4.as_ptr();
+
+        kassert_eq!(p2_ptr as usize - p1_ptr as usize, PAGE_SIZE);
+        kassert_eq!(p3_ptr as usize - p2_ptr as usize, PAGE_SIZE);
+        kassert_eq!(p4_ptr as usize - p3_ptr as usize, PAGE_SIZE);
+    }
+
+    for _ in 0..12 {
+        let p = Vec::<u8>::with_capacity(PAGE_SIZE);
+
+        let p_ptr = p.as_ptr();
+        serial_println!("p:  {:x}", p_ptr as usize);
     }
 
     Ok(())
