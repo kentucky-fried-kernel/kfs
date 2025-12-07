@@ -228,7 +228,7 @@ pub const SLAB_CONFIGS: [SlabConfig; 9] = [
     SlabConfig { object_size: 256, order: 1 },
     SlabConfig { object_size: 512, order: 2 },
     SlabConfig { object_size: 1024, order: 4 },
-    SlabConfig { object_size: 2048, order: 128 },
+    SlabConfig { object_size: 2048, order: 8 },
 ];
 
 impl const Default for SlabAllocator {
