@@ -40,8 +40,8 @@ pub fn flush_output_buffer() {
 
 static mut LAST_KEY: Option<u8> = None;
 
-/// Reads from the PS2 data port if the PS2 status port is ready. Returns `Some(KeyScanCode)`
-/// if the converted scancode is a supported character.
+/// Reads from the PS2 data port if the PS2 status port is ready. Returns
+/// `Some(KeyScanCode)` if the converted scancode is a supported character.
 ///
 /// /// ### Example Usage:
 /// ```

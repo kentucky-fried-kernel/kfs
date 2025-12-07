@@ -52,13 +52,14 @@ static mut KERNEL_ALLOCATOR: KernelAllocator = KernelAllocator {
 };
 
 /// # Safety
-/// This function will interact with the kernel allocator, and therefore dereference
-/// raw pointers and all other sorts of bad stuff. It is the caller's responsibility
-/// to only _ever_ call this if the kernel allocator is properly initialized.
+/// This function will interact with the kernel allocator, and therefore
+/// dereference raw pointers and all other sorts of bad stuff. It is the
+/// caller's responsibility to only _ever_ call this if the kernel allocator is
+/// properly initialized.
 ///
 /// # Errors
-/// This function will return an error if `addr` is not pointing to an allocated block
-/// of memory.
+/// This function will return an error if `addr` is not pointing to an allocated
+/// block of memory.
 #[allow(static_mut_refs)]
 pub unsafe fn kfree(addr: *const u8) -> Result<(), KfreeError> {
     match unsafe { KERNEL_ALLOCATOR.slab_allocator.free(addr) } {
@@ -71,8 +72,8 @@ pub unsafe fn kfree(addr: *const u8) -> Result<(), KfreeError> {
 }
 
 /// # Errors
-/// This function will return an error if it fails to find a sufficiently large block of
-/// memory for the allocation.
+/// This function will return an error if it fails to find a sufficiently large
+/// block of memory for the allocation.
 #[allow(static_mut_refs)]
 pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
     match size {
@@ -111,8 +112,8 @@ pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
 }
 
 /// # Errors
-/// This function will return an error if the initial allocation for the `BuddyAllocator` (made
-/// via `mmap`) fails.
+/// This function will return an error if the initial allocation for the
+/// `BuddyAllocator` (made via `mmap`) fails.
 #[allow(static_mut_refs)]
 pub fn init_buddy_allocator() -> Result<(), KmallocError> {
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
@@ -123,8 +124,9 @@ pub fn init_buddy_allocator() -> Result<(), KmallocError> {
 }
 
 /// # Errors
-/// This function will return an error if called without having previously initialized the buddy
-/// allocator, which would lead it to be unable to allocate slabs.
+/// This function will return an error if called without having previously
+/// initialized the buddy allocator, which would lead it to be unable to
+/// allocate slabs.
 #[allow(static_mut_refs)]
 pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), KmallocError> {
     let slab_allocator = unsafe { &mut KERNEL_ALLOCATOR.slab_allocator };
@@ -140,7 +142,8 @@ pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), K
 }
 
 /// # Errors
-/// This function will return an error if any of `init_buddy_allocator` or `init_slab_allocator` fail.
+/// This function will return an error if any of `init_buddy_allocator` or
+/// `init_slab_allocator` fail.
 #[allow(static_mut_refs)]
 pub fn init() -> Result<(), KmallocError> {
     init_buddy_allocator()?;

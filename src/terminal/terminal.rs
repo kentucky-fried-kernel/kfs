@@ -10,7 +10,8 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    /// Creates a new `Terminal` instance with the default screen and sets the first screen as active.
+    /// Creates a new `Terminal` instance with the default screen and sets the
+    /// first screen as active.
     ///
     /// # Returns
     /// A `Terminal` instance with the default screen state.
@@ -25,8 +26,8 @@ impl Terminal {
 
     /// Handles a key press event by updating the terminal's state.
     ///
-    /// If the key is the `Tab` key, it switches to the next screen. Otherwise, the key event is passed
-    /// to the active screen for processing.
+    /// If the key is the `Tab` key, it switches to the next screen. Otherwise,
+    /// the key event is passed to the active screen for processing.
     ///
     /// # Parameters
     /// - `key`: The key that was pressed.

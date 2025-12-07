@@ -5,12 +5,12 @@ pub struct PageDirectory(pub [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]);
 // pub struct  OutOfBoundsError;
 
 // impl PageDirectory {
-//     pub const fn new(entries: &'static mut [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]) -> Self {
-//         Self { entries }
+//     pub const fn new(entries: &'static mut [PageDirectoryEntry;
+// PAGE_DIRECTORY_SIZE]) -> Self {         Self { entries }
 //     }
 
-//     pub fn set_entry(&mut self, index: usize, entry: PageDirectoryEntry) -> Result<(), OutOfBoundsError> {
-//         if index >= self.entries.len() {
+//     pub fn set_entry(&mut self, index: usize, entry: PageDirectoryEntry) ->
+// Result<(), OutOfBoundsError> {         if index >= self.entries.len() {
 //             return Err(OutOfBoundsError);
 //         }
 
@@ -18,15 +18,15 @@ pub struct PageDirectory(pub [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]);
 
 //         Ok(())
 //     }
-//     pub fn get_entry(&'static self, index: usize) -> Option<&'static mut PageDirectoryEntry> {
-//         if index >= self.entries.len() {
+//     pub fn get_entry(&'static self, index: usize) -> Option<&'static mut
+// PageDirectoryEntry> {         if index >= self.entries.len() {
 //             return None;
 //         }
 
 //         Some(&self.entries[index])
 //     }
-//     pub fn get_entry_mut(&mut self, index: usize) -> Option<&mut PageDirectoryEntry> {
-//         if index >= self.entries.len() {
+//     pub fn get_entry_mut(&mut self, index: usize) -> Option<&mut
+// PageDirectoryEntry> {         if index >= self.entries.len() {
 //             return None;
 //         }
 
@@ -49,8 +49,8 @@ pub struct PageDirectory(pub [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]);
 
 //         let cur_pos = self.pos;
 //         self.pos += 1;
-//         let p: &'static mut PageDirectoryEntry = self.page_directory.get_entry(cur_pos).unwrap();
-//         Some(p)
+//         let p: &'static mut PageDirectoryEntry =
+// self.page_directory.get_entry(cur_pos).unwrap();         Some(p)
 //     }
 // }
 

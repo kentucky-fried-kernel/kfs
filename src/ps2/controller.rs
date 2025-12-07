@@ -160,9 +160,10 @@ fn get_fadt(header: &SDTHeader, rsdt: *const Rsdt) -> Result<*mut Fadt, &'static
     Err("FADT not found")
 }
 
-/// Checks whether we have a dual channel PS/2 controller by trying to enable the second port
-/// and reading the config. If bit 5 (port 2 enabled) is not set, we have a single channel controller,
-/// since the bit should have been set after sending the `0xA8` command.
+/// Checks whether we have a dual channel PS/2 controller by trying to enable
+/// the second port and reading the config. If bit 5 (port 2 enabled) is not
+/// set, we have a single channel controller, since the bit should have been set
+/// after sending the `0xA8` command.
 fn is_dual_channel_controller() -> bool {
     send_command(Command::EnableSecondPort);
     send_command(Command::ReadConfig);
@@ -239,8 +240,8 @@ fn update_config(new_config: u8) {
     send_data(new_config);
 }
 
-/// Sends `0xFF` to the PS/2 controller, resetting it, and verifies that it returns `0xAA` and `0xFA`
-/// (order irrelevant), indicating success.
+/// Sends `0xFF` to the PS/2 controller, resetting it, and verifies that it
+/// returns `0xAA` and `0xFA` (order irrelevant), indicating success.
 fn reset_controller() -> Result<(), &'static str> {
     let (mut got_0xfa, mut got_0xaa) = (false, false);
     send_data(0xFF);
@@ -259,14 +260,16 @@ fn reset_controller() -> Result<(), &'static str> {
     Ok(())
 }
 
-/// Initializes the PS/2 controller. Note that verifying the existence of the PS/2 controller
-/// is not strictly necessary, since it is assumed to be there in i386, but it was fun.
+/// Initializes the PS/2 controller. Note that verifying the existence of the
+/// PS/2 controller is not strictly necessary, since it is assumed to be there
+/// in i386, but it was fun.
 ///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 /// https://wiki.osdev.org/ACPI
 ///
 /// # Errors
-/// This function will return an error if the machine does not have a PS/2 controller.
+/// This function will return an error if the machine does not have a PS/2
+/// controller.
 pub fn init() -> Result<(), &'static str> {
     has_ps2_controller()?;
 

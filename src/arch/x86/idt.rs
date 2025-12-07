@@ -58,7 +58,8 @@ impl InterruptDescriptor {
 }
 
 impl InterruptDescriptorTable {
-    /// Creates a new `InterruptDescriptorTable` filled with non-present entries.
+    /// Creates a new `InterruptDescriptorTable` filled with non-present
+    /// entries.
     pub fn new() -> Self {
         let mut idt = Self {
             entries: [InterruptDescriptor::new(0, 0, 0); MAX_INTERRUPT_DESCRIPTORS],
@@ -78,9 +79,9 @@ impl InterruptDescriptorTable {
         };
 
         // SAFETY:
-        // We are using inline assembly to get access to the `lidt` instruction. The value we pass to it
-        // contains the address to a static IDT, which is guaranteed stay valid for the entire lifetime
-        // of the program.
+        // We are using inline assembly to get access to the `lidt` instruction. The
+        // value we pass to it contains the address to a static IDT, which is
+        // guaranteed stay valid for the entire lifetime of the program.
         unsafe {
             core::arch::asm!("lidt [{}]", "sti", in(reg) &raw const idtr, options(readonly, nostack, preserves_flags));
         }
@@ -263,7 +264,8 @@ pub fn remap_pic() {
     const ICW4_8086: u8 = 0x01;
 
     // SAFETY:
-    // We are using the `Port` struct to write to the programmable interrupt controller.
+    // We are using the `Port` struct to write to the programmable interrupt
+    // controller.
     #[allow(clippy::multiple_unsafe_ops_per_block)]
     unsafe {
         use crate::port::Port;

@@ -44,7 +44,17 @@ impl SlabCache {
     fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
         match (self.partial_slabs.head(), self.empty_slabs.head()) {
             (Some(mut slab), _) => {
+                // SAFETY:
+                // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
+                // The slabs themselves are initialized by the `SlabAllocator`,
+                // which ensures that each allocation is sucessful before
+                // considering using it as a slab.
                 let allocation = unsafe { slab.as_mut() }.alloc();
+                // SAFETY:
+                // We are calling `as_ref()` on `slab`, which cannot be null due to its type.
+                // The slabs themselves are initialized by the `SlabAllocator`,
+                // which ensures that each allocation is sucessful before
+                // considering using it as a slab.
                 if unsafe { slab.as_ref() }.full() {
                     self.full_slabs
                         .add_front(&mut self.partial_slabs.take_head().ok_or(SlabAllocationError::NotEnoughMemory)?);
@@ -52,6 +62,11 @@ impl SlabCache {
                 allocation
             }
             (_, Some(mut slab)) => {
+                // SAFETY:
+                // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
+                // The slabs themselves are initialized by the `SlabAllocator`,
+                // which ensures that each allocation is sucessful before
+                // considering using it as a slab.
                 let allocation = unsafe { slab.as_mut() }.alloc();
                 let mut head = self.empty_slabs.take_head().ok_or(SlabAllocationError::NotEnoughMemory)?;
                 self.partial_slabs.add_front(&mut head);
@@ -65,11 +80,21 @@ impl SlabCache {
     // sorted by address for O(logn) lookups.
     fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
         for mut slab in self.partial_slabs {
+            // SAFETY:
+            // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
+            // The slabs themselves are initialized by the `SlabAllocator`,
+            // which ensures that each allocation is sucessful before
+            // considering using it as a slab.
             if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
                 return Ok(());
             }
         }
         for mut slab in self.full_slabs {
+            // SAFETY:
+            // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
+            // The slabs themselves are initialized by the `SlabAllocator`,
+            // which ensures that each allocation is sucessful before
+            // considering using it as a slab.
             if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
                 return Ok(());
             }
@@ -99,8 +124,10 @@ impl const Default for SlabAllocator {
 
 impl SlabAllocator {
     /// # Safety
-    /// It is the caller's responsibility to ensure that `addr` points to a valid, allocated memory address,
-    /// containing **at least** `PAGE_SIZE * n_slabs` read-writable bytes.
+    /// If any of the following conditions are violated, the result is Undefined
+    /// Behavior:
+    /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE *
+    ///   n_slabs` bytes.
     pub unsafe fn init_slab_cache(&mut self, addr: NonNull<u8>, object_size: usize, n_slabs: usize) {
         let slab_cache_index = SLAB_CACHE_SIZES.iter().position(|x| *x as usize == object_size);
         let slab_cache_index = expect_opt!(slab_cache_index, "Called SlabAllocator::init_slab_cache with an invalid object_size");
@@ -108,9 +135,18 @@ impl SlabAllocator {
         let mut addr = addr;
         for _ in 0..n_slabs {
             let slab_ptr = addr.cast::<Slab>().as_ptr();
+            // SAFETY:
+            // We are calling `Slab::init`, which is unsafe since it initializes memory
+            // in-place, which the compiler cannot verify. If
+            // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+            // valid memory which we can safely write to.
             unsafe { Slab::init(slab_ptr, object_size) };
             self.caches[slab_cache_index].add_slab(addr.cast());
 
+            // SAFETY:
+            // `PAGE_SIZE` does not overflow `isize`, and `addr` points to a valid
+            // allocation at least `PAGE_SIZE * n_slabs` if this function's
+            // safety directive was respected.
             addr = unsafe { addr.add(PAGE_SIZE) };
         }
     }
@@ -120,13 +156,10 @@ impl SlabAllocator {
         &self.caches
     }
 
-    /// # Safety
-    /// This function handles raw pointers. It is the caller's responsibility to ensure
-    /// that the `Slab`s stored in this `SlabCache` object are properly initialized.
-    ///
     /// # Errors
-    /// This function will return an error if allocation fails due to insufficient memory.
-    pub unsafe fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
+    /// This function will return an error if allocation fails due to
+    /// insufficient memory.
+    pub fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
         let slab_cache_index = if size <= 8 {
             0
         } else {
@@ -140,14 +173,10 @@ impl SlabAllocator {
         self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)
     }
 
-    /// # Safety
-    /// This function handles raw pointers. It is the caller's responsibility to ensure
-    /// that the `Slab`s stored in this `SlabCache` object are properly initialized.
-    ///
     /// # Errors
-    /// This function will return an error if `addr` points to a memory address not managed
-    /// by this `SlabAllocator`.
-    pub unsafe fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
+    /// This function will return an error if `addr` points to a memory address
+    /// not managed by this `SlabAllocator`.
+    pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         for mut cache in self.caches {
             if cache.free(addr).is_ok() {
                 return Ok(());
@@ -171,16 +200,6 @@ pub enum SlabAllocationError {
 #[derive(Debug)]
 pub enum SlabFreeError {
     InvalidPointer,
-}
-
-impl From<u8> for SlabObjectStatus {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Self::Free,
-            1 => Self::Allocated,
-            _ => unreachable!(),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -208,7 +227,8 @@ impl IntrusiveLink for Slab {
 
 /// Order 0 Slab.
 /// This struct is stored at the beginning of each slab page and contains both
-/// the intrusive list link (for `SlabCache` lists) and the free list management data.
+/// the intrusive list link (for `SlabCache` lists) and the free list management
+/// data.
 // TODO: add different slab orders:
 // Order 0: spans one contiguous page (8 - 256 bytes objects)
 // Order 1: spans four contiguous pages (512 - 1024 bytes)
@@ -230,17 +250,23 @@ impl Slab {
     /// Initializes a slab in place at the given address.
     ///
     /// # Safety
-    /// It is the caller's responsibility to ensure that `slab_ptr` points to a valid,
-    /// page-aligned address, with at least `0x1000` reserved bytes.
+    /// If any of the following conditions are violated, the result is Undefined
+    /// Behavior:
+    /// * `slab_ptr` must point to a page-aligned allocation of **at least**
+    ///   `0x1000` bytes.
     ///
     /// # Panics
-    /// This function will panic if called with wrong arguments, like a `slab_ptr` which
-    /// is not page-aligned.
+    /// This function will panic if called with wrong arguments, like a
+    /// `slab_ptr` which is not page-aligned.
     pub unsafe fn init(slab_ptr: *mut Slab, object_size: usize) {
-        let addr = slab_ptr as *const u8;
+        let addr = slab_ptr.cast::<u8>();
         assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
         assert!(object_size >= 8, "object_size must be at least 8");
 
+        // SAFETY:
+        // * `SLAB_HEADER_OVERHEAD` is a constant that does not overflow `isize`
+        // * According to this function's Safety docs, `addr` must point to a valid
+        //   allocation that we can safely access
         let objects_start_addr = unsafe { addr.add(SLAB_HEADER_OVERHEAD) };
         let header_overhead = objects_start_addr as usize - addr as usize;
 
@@ -249,6 +275,10 @@ impl Slab {
 
         assert!(n_objects > 0, "object_size is too large for a single page slab");
 
+        // SAFETY:
+        // According to this function's safety documentation, `slab_ptr` must point
+        // to a valid allocation of at least `0x1000` bytes that we can safely access.
+        #[allow(clippy::multiple_unsafe_ops_per_block)]
         unsafe {
             (*slab_ptr).list_next = None;
             (*slab_ptr).object_size = object_size;
@@ -258,22 +288,26 @@ impl Slab {
         let mut current_obj_ptr = objects_start_addr;
 
         for i in 0..n_objects {
+            // SAFETY:
+            // According to this function's safety documentation, `slab_ptr` must point
+            // to a valid allocation of at least `0x1000` bytes that we can safely access.
+            // The loop is bounded to `n_objects`, which guarantees that address after
+            // `slab_ptr + 0x1000` will be accessed.
             let next_obj_ptr = unsafe { current_obj_ptr.add(object_size) };
 
-            unsafe {
-                // We are casting `*const u8` to a more strictly aligned pointer
-                // (`*mut *const u8`), however we know that `current_obj_ptr` is
-                // at least 8-bytes aligned due to the restrictions enforced at
-                // the beginning of this function.
-                #[allow(clippy::cast_ptr_alignment)]
-                let link_ptr = current_obj_ptr as *mut *const u8;
+            // We are casting `*const u8` to a more strictly aligned pointer
+            // (`*mut *const u8`), however we know that `current_obj_ptr` is
+            // at least 8-bytes aligned due to the restrictions enforced at
+            // the beginning of this function.
+            #[allow(clippy::cast_ptr_alignment)]
+            let link_ptr = current_obj_ptr.cast::<*const u8>();
+            let value = if i == n_objects - 1 { core::ptr::null() } else { next_obj_ptr };
 
-                if i == n_objects - 1 {
-                    *link_ptr = core::ptr::null();
-                } else {
-                    *link_ptr = next_obj_ptr;
-                }
-            }
+            // SAFETY:
+            // We are dereferencing `link_ptr`, which is guaranteed to be in a valid
+            // allocation by this function's Safety docs and the bounds of this
+            // loop.
+            unsafe { *link_ptr = value };
 
             current_obj_ptr = next_obj_ptr;
         }
@@ -284,7 +318,7 @@ impl Slab {
         // the beginning of this function.
         #[allow(clippy::cast_ptr_alignment)]
         unsafe {
-            (*slab_ptr).free_list_next = NonNull::new(objects_start_addr as *mut Payload);
+            (*slab_ptr).free_list_next = NonNull::new(objects_start_addr.cast());
         }
     }
 
@@ -326,8 +360,8 @@ impl Slab {
     }
 
     // We cast from `*const u8` to more strictly aligned pointers (`*mut Payload`),
-    // however the assertion in the beginning of the function ensures that no pointer
-    // is passed that is not at least 8-bytes aligned.
+    // however the assertion in the beginning of the function ensures that no
+    // pointer is passed that is not at least 8-bytes aligned.
     #[allow(clippy::cast_ptr_alignment)]
     fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
         assert!(addr.is_aligned_to(8));

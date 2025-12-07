@@ -22,8 +22,8 @@ pub static mut LEVEL_18: Bitmap<{ 1 << 18 }, 4> = Bitmap::<{ 1 << 18 }, 4>::new(
 pub static mut LEVEL_19: Bitmap<{ 1 << 19 }, 4> = Bitmap::<{ 1 << 19 }, 4>::new();
 pub static mut LEVEL_20: Bitmap<{ 1 << 20 }, 4> = Bitmap::<{ 1 << 20 }, 4>::new();
 
-/// Macro to construct the levels array inline, avoiding the need to store it in a static (since we cannot
-/// move out of a static).
+/// Macro to construct the levels array inline, avoiding the need to store it in
+/// a static (since we cannot move out of a static).
 #[macro_export]
 macro_rules! buddy_allocator_levels {
     () => {

@@ -62,7 +62,8 @@ pub fn print_internal(args: ::core::fmt::Arguments) {
     };
 }
 
-/// `printk!` flushes when the buffer (`1KB`) fills up or when encountering a `\n`.
+/// `printk!` flushes when the buffer (`1KB`) fills up or when encountering a
+/// `\n`.
 #[macro_export]
 macro_rules! printk {
     ($($arg:tt)*) => {{

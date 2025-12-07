@@ -85,7 +85,8 @@ pub enum Key {
 
 use Key::*;
 
-/// Conversion table for all characters currently supported by our kernel for PS2 input.
+/// Conversion table for all characters currently supported by our kernel for
+/// PS2 input.
 ///
 /// https://wiki.osdev.org/PS/2_Keyboard#Scan_Code_Set_1
 pub const SCANCODE_TO_KEY: [(u8, Option<Key>); 256] = [
