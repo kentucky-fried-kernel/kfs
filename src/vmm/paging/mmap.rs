@@ -59,7 +59,7 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
     unsafe { USED_PAGES.iter_mut().enumerate() }
 }
 
-fn pages_physical_free_iter(pages_needed: usize, mode: Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
+fn pages_physical_free_iter(pages_needed: usize, mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
     let _lets_see = pages_physical_iter();
 
     let kernel_end_phys = unsafe { KERNEL_END } as *const u8 as usize - KERNEL_BASE;
@@ -99,6 +99,9 @@ pub enum VirtToPhysError {
     PageDirectoryNotPresent,
 }
 
+/// # Errors
+/// This function will return an error if `vaddr` does not point to an allocated
+/// phyisical address.
 #[allow(static_mut_refs)]
 pub fn virt_to_phys(vaddr: usize) -> Result<usize, VirtToPhysError> {
     let page_directory_index = vaddr >> 22;
@@ -114,7 +117,7 @@ pub fn virt_to_phys(vaddr: usize) -> Result<usize, VirtToPhysError> {
 
         if page_directory_entry.ps() == 1 {
             let phys_base = (page_directory_entry.address() as usize) << 12;
-            let offset_4mb = vaddr & 0x3FFFFF;
+            let offset_4mb = vaddr & 0x3F_FF_FF;
             return Ok(phys_base + offset_4mb);
         }
 
@@ -129,8 +132,10 @@ pub fn virt_to_phys(vaddr: usize) -> Result<usize, VirtToPhysError> {
     }
 }
 
+/// # Errors
+/// todo @fbruggem
 #[allow(static_mut_refs)]
-pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access, mode: Mode) -> Result<usize, MmapError> {
+pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access: Access, mode: &Mode) -> Result<usize, MmapError> {
     if vaddr.is_some() {
         unimplemented!();
     }
@@ -166,6 +171,11 @@ pub enum MunmapError {
     SizeIsZero,
 }
 
+/// # Errors
+/// todo @fbruggem
+///
+/// # Panics
+/// todo @fbruggem
 #[allow(static_mut_refs)]
 pub fn munmap(vaddr: usize, size: usize) -> Result<(), MunmapError> {
     let size = (size + (size % PAGE_SIZE)) / PAGE_SIZE;
@@ -179,9 +189,8 @@ pub fn munmap(vaddr: usize, size: usize) -> Result<(), MunmapError> {
 
         unsafe {
             let page_directory_entry = &mut state::KERNEL_PAGE_DIRECTORY_TABLE.0[page_directory_index];
-            if page_directory_entry.ps() == 1 {
-                panic!("page directories with size 4mb are not supported");
-            }
+
+            assert_ne!(page_directory_entry.ps(), 1, "page directories with size 4mb are not supported");
 
             let page_table_entry = &mut KERNEL_PAGE_TABLES[page_directory_index].0[page_table_index];
             if page_table_entry.present() == 1 {

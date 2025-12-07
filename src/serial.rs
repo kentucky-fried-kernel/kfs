@@ -13,6 +13,7 @@ impl SerialPort {
     /// It is the caller's responsibility to ensure that the passed base address
     /// points to a serial port device, and that the caller has the permission to
     /// perform the I/O operation.
+    #[must_use]
     pub const unsafe fn new(base: u16) -> Self {
         Self { base }
     }
@@ -63,7 +64,7 @@ impl SerialPort {
     }
 
     fn send_raw(&mut self, data: u8) {
-        crate::retry_until_ok!(self.try_send_raw(data))
+        crate::retry_until_ok!(self.try_send_raw(data));
     }
 
     fn try_send_raw(&mut self, data: u8) -> Result<(), SendError> {
@@ -106,18 +107,18 @@ pub static mut SERIAL1: SerialPort = unsafe { SerialPort::new(0x3f8) };
 
 #[doc(hidden)]
 #[allow(static_mut_refs)]
-pub fn _print(args: ::core::fmt::Arguments) {
+pub fn print_internal(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
     unsafe {
         SERIAL1.init();
-        SERIAL1.write_fmt(args).expect("Printing to serial failed");
+        let _ = SERIAL1.write_fmt(args);
     }
 }
 
 #[macro_export]
 macro_rules! serial_print {
 	($($arg:tt)*) => {
-		$crate::serial::_print(format_args!($($arg)*))
+		$crate::serial::print_internal(format_args!($($arg)*))
     };
 }
 

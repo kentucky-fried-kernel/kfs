@@ -28,6 +28,7 @@ impl<T: IntrusiveLink> List<T>
 where
     T: Copy,
 {
+    #[must_use]
     pub fn head(&self) -> Option<NonNull<T>> {
         self.head
     }

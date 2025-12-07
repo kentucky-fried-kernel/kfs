@@ -12,7 +12,7 @@ use kfs::{
     alloc::string::String,
     vmm::{self, allocators::backend::buddy::BUDDY_ALLOCATOR_SIZE, paging::PAGE_SIZE},
 };
-use kfs::{kassert, kassert_eq, printkln, serial_println};
+use kfs::{kassert, kassert_eq};
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
@@ -53,10 +53,10 @@ fn consecutive_allocations() -> Result<(), &'static str> {
 fn reuse_after_free() -> Result<(), &'static str> {
     let mut addresses = [0usize; 10];
 
-    for i in 0..10 {
+    for a in addresses.iter_mut() {
         let v = Vec::<u8>::with_capacity(PAGE_SIZE);
         core::hint::black_box(&v);
-        addresses[i] = v.as_ptr() as usize;
+        *a = v.as_ptr() as usize;
     }
 
     let unique_count = {
@@ -129,7 +129,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    if let Err(_) = vmm::allocators::kmalloc::init() {
+    if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize dynamic memory allocation");
     }
 

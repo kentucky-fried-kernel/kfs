@@ -19,11 +19,11 @@ where
     }
 
     fn set(&mut self, index: usize, value: u8) {
-        self.set(index, value)
+        self.set(index, value);
     }
 
     fn clear(&mut self, index: usize) {
-        self.clear(index)
+        self.clear(index);
     }
 }
 
@@ -56,6 +56,7 @@ where
     const BITS_PER_ENTRY: usize = 8 / G;
     const MASK: u8 = (1 << (Self::BITS_PER_ENTRY)) - 1;
 
+    #[must_use]
     pub const fn new() -> Self
     where
         [(); N / G]:,
@@ -64,6 +65,7 @@ where
     }
 
     #[inline]
+    #[must_use]
     pub const fn get(&self, index: usize) -> u8
     where
         [(); N / G]:,
@@ -85,8 +87,9 @@ where
         self.bits[index / G] &= !(Self::MASK << ((index % G) * Self::BITS_PER_ENTRY));
     }
 
+    #[must_use]
     pub const fn as_ptr(&self) -> *const u8 {
-        self as *const Bitmap<N, G> as *const u8
+        core::ptr::from_ref(self).cast()
     }
 }
 

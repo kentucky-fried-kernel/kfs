@@ -83,14 +83,17 @@ pub struct PageDirectoryEntry {
 }
 
 impl PageDirectoryEntry {
+    #[must_use]
     pub const fn empty() -> Self {
         unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(0) }
     }
 
+    #[must_use]
     pub const fn from_usize(value: usize) -> Self {
         unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(value) }
     }
 
+    #[must_use]
     pub const fn to_usize(&self) -> usize {
         unsafe { core::mem::transmute::<PageDirectoryEntry, usize>(*self) }
     }
@@ -112,14 +115,17 @@ pub struct PageTableEntry {
 }
 
 impl PageTableEntry {
+    #[must_use]
     pub const fn empty() -> Self {
         unsafe { core::mem::transmute::<usize, Self>(0) }
     }
 
+    #[must_use]
     pub const fn from_usize(value: usize) -> Self {
         unsafe { core::mem::transmute::<usize, Self>(value) }
     }
 
+    #[must_use]
     pub const fn to_usize(&self) -> usize {
         unsafe { core::mem::transmute::<Self, usize>(*self) }
     }

@@ -2,6 +2,7 @@
 /// trailing whitespaces.
 ///
 /// Returns `None` if `bytes` cannot be converted to a `usize` deterministically.
+#[must_use]
 #[allow(dead_code)]
 pub fn hextou(bytes: &[u8]) -> Option<usize> {
     let mut starting_idx = 0;

@@ -55,16 +55,18 @@ impl fmt::Write for PrintkWriter {
 
 #[doc(hidden)]
 #[allow(static_mut_refs)]
-pub fn _print(args: ::core::fmt::Arguments) {
+pub fn print_internal(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
-    unsafe { PRINTK_WRITER.write_fmt(args).expect("Printing to VGA failed") };
+    unsafe {
+        let _ = PRINTK_WRITER.write_fmt(args);
+    };
 }
 
 /// `printk!` flushes when the buffer (`1KB`) fills up or when encountering a `\n`.
 #[macro_export]
 macro_rules! printk {
     ($($arg:tt)*) => {{
-        $crate::printk::_print(format_args!($($arg)*));
+        $crate::printk::print_internal(format_args!($($arg)*));
     }};
 }
 

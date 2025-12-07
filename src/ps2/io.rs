@@ -32,7 +32,9 @@ pub fn wait_for_data() -> u8 {
 pub fn flush_output_buffer() {
     let status_port = Port::new(STATUS_PORT);
     while unsafe { status_port.read() } & Status::OutputFull as u8 != 0 {
-        unsafe { Port::new(DATA_PORT).read() };
+        unsafe {
+            let _ = Port::new(DATA_PORT).read();
+        };
     }
 }
 

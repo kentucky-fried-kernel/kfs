@@ -56,11 +56,17 @@ pub fn init() {
     gdt[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
     gdt[6] = gdt[5];
 
-    unsafe {
-        for (i, entry) in gdt.iter().enumerate() {
-            write_volatile(GDT_ADDRESS.add(i), *entry);
-        }
-
-        flush_gdt_registers();
+    for (i, entry) in gdt.iter().enumerate() {
+        // SAFETY:
+        // When `gdt::init` is called, `GDT_ADDRESS` is guaranteed to be a valid,
+        // writable address.
+        let ptr = unsafe { GDT_ADDRESS.add(i) };
+        // SAFETY:
+        // We write to GDT_ADDRESS, which we know is valid.
+        unsafe { write_volatile(ptr, *entry) };
     }
+
+    // SAFETY:
+    // `flush_gdt_registers()` needs to be unsafe due to the naked assembly.
+    unsafe { flush_gdt_registers() };
 }

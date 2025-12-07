@@ -5,6 +5,23 @@
 #![feature(const_convert)]
 #![feature(const_trait_impl)]
 #![deny(clippy::unwrap_used)]
+#![warn(clippy::must_use_candidate)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![warn(clippy::missing_panics_doc)]
+#![warn(clippy::missing_errors_doc)]
+#![warn(clippy::needless_ifs)]
+#![warn(clippy::cast_ptr_alignment)]
+#![warn(clippy::ptr_as_ptr)]
+#![warn(clippy::ignored_unit_patterns)]
+#![warn(clippy::borrow_as_ptr)]
+#![warn(clippy::needless_pass_by_value)]
+#![warn(clippy::if_not_else)]
+#![warn(clippy::needless_borrow)]
+#![warn(clippy::range_plus_one)]
+#![warn(clippy::unreachable)]
+#![warn(clippy::missing_safety_doc)]
+#![deny(clippy::mem_forget)]
+#![warn(clippy::cast_possible_wrap)]
 // This lint is important, because our panic handler currently cannot
 // handle the messages from `.expect()`, resulting in a non-informative
 // panic message. Panics should happen through `assert*` macros or

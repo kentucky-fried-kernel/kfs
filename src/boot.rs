@@ -1,7 +1,7 @@
 use core::{fmt::Display, ops::BitOr};
 
 pub const STACK_SIZE: usize = 2 << 20;
-pub const KERNEL_BASE: usize = 0xC0000000;
+pub const KERNEL_BASE: usize = 0xC000_0000;
 
 #[used]
 #[unsafe(no_mangle)]
@@ -14,6 +14,7 @@ pub static mut STACK: Stack = Stack([0; STACK_SIZE]);
 pub struct Stack([u8; STACK_SIZE]);
 
 impl Stack {
+    #[must_use]
     pub fn as_ptr(&self) -> *const u8 {
         self.0.as_ptr()
     }
@@ -56,9 +57,9 @@ const MULTIBOOT_FLAGS: usize = MultibootFlag::Mem | MultibootFlag::BootDevice;
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".multiboot")]
 static MULTIBOOT_HEADER: MultibootHeader = MultibootHeader {
-    magic: 0x1badb002,
+    magic: 0x1bad_b002,
     flags: MULTIBOOT_FLAGS,
-    checksum: (0usize.wrapping_sub(0x1badb002 + (MULTIBOOT_FLAGS))),
+    checksum: (0usize.wrapping_sub(0x1bad_b002 + (MULTIBOOT_FLAGS))),
 };
 
 #[derive(Debug)]

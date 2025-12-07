@@ -34,16 +34,14 @@ impl SlabCache {
         }
     }
 
-    /// # Panics
-    /// This function will panic if called on an uninitialized `SlabCache`.
-    pub fn add_slab(&mut self, mut addr: NonNull<Slab>) {
+    fn add_slab(&mut self, mut addr: NonNull<Slab>) {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
         self.empty_slabs.add_front(&mut addr);
         self.n_slabs += 1;
     }
 
-    pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
+    fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
         match (self.partial_slabs.head(), self.empty_slabs.head()) {
             (Some(mut slab), _) => {
                 let allocation = unsafe { slab.as_mut() }.alloc();
@@ -65,17 +63,15 @@ impl SlabCache {
 
     // Freeing is currently very slow, need to find a clean way for the slabs to be
     // sorted by address for O(logn) lookups.
-    pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
+    fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
         for mut slab in self.partial_slabs {
-            match unsafe { slab.as_mut() }.free(addr) {
-                Ok(_) => return Ok(()),
-                Err(_) => continue,
+            if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
+                return Ok(());
             }
         }
         for mut slab in self.full_slabs {
-            match unsafe { slab.as_mut() }.free(addr) {
-                Ok(_) => return Ok(()),
-                Err(_) => continue,
+            if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
+                return Ok(());
             }
         }
         Err(SlabFreeError::InvalidPointer)
@@ -119,6 +115,7 @@ impl SlabAllocator {
         }
     }
 
+    #[must_use]
     pub fn caches(&self) -> &[SlabCache] {
         &self.caches
     }
@@ -126,16 +123,18 @@ impl SlabAllocator {
     /// # Safety
     /// This function handles raw pointers. It is the caller's responsibility to ensure
     /// that the `Slab`s stored in this `SlabCache` object are properly initialized.
+    ///
+    /// # Errors
+    /// This function will return an error if allocation fails due to insufficient memory.
     pub unsafe fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
         let slab_cache_index = if size <= 8 {
             0
         } else {
-            SLAB_CACHE_SIZES
+            let index = SLAB_CACHE_SIZES
                 .iter()
                 .map_windows(|[x, y]| size > **x as usize && size <= **y as usize)
-                .position(|x| x)
-                .expect("Called SlabAllocator::alloc with an invalid size")
-                + 1
+                .position(|x| x);
+            expect_opt!(index, "Called SlabAllocator::alloc with an invalid size") + 1
         };
 
         self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)
@@ -144,6 +143,10 @@ impl SlabAllocator {
     /// # Safety
     /// This function handles raw pointers. It is the caller's responsibility to ensure
     /// that the `Slab`s stored in this `SlabCache` object are properly initialized.
+    ///
+    /// # Errors
+    /// This function will return an error if `addr` points to a memory address not managed
+    /// by this `SlabAllocator`.
     pub unsafe fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         for mut cache in self.caches {
             if cache.free(addr).is_ok() {
@@ -205,7 +208,7 @@ impl IntrusiveLink for Slab {
 
 /// Order 0 Slab.
 /// This struct is stored at the beginning of each slab page and contains both
-/// the intrusive list link (for SlabCache lists) and the free list management data.
+/// the intrusive list link (for `SlabCache` lists) and the free list management data.
 // TODO: add different slab orders:
 // Order 0: spans one contiguous page (8 - 256 bytes objects)
 // Order 1: spans four contiguous pages (512 - 1024 bytes)
@@ -213,7 +216,7 @@ impl IntrusiveLink for Slab {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Slab {
-    /// Intrusive list link for SlabCache lists (empty/partial/full)
+    /// Intrusive list link for `SlabCache` lists (empty/partial/full)
     list_next: Option<NonNull<Slab>>,
     /// Size of each object in this slab
     object_size: usize,
@@ -229,10 +232,14 @@ impl Slab {
     /// # Safety
     /// It is the caller's responsibility to ensure that `slab_ptr` points to a valid,
     /// page-aligned address, with at least `0x1000` reserved bytes.
+    ///
+    /// # Panics
+    /// This function will panic if called with wrong arguments, like a `slab_ptr` which
+    /// is not page-aligned.
     pub unsafe fn init(slab_ptr: *mut Slab, object_size: usize) {
         let addr = slab_ptr as *const u8;
         assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
-        assert!(object_size >= size_of::<*const u8>(), "object_size must be large enough to hold a pointer");
+        assert!(object_size >= 8, "object_size must be at least 8");
 
         let objects_start_addr = unsafe { addr.add(SLAB_HEADER_OVERHEAD) };
         let header_overhead = objects_start_addr as usize - addr as usize;
@@ -254,6 +261,11 @@ impl Slab {
             let next_obj_ptr = unsafe { current_obj_ptr.add(object_size) };
 
             unsafe {
+                // We are casting `*const u8` to a more strictly aligned pointer
+                // (`*mut *const u8`), however we know that `current_obj_ptr` is
+                // at least 8-bytes aligned due to the restrictions enforced at
+                // the beginning of this function.
+                #[allow(clippy::cast_ptr_alignment)]
                 let link_ptr = current_obj_ptr as *mut *const u8;
 
                 if i == n_objects - 1 {
@@ -266,14 +278,20 @@ impl Slab {
             current_obj_ptr = next_obj_ptr;
         }
 
+        // We are casting `*const u8` to a more strictly aligned pointer
+        // (`*mut *const u8`), however we know that `current_obj_ptr` is
+        // at least 8-bytes aligned due to the restrictions enforced at
+        // the beginning of this function.
+        #[allow(clippy::cast_ptr_alignment)]
         unsafe {
             (*slab_ptr).free_list_next = NonNull::new(objects_start_addr as *mut Payload);
         }
     }
 
     #[inline]
+    #[must_use]
     pub fn address(&self) -> *const u8 {
-        self as *const Slab as *const u8
+        (self as *const Slab).cast()
     }
 
     #[inline]
@@ -282,6 +300,7 @@ impl Slab {
     }
 
     #[inline]
+    #[must_use]
     pub fn full(&self) -> bool {
         self.allocated == self.max_objects()
     }
@@ -293,7 +312,7 @@ impl Slab {
 
     /// Returns a pointer to a free memory region of size `object_size`, or a
     /// `SlabAllocationError` if no more space is left.
-    pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
+    fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
         if self.allocated == self.max_objects() {
             return Err(SlabAllocationError::NotEnoughMemory);
         }
@@ -303,13 +322,20 @@ impl Slab {
         self.free_list_next = unsafe { *allocation.as_ptr() }.next;
         self.allocated += 1;
 
-        Ok(allocation.as_ptr() as *mut u8)
+        Ok(allocation.as_ptr().cast())
     }
 
-    pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
+    // We cast from `*const u8` to more strictly aligned pointers (`*mut Payload`),
+    // however the assertion in the beginning of the function ensures that no pointer
+    // is passed that is not at least 8-bytes aligned.
+    #[allow(clippy::cast_ptr_alignment)]
+    fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
+        assert!(addr.is_aligned_to(8));
+
         if addr < self.address() || addr > (self.address() as usize + PAGE_SIZE) as *const u8 {
             return Err(SlabFreeError::InvalidPointer);
         }
+
         let next = self.free_list_next;
 
         self.free_list_next = NonNull::new(addr as *mut Payload);

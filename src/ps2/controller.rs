@@ -205,13 +205,13 @@ fn has_ps2_controller() -> Result<(), &'static str> {
 
     let rsdt = rsdp.rsdt_address as *const Rsdt;
     let header = unsafe { &(*rsdt).h };
-    if !validate_checksum(header as *const SDTHeader as *const u8, header.length) {
+    if !validate_checksum((header as *const SDTHeader).cast(), header.length) {
         return Err("SDTHeader checksum verification failed");
     }
 
     let fadt_ptr = get_fadt(header, rsdt)?;
     let fadt = unsafe { &*fadt_ptr };
-    if !validate_checksum(fadt_ptr as *const u8, unsafe { (*(fadt as *const Fadt as *const SDTHeader)).length }) {
+    if !validate_checksum(fadt_ptr as *const u8, unsafe { (*((fadt as *const Fadt).cast::<SDTHeader>())).length }) {
         return Err("FADT checksum verification failed");
     }
 
@@ -264,6 +264,9 @@ fn reset_controller() -> Result<(), &'static str> {
 ///
 /// https://wiki.osdev.org/%228042%22_PS/2_Controller#Initialising_the_PS/2_Controller
 /// https://wiki.osdev.org/ACPI
+///
+/// # Errors
+/// This function will return an error if the machine does not have a PS/2 controller.
 pub fn init() -> Result<(), &'static str> {
     has_ps2_controller()?;
 

@@ -39,7 +39,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
-    if let Err(_) = vmm::allocators::kmalloc::init() {
+    if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
     }
 

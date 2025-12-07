@@ -27,7 +27,7 @@ pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
 }
 
 fn kernel_page_mappings_create() {
-    let kernel_end = unsafe { &KERNEL_END as *const _ } as usize;
+    let kernel_end = &raw const KERNEL_END as usize;
     let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
 
     for (i, item) in unsafe { USED_PAGES }.iter_mut().enumerate().take(kernel_pages_needed) {
