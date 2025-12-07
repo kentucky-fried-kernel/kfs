@@ -13,3 +13,29 @@ test-utils = []
 
 [dependencies]
 bitstruct = { git = "https://github.com/winstonallo/bitstruct.git", version = "0.1.0" }
+
+[lints.clippy]
+unwrap_used = "deny"
+# This lint is important, because our panic handler currently cannot
+# handle the messages from `.expect()`, resulting in a non-informative
+# panic message. Panics should happen through `assert*` macros or
+# explicit panics.
+expect_used = "deny"
+
+must_use_candidate = "warn"
+semicolon_if_nothing_returned = "warn"
+missing_panics_doc = "warn"
+missing_errors_doc = "warn"
+needless_ifs = "warn"
+cast_ptr_alignment = "warn"
+ptr_as_ptr = "warn"
+ignored_unit_patterns = "warn"
+borrow_as_ptr = "warn"
+needless_pass_by_value = "warn"
+if_not_else = "warn"
+needless_borrow = "warn"
+range_plus_one = "warn"
+unreachable = "warn"
+missing_safety_doc = "warn"
+mem_forget = "warn"
+cast_possible_wrap = "warn"

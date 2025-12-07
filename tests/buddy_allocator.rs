@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 

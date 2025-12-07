@@ -10,6 +10,8 @@ mod panic;
 
 extern crate alloc;
 
+/// # Panics
+/// This function will panic initialization of dynamic memory allocation fails.
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {

@@ -43,7 +43,7 @@ pub struct KernelAllocator {
 ///     ([`kfs::vmm::paging::init::init_memory`])
 ///   * The data structures used for dynamic memory allocation (buddy and slab allocators) must have
 ///     been initialized ([`kfs::vmm::allocators::kmalloc::init`])
-///   * Ideally, the IDT should also be initialized ([`kfs::arch::x86::idt::init`]) in order to
+///   * _Ideally_, the IDT should also be initialized ([`kfs::arch::x86::idt::init`]) in order to
 ///     catch possible page faults
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
@@ -52,8 +52,8 @@ unsafe impl GlobalAlloc for KernelAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
         // SAFETY:
-        // Passing a random pointer to `kfree` would result in undefined behavior, but since we rely on the
-        // Rust compiler to make all allocation/free operations, we can safely assume that no invalid
+        // Passing a random pointer to `kfree` would result in undefined behavior, but since we rely on
+        // rustc to insert all allocation/free operations, we can safely assume that no invalid
         // pointers will be passed to this function.
         assert!(unsafe { kfree(ptr) }.is_ok(), "Freed invalid pointer");
     }
