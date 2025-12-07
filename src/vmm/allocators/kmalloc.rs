@@ -1,9 +1,9 @@
 use crate::{
-    buddy_allocator_levels,
+    buddy_allocator_levels, serial_println,
     vmm::{
         allocators::backend::{
             buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
-            slab::{SLAB_CACHE_SIZES, Slab, SlabAllocator},
+            slab::{SLAB_CACHE_SIZES, SlabAllocator},
         },
         paging::{
             Access, PAGE_SIZE, Permissions,
@@ -32,7 +32,7 @@ pub enum KfreeError {
 #[allow(unused)]
 pub struct KernelAllocator {
     pub buddy_allocator: BuddyAllocator,
-    pub slab_allocator: SlabAllocator<Slab<1>>,
+    pub slab_allocator: SlabAllocator,
 }
 
 /// # Safety:
@@ -47,6 +47,7 @@ pub struct KernelAllocator {
 ///     catch possible page faults
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
+        serial_println!("allocating {}", layout.size());
         kmalloc(layout.size().max(layout.align())).unwrap_or_default()
     }
 
@@ -177,7 +178,7 @@ pub fn init_buddy_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), 
 /// initialized the buddy allocator, which would lead it to be unable to
 /// allocate slabs.
 #[allow(static_mut_refs)]
-pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator, slab_allocator: &mut SlabAllocator<Slab<1>>) -> Result<(), KmallocError> {
+pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator, slab_allocator: &mut SlabAllocator) -> Result<(), KmallocError> {
     for size in SLAB_CACHE_SIZES {
         let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
 

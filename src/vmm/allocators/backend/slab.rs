@@ -122,66 +122,161 @@ where
 }
 
 #[derive(Debug)]
-pub struct SlabAllocator<S: SlabOps>
-where
-    S: Copy,
-{
-    caches: [SlabCache<S>; SLAB_CACHE_SIZES.len()],
+pub enum SlabCacheType {
+    Order0(SlabCache<Slab<{ 1 << 0 }>>),
+    Order1(SlabCache<Slab<{ 1 << 1 }>>),
+    Order2(SlabCache<Slab<{ 1 << 2 }>>),
+    Order3(SlabCache<Slab<{ 1 << 3 }>>),
 }
 
-impl<S: SlabOps> const Default for SlabAllocator<S>
-where
-    S: Copy,
-{
-    fn default() -> Self {
-        let mut caches = [SlabCache::<S>::new(0); SLAB_CACHE_SIZES.len()];
-        let mut cache_idx = 0;
-
-        while cache_idx < SLAB_CACHE_SIZES.len() {
-            caches[cache_idx] = SlabCache::<S>::new(SLAB_CACHE_SIZES[cache_idx] as usize);
-            cache_idx += 1;
+impl SlabCacheType {
+    pub const fn new(object_size: usize, order: usize) -> Self {
+        match order {
+            1 => Self::Order0(SlabCache::new(object_size)),
+            2 => Self::Order1(SlabCache::new(object_size)),
+            4 => Self::Order2(SlabCache::new(object_size)),
+            8 => Self::Order3(SlabCache::new(object_size)),
+            _ => panic!("Unsupported slab order"),
         }
+    }
+
+    pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
+        match self {
+            Self::Order0(cache) => cache.alloc(),
+            Self::Order1(cache) => cache.alloc(),
+            Self::Order2(cache) => cache.alloc(),
+            Self::Order3(cache) => cache.alloc(),
+        }
+    }
+
+    pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
+        match self {
+            Self::Order0(cache) => cache.free(addr),
+            Self::Order1(cache) => cache.free(addr),
+            Self::Order2(cache) => cache.free(addr),
+            Self::Order3(cache) => cache.free(addr),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SlabAllocator {
+    caches: [SlabCacheType; SLAB_CACHE_SIZES.len()],
+}
+
+struct SlabConfig {
+    pub object_size: usize,
+    pub order: usize,
+}
+
+pub const SLAB_CONFIGS: [SlabConfig; 9] = [
+    SlabConfig { object_size: 8, order: 1 },
+    SlabConfig { object_size: 16, order: 1 },
+    SlabConfig { object_size: 32, order: 1 },
+    SlabConfig { object_size: 64, order: 1 },
+    SlabConfig { object_size: 128, order: 1 },
+    SlabConfig { object_size: 256, order: 1 },
+    SlabConfig { object_size: 512, order: 2 },
+    SlabConfig { object_size: 1024, order: 2 },
+    SlabConfig { object_size: 2048, order: 1 },
+];
+
+impl const Default for SlabAllocator {
+    fn default() -> Self {
+        let caches = [
+            SlabCacheType::new(SLAB_CONFIGS[0].object_size, SLAB_CONFIGS[0].order),
+            SlabCacheType::new(SLAB_CONFIGS[1].object_size, SLAB_CONFIGS[1].order),
+            SlabCacheType::new(SLAB_CONFIGS[2].object_size, SLAB_CONFIGS[2].order),
+            SlabCacheType::new(SLAB_CONFIGS[3].object_size, SLAB_CONFIGS[3].order),
+            SlabCacheType::new(SLAB_CONFIGS[4].object_size, SLAB_CONFIGS[4].order),
+            SlabCacheType::new(SLAB_CONFIGS[5].object_size, SLAB_CONFIGS[5].order),
+            SlabCacheType::new(SLAB_CONFIGS[6].object_size, SLAB_CONFIGS[6].order),
+            SlabCacheType::new(SLAB_CONFIGS[7].object_size, SLAB_CONFIGS[7].order),
+            SlabCacheType::new(SLAB_CONFIGS[8].object_size, SLAB_CONFIGS[8].order),
+        ];
 
         Self { caches }
     }
 }
 
-impl<S: SlabOps> SlabAllocator<S>
-where
-    S: Copy,
-{
+impl SlabAllocator {
     /// # Safety
     /// If any of the following conditions are violated, the result is Undefined
     /// Behavior:
     /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE * n_slabs` bytes.
     pub unsafe fn init_slab_cache(&mut self, addr: NonNull<u8>, object_size: usize, n_slabs: usize) {
-        let slab_cache_index = SLAB_CACHE_SIZES.iter().position(|x| *x as usize == object_size);
-        let slab_cache_index = expect_opt!(slab_cache_index, "Called SlabAllocator::init_slab_cache with an invalid object_size");
+        let config_idx = SLAB_CONFIGS.iter().position(|x| x.object_size == object_size);
+        let config_idx = expect_opt!(config_idx, "Called SlabAllocator::init_slab_cache with an invalid object_size");
+
+        let order = SLAB_CONFIGS[config_idx].order;
+        let slab_size = order * PAGE_SIZE;
 
         let mut addr = addr;
         for _ in 0..n_slabs {
-            let slab_ptr = addr.cast::<S>().as_ptr();
-            // SAFETY:
-            // We are calling `Slab::init`, which is unsafe since it initializes memory
-            // in-place, which the compiler cannot verify. If
-            // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
-            // valid memory which we can safely write to.
-            unsafe { S::init(slab_ptr, object_size) };
-            // SAFETY:
-            // Assuming the Safety directive of this function was followed, he address we are passing to
-            // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
-            unsafe { self.caches[slab_cache_index].add_slab(addr.cast()) };
-
+            match &mut self.caches[config_idx] {
+                SlabCacheType::Order0(cache) => {
+                    let slab_ptr = addr.cast().as_ptr();
+                    // SAFETY:
+                    // We are calling `Slab::init`, which is unsafe since it initializes memory
+                    // in-place, which the compiler cannot verify. If
+                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+                    // valid memory which we can safely write to.
+                    unsafe { Slab::<1>::init(slab_ptr, object_size) };
+                    // SAFETY:
+                    // Assuming the Safety directive of this function was followed, he address we are passing to
+                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+                    unsafe { cache.add_slab(addr.cast()) };
+                }
+                SlabCacheType::Order1(cache) => {
+                    let slab_ptr = addr.cast().as_ptr();
+                    // SAFETY:
+                    // We are calling `Slab::init`, which is unsafe since it initializes memory
+                    // in-place, which the compiler cannot verify. If
+                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+                    // valid memory which we can safely write to.
+                    unsafe { Slab::<2>::init(slab_ptr, object_size) };
+                    // SAFETY:
+                    // Assuming the Safety directive of this function was followed, he address we are passing to
+                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+                    unsafe { cache.add_slab(addr.cast()) };
+                }
+                SlabCacheType::Order2(cache) => {
+                    let slab_ptr = addr.cast().as_ptr();
+                    // SAFETY:
+                    // We are calling `Slab::init`, which is unsafe since it initializes memory
+                    // in-place, which the compiler cannot verify. If
+                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+                    // valid memory which we can safely write to.
+                    unsafe { Slab::<4>::init(slab_ptr, object_size) };
+                    // SAFETY:
+                    // Assuming the Safety directive of this function was followed, he address we are passing to
+                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+                    unsafe { cache.add_slab(addr.cast()) };
+                }
+                SlabCacheType::Order3(cache) => {
+                    let slab_ptr = addr.cast().as_ptr();
+                    // SAFETY:
+                    // We are calling `Slab::init`, which is unsafe since it initializes memory
+                    // in-place, which the compiler cannot verify. If
+                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+                    // valid memory which we can safely write to.
+                    unsafe { Slab::<8>::init(slab_ptr, object_size) };
+                    // SAFETY:
+                    // Assuming the Safety directive of this function was followed, he address we are passing to
+                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+                    unsafe { cache.add_slab(addr.cast()) };
+                }
+            }
             // SAFETY:
             // `PAGE_SIZE` does not overflow `isize`, and `addr` points to a valid
             // allocation at least `PAGE_SIZE * n_slabs` if this function's
             // safety directive was respected.
-            addr = unsafe { addr.add(PAGE_SIZE) };
+            addr = unsafe { addr.add(slab_size) };
         }
     }
 
     #[must_use]
-    pub fn caches(&self) -> &[SlabCache<S>] {
+    pub fn caches(&self) -> &[SlabCacheType] {
         &self.caches
     }
 
@@ -206,7 +301,7 @@ where
     /// This function will return an error if `addr` points to a memory address
     /// not managed by this `SlabAllocator`.
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
-        for mut cache in self.caches {
+        for cache in &mut self.caches {
             if cache.free(addr).is_ok() {
                 return Ok(());
             }
@@ -257,8 +352,6 @@ pub trait SlabOps: IntrusiveLink + Sized {
 
     #[must_use]
     fn address(&self) -> *const u8;
-
-    // fn set_next(&mut self, next: NonNull<Self>);
 
     #[must_use]
     fn full(&self) -> bool;
