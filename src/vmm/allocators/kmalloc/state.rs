@@ -27,29 +27,32 @@ pub static mut LEVEL_20: Bitmap<{ 1 << 20 }, 4> = Bitmap::<{ 1 << 20 }, 4>::new(
 #[macro_export]
 macro_rules! buddy_allocator_levels {
     () => {
+        #[allow(unused_unsafe)]
         #[allow(static_mut_refs)]
-        [
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_0 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_1 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_2 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_3 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_4 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_5 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_6 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_7 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_8 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_9 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_10 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_11 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_12 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_13 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_14 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_15 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_16 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_17 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_18 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_19 as &'static mut dyn $crate::bitmap::StaticBitmap,
-            &mut $crate::vmm::allocators::kmalloc::state::LEVEL_20 as &'static mut dyn $crate::bitmap::StaticBitmap,
-        ]
+        unsafe {
+            [
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_0 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_1 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_2 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_3 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_4 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_5 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_6 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_7 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_8 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_9 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_10 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_11 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_12 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_13 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_14 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_15 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_16 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_17 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_18 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_19 as &'static mut dyn $crate::bitmap::StaticBitmap,
+                &mut $crate::vmm::allocators::kmalloc::state::LEVEL_20 as &'static mut dyn $crate::bitmap::StaticBitmap,
+            ]
+        }
     };
 }

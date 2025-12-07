@@ -147,13 +147,11 @@ impl BuddyAllocator {
     /// crash the kernel.
     ///
     /// # Safety
-    /// 1. It is the caller's responsibility to ensure that `root`, if
-    ///    `Some(_)`, points to valid memory with at least `size` reserved
-    ///    bytes.
-    /// 2. Since each bitmap size is a different type, we have to resort to
-    ///    dynamic dispatch. It is the caller's responsibility to ensure that
-    ///    each `levels[i]` actually refers to a `BitMap<{ (1 << i).min(8) },
-    ///    4>`, otherwise bad things will happen.
+    /// If any of the following conditions are violated, the result is Undefined Behavior:
+    /// 1. `root`, if `Some(_)`, must point to valid memory with at least `size` reserved bytes.
+    /// 2. Since each bitmap size is a different type, we have to resort to dynamic dispatch. Each
+    ///    `levels[i]` must actually refer to a `BitMap<{ (1 << i).min(8) }, 4>`, otherwise bad
+    ///    things will happen.
     ///
     /// # Panics
     /// This function will panic if passed incorrect arguments, like a `size`

@@ -37,42 +37,36 @@ where
         self.head = head;
     }
 
-    pub fn add_back(&mut self, node: &mut NonNull<T>) {
+    /// Adds a node to the front of the `List<T>`.
+    ///
+    /// # Safety
+    /// If any of the following conditions are violated, the result is Undefined Behavior:
+    /// * `node` must point to a valid, properly aligned, initialized `T`.
+    /// * `node` must remain valid for the whole lifetime of this list.
+    pub unsafe fn add_front(&mut self, node: &mut NonNull<T>) {
         if self.head.is_none() {
+            // SAFETY:
+            // Assuming above Safety guidelines were followed, we can safely dereference `node`.
             unsafe { *node.as_mut().next_ptr_mut() = None };
             self.head = Some(*node);
             return;
         }
 
-        let mut current_link = self.head;
-        let mut last_node_ptr = None;
-
-        while let Some(current) = current_link {
-            last_node_ptr = Some(current);
-            current_link = unsafe { current.as_ref() }.next_ptr();
-        }
-
-        if let Some(mut last) = last_node_ptr {
-            let tail = unsafe { last.as_mut() };
-            *tail.next_ptr_mut() = Some(*node);
-        }
-
-        unsafe { *node.as_mut().next_ptr_mut() = None };
-    }
-
-    pub fn add_front(&mut self, node: &mut NonNull<T>) {
-        if self.head.is_none() {
-            unsafe { *node.as_mut().next_ptr_mut() = None };
-            self.head = Some(*node);
-            return;
-        }
-
+        // SAFETY:
+        // Assuming above Safety guidelines were followed, we can safely dereference `node`.
         unsafe { *node.as_mut().next_ptr_mut() = Some(*node) };
         self.head = Some(*node);
     }
 
+    /// Removes and returns the head of the list.
+    ///
+    /// This is considered safe because it doesn't dereference any pointers that weren't
+    /// already verified when added to the list.
     pub fn take_head(&mut self) -> Option<NonNull<T>> {
         let head = self.head.take()?;
+        // SAFETY:
+        // Assuming this list was only accessed via its documented API (`add_front`), it should be
+        // safe to dereference `head`.
         self.head = unsafe { head.as_ref() }.next_ptr();
         Some(head)
     }
@@ -97,6 +91,9 @@ impl<T: IntrusiveLink> Iterator for ListIntoIterator<T> {
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.current.take()?;
 
+        // SAFETY:
+        // Assuming the `List`'s guidelines were followed, it should always be safe to access the next
+        // pointer until its stored value is `None`.
         self.current = unsafe { current.as_ref() }.next_ptr();
         Some(current)
     }

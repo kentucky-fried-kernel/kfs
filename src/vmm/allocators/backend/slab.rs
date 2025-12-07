@@ -34,10 +34,17 @@ impl SlabCache {
         }
     }
 
-    fn add_slab(&mut self, mut addr: NonNull<Slab>) {
+    /// # Safety
+    /// If any of the following conditions are violated, the result is Undefined
+    /// Behavior:
+    /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE` bytes.
+    unsafe fn add_slab(&mut self, mut addr: NonNull<Slab>) {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
-        self.empty_slabs.add_front(&mut addr);
+        // SAFETY:
+        // This function's Safety contract enforces that `addr` point to a valid allocation of
+        // at least `PAGE_SIZE` bytes.
+        unsafe { self.empty_slabs.add_front(&mut addr) };
         self.n_slabs += 1;
     }
 
@@ -56,8 +63,13 @@ impl SlabCache {
                 // which ensures that each allocation is sucessful before
                 // considering using it as a slab.
                 if unsafe { slab.as_ref() }.full() {
-                    self.full_slabs
-                        .add_front(&mut self.partial_slabs.take_head().ok_or(SlabAllocationError::NotEnoughMemory)?);
+                    // SAFETY:
+                    // We are calling `add_front()` on `self.full_slabs`, which is guaranteed to point
+                    // to a valid node that will not be deallocated for the lifetime of this `SlabCache`.
+                    unsafe {
+                        self.full_slabs
+                            .add_front(&mut self.partial_slabs.take_head().ok_or(SlabAllocationError::NotEnoughMemory)?);
+                    };
                 }
                 allocation
             }
@@ -69,7 +81,10 @@ impl SlabCache {
                 // considering using it as a slab.
                 let allocation = unsafe { slab.as_mut() }.alloc();
                 let mut head = self.empty_slabs.take_head().ok_or(SlabAllocationError::NotEnoughMemory)?;
-                self.partial_slabs.add_front(&mut head);
+                // SAFETY:
+                // We are calling `add_front()` on `self.partial_slabs`, which is guaranteed to point
+                // to a valid node that will not be deallocated for the lifetime of this `SlabCache`.
+                unsafe { self.partial_slabs.add_front(&mut head) };
                 allocation
             }
             _ => Err(SlabAllocationError::NotEnoughMemory),
@@ -126,8 +141,7 @@ impl SlabAllocator {
     /// # Safety
     /// If any of the following conditions are violated, the result is Undefined
     /// Behavior:
-    /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE *
-    ///   n_slabs` bytes.
+    /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE * n_slabs` bytes.
     pub unsafe fn init_slab_cache(&mut self, addr: NonNull<u8>, object_size: usize, n_slabs: usize) {
         let slab_cache_index = SLAB_CACHE_SIZES.iter().position(|x| *x as usize == object_size);
         let slab_cache_index = expect_opt!(slab_cache_index, "Called SlabAllocator::init_slab_cache with an invalid object_size");
@@ -141,7 +155,10 @@ impl SlabAllocator {
             // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
             // valid memory which we can safely write to.
             unsafe { Slab::init(slab_ptr, object_size) };
-            self.caches[slab_cache_index].add_slab(addr.cast());
+            // SAFETY:
+            // Assuming the Safety directive of this function was followed, he address we are passing to
+            // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+            unsafe { self.caches[slab_cache_index].add_slab(addr.cast()) };
 
             // SAFETY:
             // `PAGE_SIZE` does not overflow `isize`, and `addr` points to a valid
@@ -252,8 +269,7 @@ impl Slab {
     /// # Safety
     /// If any of the following conditions are violated, the result is Undefined
     /// Behavior:
-    /// * `slab_ptr` must point to a page-aligned allocation of **at least**
-    ///   `0x1000` bytes.
+    /// * `slab_ptr` must point to a page-aligned allocation of **at least** `0x1000` bytes.
     ///
     /// # Panics
     /// This function will panic if called with wrong arguments, like a
@@ -265,8 +281,8 @@ impl Slab {
 
         // SAFETY:
         // * `SLAB_HEADER_OVERHEAD` is a constant that does not overflow `isize`
-        // * According to this function's Safety docs, `addr` must point to a valid
-        //   allocation that we can safely access
+        // * According to this function's Safety docs, `addr` must point to a valid allocation that we can
+        //   safely access
         let objects_start_addr = unsafe { addr.add(SLAB_HEADER_OVERHEAD) };
         let header_overhead = objects_start_addr as usize - addr as usize;
 
@@ -316,6 +332,10 @@ impl Slab {
         // (`*mut *const u8`), however we know that `current_obj_ptr` is
         // at least 8-bytes aligned due to the restrictions enforced at
         // the beginning of this function.
+        //
+        // SAFETY:
+        // We are dereferencing `slab_ptr`, which is guaranteed to be in a valid
+        // allocation by this function's Safety docs.
         #[allow(clippy::cast_ptr_alignment)]
         unsafe {
             (*slab_ptr).free_list_next = NonNull::new(objects_start_addr.cast());
@@ -353,6 +373,10 @@ impl Slab {
 
         let allocation = self.free_list_next.ok_or(SlabAllocationError::NotEnoughMemory)?;
 
+        // SAFETY:
+        // If this `Slab` was intialized according to its safety documentation,
+        // `allocation` is guaranteed to be usable memory that we can safely
+        // access.
         self.free_list_next = unsafe { *allocation.as_ptr() }.next;
         self.allocated += 1;
 
@@ -375,6 +399,10 @@ impl Slab {
         self.free_list_next = NonNull::new(addr as *mut Payload);
         self.allocated -= 1;
 
+        // SAFETY:
+        // If this `Slab` was intialized according to its safety documentation,
+        // `addr` is guaranteed to be memory owned by this slab that we can safely
+        // access.
         unsafe { (*(addr as *mut Payload)).next = next };
 
         Ok(())
