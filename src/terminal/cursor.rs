@@ -24,11 +24,11 @@ impl Cursor {
     /// to `x, y`.
     ///
     /// ## SAFETY
-    /// 1. This function uses `Cursor::update`, which writes directly to the VGA
-    ///    buffer. In user-mode, this **will** result in invalid memory access.
+    /// 1. This function uses `Cursor::update`, which writes directly to the VGA buffer. In
+    ///    user-mode, this **will** result in invalid memory access.
     ///
-    /// 2. `flush_pos` may cause undefined behavior if called with `x` or `y`
-    ///    values outside of the range `0x00..=0x0F`.
+    /// 2. `flush_pos` may cause undefined behavior if called with `x` or `y` values outside of the
+    ///    range `0x00..=0x0F`.
     pub unsafe fn flush_pos(&self) {
         let out_of_bounds: bool = !(0..VIEW_HEIGHT).contains(&(self.y as usize)) || !(0..VIEW_WIDTH).contains(&(self.x as usize));
         if out_of_bounds {
@@ -48,11 +48,11 @@ impl Cursor {
     /// expected to be in the range `0x00..=0x0F`.
     ///
     /// ## SAFETY
-    /// 1. This function uses `Cursor::update`, which writes directly to the VGA
-    ///    buffer. In user-mode, this **will** result in invalid memory access.
+    /// 1. This function uses `Cursor::update`, which writes directly to the VGA buffer. In
+    ///    user-mode, this **will** result in invalid memory access.
     ///
-    /// 2. `resize` may cause undefined behavior if called with `start` or `end`
-    ///    values outside of the range `0x00..=0x0F`.
+    /// 2. `resize` may cause undefined behavior if called with `start` or `end` values outside of
+    ///    the range `0x00..=0x0F`.
     pub unsafe fn resize(start: u8, end: u8) {
         unsafe {
             Self::update(Cursor::REG_START, start);

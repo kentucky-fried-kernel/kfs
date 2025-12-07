@@ -45,8 +45,8 @@ impl Buffer {
     /// cursor.
     ///
     /// # Arguments
-    /// * `s` - A reference to a `Screen` object that contains the data to be
-    ///   converted into a `Buffer`.
+    /// * `s` - A reference to a `Screen` object that contains the data to be converted into a
+    ///   `Buffer`.
     ///
     /// # Returns
     /// A new `Buffer` with the formatted data from the `Screen` and the updated
@@ -255,12 +255,12 @@ impl Entry {
     /// this color when rendered to the VGA buffer.
     ///
     /// ### Parameters:
-    /// - `character`: The character to be displayed (e.g., an ASCII value
-    ///   representing a letter or symbol).
-    /// - `color`: The color code for the character (an 8-bit value that
-    ///   determines the character's color).
-    ///   - The value should correspond to a color in the VGA color palette (for
-    ///     example, `0x0F` for white, `0x01` for blue, etc.).
+    /// - `character`: The character to be displayed (e.g., an ASCII value representing a letter or
+    ///   symbol).
+    /// - `color`: The color code for the character (an 8-bit value that determines the character's
+    ///   color).
+    ///   - The value should correspond to a color in the VGA color palette (for example, `0x0F` for
+    ///     white, `0x01` for blue, etc.).
     #[must_use]
     pub fn new_with_color(character: u8, color: u8) -> Self {
         Entry { color, character }
