@@ -1,9 +1,9 @@
 use crate::{
-    buddy_allocator_levels, serial_println,
+    buddy_allocator_levels,
     vmm::{
         allocators::backend::{
             buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
-            slab::{SLAB_CACHE_SIZES, SlabAllocator},
+            slab::{SLAB_CONFIGS, SlabAllocator},
         },
         paging::{
             Access, PAGE_SIZE, Permissions,
@@ -47,7 +47,6 @@ pub struct KernelAllocator {
 ///     catch possible page faults
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        serial_println!("allocating {}", layout.size());
         kmalloc(layout.size().max(layout.align())).unwrap_or_default()
     }
 
@@ -179,15 +178,15 @@ pub fn init_buddy_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), 
 /// allocate slabs.
 #[allow(static_mut_refs)]
 pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator, slab_allocator: &mut SlabAllocator) -> Result<(), KmallocError> {
-    for size in SLAB_CACHE_SIZES {
-        let slab_allocator_addr = buddy_allocator.alloc(PAGE_SIZE * 8).map_err(|_| KmallocError::NotEnoughMemory)?;
+    for conf in SLAB_CONFIGS {
+        let slab_allocator_addr = buddy_allocator.alloc((PAGE_SIZE * 8) * conf.order).map_err(|_| KmallocError::NotEnoughMemory)?;
 
         let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
         // SAFETY:
         // This function is assumed to only ever be called once the buddy allocator is initialized, which
         // would mean that the address we received from it is valid (otherwise we would have gotten an
         // error).
-        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, size as usize, 8) };
+        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, conf.object_size, 8) };
     }
 
     Ok(())

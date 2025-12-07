@@ -8,10 +8,6 @@ use crate::{
     },
 };
 
-// const SLAB_HEADER_OVERHEAD: usize = (size_of::<Order0Slab>() & !(0x08 - 1)) + 0x08;
-
-pub const SLAB_CACHE_SIZES: [u16; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
-
 #[derive(Clone, Copy, Debug)]
 pub struct SlabCache<S: SlabOps> {
     empty_slabs: List<S>,
@@ -127,44 +123,98 @@ pub enum SlabCacheType {
     Order1(SlabCache<Slab<{ 1 << 1 }>>),
     Order2(SlabCache<Slab<{ 1 << 2 }>>),
     Order3(SlabCache<Slab<{ 1 << 3 }>>),
+    Order4(SlabCache<Slab<{ 1 << 4 }>>),
+    Order5(SlabCache<Slab<{ 1 << 5 }>>),
+    Order6(SlabCache<Slab<{ 1 << 6 }>>),
+    Order7(SlabCache<Slab<{ 1 << 7 }>>),
+    Order8(SlabCache<Slab<{ 1 << 8 }>>),
+}
+
+#[repr(usize)]
+pub enum SlabOrder {
+    Order0 = 1,
+    Order1 = 2,
+    Order2 = 4,
+    Order3 = 8,
+    Order4 = 16,
+    Order5 = 32,
+    Order6 = 64,
+    Order7 = 128,
+    Order8 = 256,
+}
+
+impl const From<usize> for SlabOrder {
+    fn from(value: usize) -> Self {
+        match value {
+            1 => Self::Order0,
+            2 => Self::Order1,
+            4 => Self::Order2,
+            8 => Self::Order3,
+            16 => Self::Order4,
+            32 => Self::Order5,
+            64 => Self::Order6,
+            128 => Self::Order7,
+            256 => Self::Order8,
+            _ => panic!("unsupported SlabOrder value"),
+        }
+    }
 }
 
 impl SlabCacheType {
-    pub const fn new(object_size: usize, order: usize) -> Self {
+    #[must_use]
+    pub const fn new(object_size: usize, order: &SlabOrder) -> Self {
         match order {
-            1 => Self::Order0(SlabCache::new(object_size)),
-            2 => Self::Order1(SlabCache::new(object_size)),
-            4 => Self::Order2(SlabCache::new(object_size)),
-            8 => Self::Order3(SlabCache::new(object_size)),
-            _ => panic!("Unsupported slab order"),
+            SlabOrder::Order0 => Self::Order0(SlabCache::new(object_size)),
+            SlabOrder::Order1 => Self::Order1(SlabCache::new(object_size)),
+            SlabOrder::Order2 => Self::Order2(SlabCache::new(object_size)),
+            SlabOrder::Order3 => Self::Order3(SlabCache::new(object_size)),
+            SlabOrder::Order4 => Self::Order4(SlabCache::new(object_size)),
+            SlabOrder::Order5 => Self::Order5(SlabCache::new(object_size)),
+            SlabOrder::Order6 => Self::Order6(SlabCache::new(object_size)),
+            SlabOrder::Order7 => Self::Order7(SlabCache::new(object_size)),
+            SlabOrder::Order8 => Self::Order8(SlabCache::new(object_size)),
         }
     }
 
+    /// # Errors
+    /// This function returns an error if the allocation is not possible due to insufficient memory.
     pub fn alloc(&mut self) -> Result<*mut u8, SlabAllocationError> {
         match self {
             Self::Order0(cache) => cache.alloc(),
             Self::Order1(cache) => cache.alloc(),
             Self::Order2(cache) => cache.alloc(),
             Self::Order3(cache) => cache.alloc(),
+            Self::Order4(cache) => cache.alloc(),
+            Self::Order5(cache) => cache.alloc(),
+            Self::Order6(cache) => cache.alloc(),
+            Self::Order7(cache) => cache.alloc(),
+            Self::Order8(cache) => cache.alloc(),
         }
     }
 
+    /// # Errors
+    /// This function returns an error if `addr` is not managed by `self`.
     pub fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
         match self {
             Self::Order0(cache) => cache.free(addr),
             Self::Order1(cache) => cache.free(addr),
             Self::Order2(cache) => cache.free(addr),
             Self::Order3(cache) => cache.free(addr),
+            Self::Order4(cache) => cache.free(addr),
+            Self::Order5(cache) => cache.free(addr),
+            Self::Order6(cache) => cache.free(addr),
+            Self::Order7(cache) => cache.free(addr),
+            Self::Order8(cache) => cache.free(addr),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct SlabAllocator {
-    caches: [SlabCacheType; SLAB_CACHE_SIZES.len()],
+    caches: [SlabCacheType; SLAB_CONFIGS.len()],
 }
 
-struct SlabConfig {
+pub struct SlabConfig {
     pub object_size: usize,
     pub order: usize,
 }
@@ -177,22 +227,22 @@ pub const SLAB_CONFIGS: [SlabConfig; 9] = [
     SlabConfig { object_size: 128, order: 1 },
     SlabConfig { object_size: 256, order: 1 },
     SlabConfig { object_size: 512, order: 2 },
-    SlabConfig { object_size: 1024, order: 2 },
-    SlabConfig { object_size: 2048, order: 1 },
+    SlabConfig { object_size: 1024, order: 4 },
+    SlabConfig { object_size: 2048, order: 128 },
 ];
 
 impl const Default for SlabAllocator {
     fn default() -> Self {
         let caches = [
-            SlabCacheType::new(SLAB_CONFIGS[0].object_size, SLAB_CONFIGS[0].order),
-            SlabCacheType::new(SLAB_CONFIGS[1].object_size, SLAB_CONFIGS[1].order),
-            SlabCacheType::new(SLAB_CONFIGS[2].object_size, SLAB_CONFIGS[2].order),
-            SlabCacheType::new(SLAB_CONFIGS[3].object_size, SLAB_CONFIGS[3].order),
-            SlabCacheType::new(SLAB_CONFIGS[4].object_size, SLAB_CONFIGS[4].order),
-            SlabCacheType::new(SLAB_CONFIGS[5].object_size, SLAB_CONFIGS[5].order),
-            SlabCacheType::new(SLAB_CONFIGS[6].object_size, SLAB_CONFIGS[6].order),
-            SlabCacheType::new(SLAB_CONFIGS[7].object_size, SLAB_CONFIGS[7].order),
-            SlabCacheType::new(SLAB_CONFIGS[8].object_size, SLAB_CONFIGS[8].order),
+            SlabCacheType::new(SLAB_CONFIGS[0].object_size, &SlabOrder::from(SLAB_CONFIGS[0].order)),
+            SlabCacheType::new(SLAB_CONFIGS[1].object_size, &SlabOrder::from(SLAB_CONFIGS[1].order)),
+            SlabCacheType::new(SLAB_CONFIGS[2].object_size, &SlabOrder::from(SLAB_CONFIGS[2].order)),
+            SlabCacheType::new(SLAB_CONFIGS[3].object_size, &SlabOrder::from(SLAB_CONFIGS[3].order)),
+            SlabCacheType::new(SLAB_CONFIGS[4].object_size, &SlabOrder::from(SLAB_CONFIGS[4].order)),
+            SlabCacheType::new(SLAB_CONFIGS[5].object_size, &SlabOrder::from(SLAB_CONFIGS[5].order)),
+            SlabCacheType::new(SLAB_CONFIGS[6].object_size, &SlabOrder::from(SLAB_CONFIGS[6].order)),
+            SlabCacheType::new(SLAB_CONFIGS[7].object_size, &SlabOrder::from(SLAB_CONFIGS[7].order)),
+            SlabCacheType::new(SLAB_CONFIGS[8].object_size, &SlabOrder::from(SLAB_CONFIGS[8].order)),
         ];
 
         Self { caches }
@@ -211,61 +261,34 @@ impl SlabAllocator {
         let order = SLAB_CONFIGS[config_idx].order;
         let slab_size = order * PAGE_SIZE;
 
+        macro_rules! init_slab {
+            ($cache:expr, $order:expr) => {{
+                let slab_ptr = addr.cast().as_ptr();
+                // SAFETY:
+                // We are calling `Slab::init`, which is unsafe since it initializes memory
+                // in-place, which the compiler cannot verify. If
+                // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+                // valid memory which we can safely write to.
+                unsafe { Slab::<{ $order }>::init(slab_ptr, object_size) };
+                // SAFETY:
+                // Assuming the Safety directive of this function was followed, he address we are passing to
+                // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+                unsafe { $cache.add_slab(addr.cast()) };
+            }};
+        }
+
         let mut addr = addr;
         for _ in 0..n_slabs {
             match &mut self.caches[config_idx] {
-                SlabCacheType::Order0(cache) => {
-                    let slab_ptr = addr.cast().as_ptr();
-                    // SAFETY:
-                    // We are calling `Slab::init`, which is unsafe since it initializes memory
-                    // in-place, which the compiler cannot verify. If
-                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
-                    // valid memory which we can safely write to.
-                    unsafe { Slab::<1>::init(slab_ptr, object_size) };
-                    // SAFETY:
-                    // Assuming the Safety directive of this function was followed, he address we are passing to
-                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
-                    unsafe { cache.add_slab(addr.cast()) };
-                }
-                SlabCacheType::Order1(cache) => {
-                    let slab_ptr = addr.cast().as_ptr();
-                    // SAFETY:
-                    // We are calling `Slab::init`, which is unsafe since it initializes memory
-                    // in-place, which the compiler cannot verify. If
-                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
-                    // valid memory which we can safely write to.
-                    unsafe { Slab::<2>::init(slab_ptr, object_size) };
-                    // SAFETY:
-                    // Assuming the Safety directive of this function was followed, he address we are passing to
-                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
-                    unsafe { cache.add_slab(addr.cast()) };
-                }
-                SlabCacheType::Order2(cache) => {
-                    let slab_ptr = addr.cast().as_ptr();
-                    // SAFETY:
-                    // We are calling `Slab::init`, which is unsafe since it initializes memory
-                    // in-place, which the compiler cannot verify. If
-                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
-                    // valid memory which we can safely write to.
-                    unsafe { Slab::<4>::init(slab_ptr, object_size) };
-                    // SAFETY:
-                    // Assuming the Safety directive of this function was followed, he address we are passing to
-                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
-                    unsafe { cache.add_slab(addr.cast()) };
-                }
-                SlabCacheType::Order3(cache) => {
-                    let slab_ptr = addr.cast().as_ptr();
-                    // SAFETY:
-                    // We are calling `Slab::init`, which is unsafe since it initializes memory
-                    // in-place, which the compiler cannot verify. If
-                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
-                    // valid memory which we can safely write to.
-                    unsafe { Slab::<8>::init(slab_ptr, object_size) };
-                    // SAFETY:
-                    // Assuming the Safety directive of this function was followed, he address we are passing to
-                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
-                    unsafe { cache.add_slab(addr.cast()) };
-                }
+                SlabCacheType::Order0(cache) => init_slab!(cache, 1 << 0),
+                SlabCacheType::Order1(cache) => init_slab!(cache, 1 << 1),
+                SlabCacheType::Order2(cache) => init_slab!(cache, 1 << 2),
+                SlabCacheType::Order3(cache) => init_slab!(cache, 1 << 3),
+                SlabCacheType::Order4(cache) => init_slab!(cache, 1 << 4),
+                SlabCacheType::Order5(cache) => init_slab!(cache, 1 << 5),
+                SlabCacheType::Order6(cache) => init_slab!(cache, 1 << 6),
+                SlabCacheType::Order7(cache) => init_slab!(cache, 1 << 7),
+                SlabCacheType::Order8(cache) => init_slab!(cache, 1 << 8),
             }
             // SAFETY:
             // `PAGE_SIZE` does not overflow `isize`, and `addr` points to a valid
@@ -287,9 +310,9 @@ impl SlabAllocator {
         let slab_cache_index = if size <= 8 {
             0
         } else {
-            let index = SLAB_CACHE_SIZES
+            let index = SLAB_CONFIGS
                 .iter()
-                .map_windows(|[x, y]| size > **x as usize && size <= **y as usize)
+                .map_windows(|[x, y]| size > x.object_size && size <= y.object_size)
                 .position(|x| x);
             expect_opt!(index, "Called SlabAllocator::alloc with an invalid size") + 1
         };
@@ -374,6 +397,10 @@ pub trait SlabOps: IntrusiveLink + Sized {
     fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError>;
 }
 
+/// Generic slab struct managing slabs of memory of size `object_size`. The `ORDER` const generic
+/// allows to specify how many pages one slab should span.
+///
+/// https://github.com/kentucky-fried-kernel/kfs/issues/58
 #[derive(Clone, Copy, Debug)]
 pub struct Slab<const ORDER: usize> {
     /// Intrusive list link for `SlabCache` lists (empty/partial/full)
@@ -428,14 +455,19 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
 
         let allocation = self.free_list_next.ok_or(SlabAllocationError::NotEnoughMemory)?;
 
-        // SAFETY: If this `Slab` was initialized according to its safety documentation,
-        // `allocation` is guaranteed to be usable memory that we can safely access.
+        // SAFETY:
+        // If this `Slab` was intialized according to its safety documentation,
+        // `allocation` is guaranteed to be usable memory that we can safely
+        // access.
         self.free_list_next = unsafe { *allocation.as_ptr() }.next;
         self.allocated += 1;
 
         Ok(allocation.as_ptr().cast())
     }
 
+    // We cast from `*const u8` to more strictly aligned pointers (`*mut Payload`),
+    // however the assertion in the beginning of the function ensures that no
+    // pointer is passed that is not at least 8-bytes aligned.
     #[allow(clippy::cast_ptr_alignment)]
     fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
         debug_assert!(addr.is_aligned_to(8));
@@ -449,8 +481,10 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
         self.free_list_next = NonNull::new(addr as *mut Payload);
         self.allocated -= 1;
 
-        // SAFETY: If this `Slab` was initialized according to its safety documentation,
-        // `addr` is guaranteed to be memory owned by this slab that we can safely access.
+        // SAFETY:
+        // If this `Slab` was intialized according to its safety documentation,
+        // `addr` is guaranteed to be memory owned by this slab that we can safely
+        // access.
         unsafe { (*(addr as *mut Payload)).next = next };
 
         Ok(())
@@ -467,7 +501,10 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
 
         let header_overhead = slab_header_overhead::<ORDER>();
 
-        // SAFETY: `header_overhead` does not overflow `isize` and `addr` points to valid memory
+        // SAFETY:
+        // * `header_overhead` is a constant that does not overflow `isize`
+        // * According to this function's Safety docs, `addr` must point to a valid allocation that we can
+        //   safely access
         let objects_start_addr = unsafe { addr.add(header_overhead) };
 
         let available_space = Self::SLAB_SIZE - header_overhead;
@@ -475,8 +512,9 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
 
         debug_assert!(n_objects > 0, "object_size is too large for order {} slab", ORDER);
 
-        // SAFETY: According to this function's safety documentation, `slab_ptr` must point
-        // to a valid allocation that we can safely access.
+        // SAFETY:
+        // According to this function's safety documentation, `slab_ptr` must point
+        // to a valid allocation of at least `0x1000` bytes that we can safely access.
         #[allow(clippy::multiple_unsafe_ops_per_block)]
         unsafe {
             (*slab_ptr).list_next = None;
@@ -487,26 +525,45 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
         // Initialize the free list
         let mut current_obj_ptr = objects_start_addr;
         for i in 0..n_objects {
-            // SAFETY: Loop is bounded to n_objects which guarantees we stay within allocation
+            // SAFETY:
+            // According to this function's safety documentation, `slab_ptr` must point
+            // to a valid allocation of at least `0x1000 * Self::ORDER` bytes that we can safely access.
+            // The loop is bounded to `n_objects`, which guarantees that no address after
+            // `slab_ptr + 0x1000 * Self::ORDER` will be accessed.
             let next_obj_ptr = unsafe { current_obj_ptr.add(object_size) };
 
+            // We are casting `*const u8` to a more strictly aligned pointer
+            // (`*mut *const u8`), however we know that `current_obj_ptr` is
+            // at least 8-bytes aligned due to the restrictions enforced at
+            // the beginning of this function.
             #[allow(clippy::cast_ptr_alignment)]
             let link_ptr = current_obj_ptr.cast::<*const u8>();
             let value = if i == n_objects - 1 { core::ptr::null() } else { next_obj_ptr };
 
-            // SAFETY: link_ptr is guaranteed to be in valid allocation
+            // SAFETY:
+            // We are dereferencing `link_ptr`, which is guaranteed to be in a valid
+            // allocation by this function's Safety docs and the bounds of this
+            // loop.
             unsafe { *link_ptr = value };
 
             current_obj_ptr = next_obj_ptr;
         }
 
-        // SAFETY: slab_ptr is guaranteed to be valid by function's Safety docs
+        // We are casting `*const u8` to a more strictly aligned pointer
+        // (`*mut *const u8`), however we know that `current_obj_ptr` is
+        // at least 8-bytes aligned due to the restrictions enforced at
+        // the beginning of this function.
+        //
+        // SAFETY:
+        // We are dereferencing `slab_ptr`, which is guaranteed to be in a valid
+        // allocation by this function's Safety docs.
         #[allow(clippy::cast_ptr_alignment)]
         unsafe {
             (*slab_ptr).free_list_next = NonNull::new(objects_start_addr.cast());
         }
     }
 
+    #[inline]
     fn max_objects(&self) -> usize {
         const fn slab_header_overhead<const ORDER: usize>() -> usize {
             (size_of::<Slab<ORDER>>() & !(0x08 - 1)) + 0x08
