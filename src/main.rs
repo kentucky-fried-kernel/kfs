@@ -15,13 +15,9 @@ extern crate alloc;
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use alloc::string::String;
     use kfs::{
-        arch, serial_println, shell, terminal,
-        vmm::{
-            self,
-            paging::{PAGE_SIZE, init::init_memory},
-        },
+        arch, shell, terminal,
+        vmm::{self, paging::init::init_memory},
     };
 
     arch::x86::gdt::init();
@@ -32,14 +28,6 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
     }
-
-    let mut s = String::from("a");
-
-    for _ in 0..(PAGE_SIZE * 16) {
-        s.push_str("LET THE BUFFER GROW");
-    }
-
-    serial_println!("{}", s);
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });

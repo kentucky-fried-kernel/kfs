@@ -36,13 +36,13 @@ where
     /// # Safety
     /// If any of the following conditions are violated, the result is Undefined
     /// Behavior:
-    /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE` bytes.
+    /// * `addr` must point to a valid allocation of **at least** `PAGE_SIZE * S::ORDER` bytes.
     unsafe fn add_slab(&mut self, mut addr: NonNull<S>) {
         assert!(self.object_size != 0, "Called add_slab on uninitialized SlabCache");
 
         // SAFETY:
         // This function's Safety contract enforces that `addr` point to a valid allocation of
-        // at least `PAGE_SIZE` bytes.
+        // at least `PAGE_SIZE * S::ORDER` bytes.
         unsafe { self.empty_slabs.add_front(&mut addr) };
         self.n_slabs += 1;
     }
@@ -55,13 +55,10 @@ where
                 // The slabs themselves are initialized by the `SlabAllocator`,
                 // which ensures that each allocation is sucessful before
                 // considering using it as a slab.
-                let allocation = unsafe { slab.as_mut() }.alloc();
-                // SAFETY:
-                // We are calling `as_ref()` on `slab`, which cannot be null due to its type.
-                // The slabs themselves are initialized by the `SlabAllocator`,
-                // which ensures that each allocation is sucessful before
-                // considering using it as a slab.
-                if unsafe { slab.as_ref() }.full() {
+                let slab = unsafe { slab.as_mut() };
+
+                let allocation = slab.alloc();
+                if slab.full() {
                     // SAFETY:
                     // We are calling `add_front()` on `self.full_slabs`, which is guaranteed to point
                     // to a valid node that will not be deallocated for the lifetime of this `SlabCache`.
@@ -366,7 +363,8 @@ pub trait SlabOps: IntrusiveLink + Sized {
     /// # Safety
     /// If any of the following conditions are violated, the result is Undefined
     /// Behavior:
-    /// * `slab_ptr` must point to a page-aligned allocation of **at least** `0x1000` bytes.
+    /// * `slab_ptr` must point to a page-aligned allocation of **at least** `0x1000 * Self::ORDER`
+    ///   bytes.
     ///
     /// # Panics
     /// This function will panic if called with wrong arguments, like a
@@ -411,6 +409,10 @@ pub struct Slab<const ORDER: usize> {
     allocated: usize,
     /// Free list head - points to the next available object
     free_list_next: Option<NonNull<Payload>>,
+}
+
+const fn slab_header_overhead<const ORDER: usize>() -> usize {
+    (size_of::<Slab<ORDER>>() & !(0x08 - 1)) + 0x08
 }
 
 impl<const ORDER: usize> IntrusiveLink for Slab<ORDER> {
@@ -495,10 +497,6 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
         debug_assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
         debug_assert!(object_size >= 8, "object_size must be at least 8");
 
-        const fn slab_header_overhead<const ORDER: usize>() -> usize {
-            (size_of::<Slab<ORDER>>() & !(0x08 - 1)) + 0x08
-        }
-
         let header_overhead = slab_header_overhead::<ORDER>();
 
         // SAFETY:
@@ -565,10 +563,6 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
 
     #[inline]
     fn max_objects(&self) -> usize {
-        const fn slab_header_overhead<const ORDER: usize>() -> usize {
-            (size_of::<Slab<ORDER>>() & !(0x08 - 1)) + 0x08
-        }
-
         (Self::SLAB_SIZE - slab_header_overhead::<ORDER>()) / self.object_size
     }
 }
