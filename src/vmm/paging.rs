@@ -6,13 +6,13 @@ pub mod state;
 
 pub const PAGE_SIZE: usize = 0x1000;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Permissions {
     Read = 0,
     ReadWrite = 1,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Access {
     User,
     Root,

@@ -1,5 +1,6 @@
 use crate::{
     boot::KERNEL_BASE,
+    printkln,
     vmm::{
         MEMORY_MAX,
         paging::{
@@ -35,7 +36,7 @@ fn pages_virtual_iter(access: Access) -> impl Iterator<Item = (usize, &'static m
             Access::Root => pages_virtual_all
                 .enumerate()
                 .skip(KERNEL_BASE / PAGE_SIZE)
-                .take(MEMORY_MAX - (KERNEL_BASE / PAGE_SIZE)),
+                .take((MEMORY_MAX - (KERNEL_BASE / PAGE_SIZE) as u64) as usize),
         }
     }
 }
@@ -58,7 +59,7 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
     unsafe { USED_PAGES.iter_mut().enumerate() }
 }
 
-fn pages_physical_free_iter(pages_needed: usize, mode: Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
+fn pages_physical_free_iter(pages_needed: usize, mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
     let _lets_see = pages_physical_iter();
 
     let i = match mode {
@@ -92,9 +93,14 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
+    let pages_physical = pages_physical_free_iter(pages_needed, &mode)?;
+    if pages_physical.count() * PAGE_SIZE < size {
+        return Err(MmapError::NotEnoughMemory);
+    }
+
     let pages_virtual = pages_virtual_free_iter(pages_needed, access)?;
 
-    let pages_physical = pages_physical_free_iter(pages_needed, mode)?;
+    let pages_physical = pages_physical_free_iter(pages_needed, &mode)?;
 
     let pages = pages_physical.zip(pages_virtual);
 
