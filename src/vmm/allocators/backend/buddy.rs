@@ -2,11 +2,11 @@ use core::ptr::NonNull;
 
 use crate::{
     bitmap::StaticBitmap,
-    expect_opt,
+    expect_opt, serial_println,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 25;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
 
 pub enum BuddyAllocationError {
     NotEnoughMemory,
@@ -184,13 +184,17 @@ impl BuddyAllocator {
             "The buddy allocator can only allocate multiples of 0x1000"
         );
 
+        if level >= self.levels.len() {
+            return None;
+        }
+
         let current_state = self.levels[level].get(index);
 
         if current_state == BuddyAllocatorNode::FullyAllocated as u8 {
             return None;
         }
 
-        if allocation_size >= level_block_size || level == self.levels.len() {
+        if allocation_size >= level_block_size || level == self.levels.len() - 1 {
             if current_state == BuddyAllocatorNode::Free as u8 {
                 self.levels[level].set(index, BuddyAllocatorNode::FullyAllocated as u8);
                 return Some(root);
@@ -237,25 +241,33 @@ impl BuddyAllocator {
     /// This function will return an error if no fitting memory block is found
     /// for the allocation.
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
+        // serial_println!("\nAllocating {} bytes through buddy allocator", size);
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 0x1000");
         assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
         let root = expect_opt!(self.root, "alloc called on BuddyAllocator without root");
 
-        self.alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
-            .ok_or(BuddyAllocationError::NotEnoughMemory)
+        let ptr = self
+            .alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
+            .ok_or(BuddyAllocationError::NotEnoughMemory)?;
+
+        serial_println!("BUDDY {:p} - 0x{:x}", ptr, ptr as usize + size);
+        Ok(ptr)
     }
 
-    /// Gets the base index (level 19, page granularity) for a given `addr`.
+    /// Gets the base index (level 20, page granularity) for a given `addr`.
     /// Used to recurse back from there and find an allocation by address.
+    ///
+    /// # Errors
+    /// Returns an error if the address is out of range for this allocator.
     #[inline]
-    fn get_base_index(&self, addr: *const u8) -> usize {
+    fn get_base_index(&self, addr: *const u8) -> Result<usize, KfreeError> {
         let root = expect_opt!(self.root, "get_base_index called on BuddyAllocator without root");
-        assert!(
-            (root.as_ptr() as usize..(root.as_ptr() as usize + self.size)).contains(&(addr as usize)),
-            "addr is out of range for this allocator"
-        );
 
-        (addr as usize - root.as_ptr() as usize) / PAGE_SIZE
+        if !(root.as_ptr() as usize..(root.as_ptr() as usize + self.size)).contains(&(addr as usize)) {
+            return Err(KfreeError::InvalidPointer);
+        }
+
+        Ok((addr as usize - root.as_ptr() as usize) / PAGE_SIZE)
     }
 
     fn update_parent_states(&mut self, level: usize, index: usize) {
@@ -316,12 +328,13 @@ impl BuddyAllocator {
         assert!(!addr.is_null(), "Cannot free null pointer");
         assert!(self.root.is_some(), "free called on BuddyAllocator without root");
 
-        let mut index = self.get_base_index(addr);
+        let mut index = self.get_base_index(addr)?;
 
         for level in (self.root_level..self.levels.len()).rev() {
             if self.levels[level].get(index) == BuddyAllocatorNode::FullyAllocated as u8 {
                 self.levels[level].set(index, BuddyAllocatorNode::Free as u8);
                 self.coalesce(level, index);
+
                 return Ok(());
             }
             index /= 2;

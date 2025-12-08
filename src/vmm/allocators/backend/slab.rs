@@ -1,7 +1,7 @@
 use core::ptr::NonNull;
 
 use crate::{
-    expect_opt,
+    expect_opt, serial_println,
     vmm::{
         allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
         paging::PAGE_SIZE,
@@ -24,10 +24,10 @@ pub struct Payload {
 }
 
 pub trait SlabOps: IntrusiveLink + Sized {
-    /// How many contiguous pages this slab spans
+    /// How many contiguous pages this `Slab` spans
     const ORDER: usize;
 
-    /// Total size of this slab in bytes
+    /// Total size of this `Slab` in bytes
     const SLAB_SIZE: usize = PAGE_SIZE * Self::ORDER;
 
     /// Initializes a slab in place at the given address.
@@ -43,16 +43,23 @@ pub trait SlabOps: IntrusiveLink + Sized {
     /// `slab_ptr` which is not page-aligned.
     unsafe fn init(slab_ptr: *mut Self, object_size: usize);
 
+    /// Returns the start address of this `Slab`.
     #[must_use]
     fn address(&self) -> *const u8;
 
+    /// Returns `true` if this `Slab` is full (i.e., no further objects can be allocated from this
+    /// `Slab`).
     #[must_use]
     fn full(&self) -> bool;
 
+    /// Returns the maximum objects (of size `self.object_size`) that this `Slab` can hold, taking
+    /// the header overhead into account.
     fn max_objects(&self) -> usize;
 
+    /// Returns the size of one object managed by this `Slab` (`self.object_size`).
     fn object_size(&self) -> usize;
 
+    /// Returns the amount of objects already allocated in this `Slab`.
     fn allocated(&self) -> usize;
 
     /// Returns a pointer to a free memory region of size `object_size`, or a
@@ -67,8 +74,22 @@ pub trait SlabOps: IntrusiveLink + Sized {
     fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError>;
 }
 
-/// Generic slab struct managing slabs of memory of size `object_size`. The `ORDER` const generic
-/// allows to specify how many pages one slab should span.
+/// Generic struct managing slabs of memory of size `object_size`. The term "slab" is used here
+/// to describe a buffer of objects, spanning `ORDER` memory pages.
+///
+/// The decision to have different slab orders comes from the fact that the bigger `object_size`
+/// becomes, the more we suffer from the overhead created by the 16 bytes `Slab` header (which is
+/// stored inline in the allocations themselves).
+///
+/// Object sizes up to 256 bytes have <= 6.25 % overhead in a`Slab<1>`. In order to keep this max.
+/// 6.25% of memory overhead per `Slab`, we need a `Slab<2>` for an object size of 512 bytes,
+/// `Slab<3>` for 1024, etc.
+///
+/// In order to be able to rely on a stable interface, each `Slab<ORDER>` is required to implement
+/// the `SlabOps` trait.
+///
+/// `ORDER` is a const generic (as opposed to runtime field) to prevent mixing slabs of different
+/// orders in the same cache.
 ///
 /// https://github.com/kentucky-fried-kernel/kfs/issues/58
 #[derive(Clone, Copy, Debug)]
@@ -84,7 +105,8 @@ pub struct Slab<const ORDER: usize> {
 }
 
 const fn slab_header_overhead<const ORDER: usize>() -> usize {
-    (size_of::<Slab<ORDER>>() & !(0x08 - 1)) + 0x08
+    let aligned = size_of::<Slab<ORDER>>() & !(0x08 - 1);
+    if aligned == size_of::<Slab<ORDER>>() { aligned } else { aligned + 0x08 }
 }
 
 impl<const ORDER: usize> IntrusiveLink for Slab<ORDER> {
@@ -535,6 +557,7 @@ impl SlabAllocator {
     /// This function will return an error if allocation fails due to
     /// insufficient memory.
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
+        // serial_println!("\nAllocating {} bytes through slab allocator", size);
         let slab_cache_index = if size <= 8 {
             0
         } else {
@@ -545,7 +568,9 @@ impl SlabAllocator {
             expect_opt!(index, "Called SlabAllocator::alloc with an invalid size") + 1
         };
 
-        self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)
+        let ptr = self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)?;
+        serial_println!("SLAB {:p} - 0x{:x}", ptr, ptr as usize + size);
+        Ok(ptr)
     }
 
     /// # Errors

@@ -1,5 +1,5 @@
 use crate::{
-    buddy_allocator_levels,
+    buddy_allocator_levels, serial_println,
     vmm::{
         allocators::backend::{
             buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
@@ -47,14 +47,20 @@ pub struct KernelAllocator {
 ///     catch possible page faults
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        kmalloc(layout.size().max(layout.align())).unwrap_or_default()
+        use crate::serial_println;
+        let size = layout.size().max(layout.align());
+        // serial_println!("\nGlobalAlloc::alloc called: size={}, align={}", layout.size(), layout.align());
+
+        kmalloc(size).unwrap_or_default()
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
+        use crate::serial_println;
+        // serial_println!("\nGlobalAlloc::dealloc called: {:p}", ptr);
         // SAFETY:
-        // Passing a random pointer to `kfree` would result in undefined behavior, but since we rely on
-        // rustc to insert all allocation/free operations, we can safely assume that no invalid
-        // pointers will be passed to this function.
+        // Passing a random pointer to `kfree` would result in undefined behavior, but since we rely
+        // on rustc to insert all allocation/free operations, we can safely assume that no
+        // invalid pointers will be passed to this function.
         assert!(unsafe { kfree(ptr) }.is_ok(), "Freed invalid pointer");
     }
 }
@@ -178,15 +184,18 @@ pub fn init_buddy_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), 
 /// allocate slabs.
 #[allow(static_mut_refs)]
 pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator, slab_allocator: &mut SlabAllocator) -> Result<(), KmallocError> {
+    const SLABS_PER_CACHE: usize = 16;
     for conf in SLAB_CONFIGS {
-        let slab_allocator_addr = buddy_allocator.alloc((PAGE_SIZE * 8) * conf.order).map_err(|_| KmallocError::NotEnoughMemory)?;
+        let slab_allocator_addr = buddy_allocator
+            .alloc(PAGE_SIZE * (conf.order * SLABS_PER_CACHE))
+            .map_err(|_| KmallocError::NotEnoughMemory)?;
 
         let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
         // SAFETY:
         // This function is assumed to only ever be called once the buddy allocator is initialized, which
         // would mean that the address we received from it is valid (otherwise we would have gotten an
         // error).
-        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, conf.object_size, 8) };
+        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, conf.object_size, SLABS_PER_CACHE) };
     }
 
     Ok(())

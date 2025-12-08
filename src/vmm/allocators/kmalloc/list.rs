@@ -54,7 +54,7 @@ where
 
         // SAFETY:
         // Assuming above Safety guidelines were followed, we can safely dereference `node`.
-        unsafe { *node.as_mut().next_ptr_mut() = Some(*node) };
+        unsafe { *node.as_mut().next_ptr_mut() = self.head };
         self.head = Some(*node);
     }
 
