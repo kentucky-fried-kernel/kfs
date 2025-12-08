@@ -1,7 +1,8 @@
 use core::arch::asm;
 
 use crate::{
-    boot::KERNEL_BASE,
+    boot::{KERNEL_BASE, MultibootInfo, MultibootMmapEntry},
+    printkln,
     vmm::paging::{
         Access, PAGE_SIZE,
         page_entries::{PageDirectoryEntry, PageTableEntry},
@@ -19,19 +20,60 @@ fn invalidate(vaddr: usize) {
 }
 
 #[allow(static_mut_refs)]
-pub fn init_memory(_mem_high: usize, _physical_alloc_start: usize) {
+pub fn init_memory(info: &MultibootInfo) {
+    set_mmap_entries_in_used_pages(info);
+    set_first_megabyte_to_used();
+    set_available_memory(info);
     kernel_page_mappings_create();
     unset_identity_mapping();
     page_directory_fill_empty();
     enable_read_write_enforcement();
 }
 
+fn set_available_memory(info: &MultibootInfo) {
+    printkln!("MEM UPPER {} kb", info.mem_upper);
+    unsafe {
+        #[allow(static_mut_refs)]
+        for i in ((info.mem_upper * 1024) as usize / PAGE_SIZE)..USED_PAGES.len() {
+            USED_PAGES[i] = Some(Access::Root);
+        }
+    }
+}
+
+fn set_first_megabyte_to_used() {
+    for i in 0..(0xFFFFF / PAGE_SIZE) {
+        unsafe { USED_PAGES[i] = Some(Access::Root) }
+    }
+}
+fn set_mmap_entries_in_used_pages(info: &MultibootInfo) {
+    let mut i = 0;
+
+    loop {
+        unsafe {
+            let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
+            printkln!("addr: 0x{:09X} | len : 0x{:08X} | type : {:x}", (*entry).addr, (*entry).len, (*entry).ty);
+            if (*entry).ty != 1 {
+                for i in 0..((*entry).len as usize / PAGE_SIZE) {
+                    let index = ((*entry).addr as usize / PAGE_SIZE) + i;
+                    USED_PAGES[index] = Some(Access::Root);
+                }
+            }
+
+            i += (*entry).size + 4;
+            if i >= info.mmap_length {
+                break;
+            }
+        }
+    }
+}
 fn kernel_page_mappings_create() {
     let kernel_end = &raw const KERNEL_END as usize;
     let kernel_pages_needed = ((kernel_end + 1) - KERNEL_BASE) / PAGE_SIZE;
 
     for (i, item) in unsafe { USED_PAGES }.iter_mut().enumerate().take(kernel_pages_needed) {
-        *item = Some(Access::Root);
+        unsafe {
+            USED_PAGES[i] = Some(Access::Root);
+        }
 
         let dir_index = i / PAGE_TABLE_SIZE;
         let page_index = i % PAGE_TABLE_SIZE;

@@ -36,18 +36,27 @@ fn pages_virtual_iter(access: Access) -> impl Iterator<Item = (usize, &'static m
             Access::Root => pages_virtual_all
                 .enumerate()
                 .skip(KERNEL_BASE / PAGE_SIZE)
-                .take(MEMORY_MAX - (KERNEL_BASE / PAGE_SIZE)),
+                .take((MEMORY_MAX - (KERNEL_BASE as u64 / PAGE_SIZE as u64)) as usize),
         }
     }
 }
 
 fn pages_virtual_free_iter(pages_needed: usize, access: Access) -> Result<impl Iterator<Item = (usize, &'static mut PageTableEntry)>, MmapError> {
-    let pages_virtual = pages_virtual_iter(access);
-
-    for i in 0..pages_virtual.count() {
+    let mut i = 0;
+    loop {
+        if i >= pages_virtual_iter(access).count() {
+            break;
+        }
         let pages_virtual = pages_virtual_iter(access).skip(i).take(pages_needed).filter(|(_, p)| p.present() == 0);
         if pages_virtual.count() == pages_needed {
             return Ok(pages_virtual_iter(access).skip(i).take(pages_needed));
+        } else {
+            match pages_virtual_iter(access).skip(i).take(pages_needed).filter(|(_, p)| p.present() == 1).last() {
+                Some((x, _)) => i = x + 1 - KERNEL_BASE / PAGE_SIZE,
+                None => {
+                    return Err(MmapError::VaddrRangeNotAvailable);
+                }
+            }
         }
     }
 
@@ -142,6 +151,10 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
+    let pages_physical = pages_physical_free_iter(pages_needed, &mode)?;
+    if pages_physical.count() * PAGE_SIZE < size {
+        return Err(MmapError::NotEnoughMemory);
+    }
     let pages_virtual = pages_virtual_free_iter(pages_needed, access)?;
 
     let pages_physical = pages_physical_free_iter(pages_needed, mode)?;
