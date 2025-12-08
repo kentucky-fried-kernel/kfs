@@ -569,7 +569,7 @@ impl SlabAllocator {
         };
 
         let ptr = self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)?;
-        serial_println!("SLAB {:p} - 0x{:x}", ptr, ptr as usize + size);
+        serial_println!("SLAB {:p} 0x{:x}", ptr, ptr as usize + size);
         Ok(ptr)
     }
 
@@ -579,6 +579,7 @@ impl SlabAllocator {
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         for cache in &mut self.caches {
             if cache.free(addr).is_ok() {
+                serial_println!("FREES {:p}", addr);
                 return Ok(());
             }
         }

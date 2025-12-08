@@ -26,17 +26,17 @@ fn alloc_bunch() {
         core::hint::black_box(&v2);
 
         for idx in 0..size {
-            // v1.push(idx * 4);
-            // v2.push(idx * 1000);
+            v1.push(idx * 4);
+            v2.push(idx * 1000);
         }
 
-        // for (idx, (e1, e2)) in v1.iter().zip(&v2).enumerate() {
-        //     assert!(*e1 == idx * 4, "Memory corruption error");
-        //     assert!(*e2 == idx * 1000, "Memory corruption error");
-        // }
+        for (idx, (e1, e2)) in v1.iter().zip(&v2).enumerate() {
+            assert!(*e1 == idx * 4, "Memory corruption error");
+            assert!(*e2 == idx * 1000, "Memory corruption error");
+        }
 
-        // serial_println!("v1: {:?}", &v1[size - 1]);
-        // serial_println!("v2: {:?}", &v2[size - 1]);
+        serial_println!("v1: {:?}", &v1[size - 1]);
+        serial_println!("v2: {:?}", &v2[size - 1]);
     }
     for _ in 0..10 {
         let v = Vec::<u8>::with_capacity(PAGE_SIZE);
@@ -84,7 +84,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
         panic!("Failed to initialize kmalloc");
     }
 
-    // alloc_bunch();
+    alloc_bunch();
     let ptr = kmalloc(8).unwrap();
     printkln!("{:p}", ptr);
     let ptr = kmalloc(16).unwrap();

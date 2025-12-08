@@ -250,7 +250,7 @@ impl BuddyAllocator {
             .alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
             .ok_or(BuddyAllocationError::NotEnoughMemory)?;
 
-        serial_println!("BUDDY {:p} - 0x{:x}", ptr, ptr as usize + size);
+        serial_println!("BUDDY {:p} 0x{:x}", ptr, ptr as usize + size);
         Ok(ptr)
     }
 
@@ -334,7 +334,7 @@ impl BuddyAllocator {
             if self.levels[level].get(index) == BuddyAllocatorNode::FullyAllocated as u8 {
                 self.levels[level].set(index, BuddyAllocatorNode::Free as u8);
                 self.coalesce(level, index);
-
+                serial_println!("FREEB {:p}", addr);
                 return Ok(());
             }
             index /= 2;
