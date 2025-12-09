@@ -1,4 +1,4 @@
-use core::fmt;
+use core::{fmt, sync::atomic::AtomicBool};
 
 enum SendError {
     WouldBlock,
@@ -7,6 +7,8 @@ enum SendError {
 pub struct SerialPort {
     base: u16,
 }
+
+static SERIAL_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 impl SerialPort {
     /// # Safety
@@ -90,7 +92,7 @@ impl SerialPort {
             Port::new(self.port_fifo_control()).write(0xc7_u8);
             Port::new(self.port_modem_control()).write(0x0b_u8);
             Port::new(self.port_interrupt_enable()).write(0x01_u8);
-        }
+        };
     }
 }
 
@@ -110,7 +112,9 @@ pub static mut SERIAL1: SerialPort = unsafe { SerialPort::new(0x3f8) };
 pub fn print_internal(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
     unsafe {
-        SERIAL1.init();
+        if !SERIAL_INITIALIZED.swap(true, core::sync::atomic::Ordering::Relaxed) {
+            SERIAL1.init();
+        }
         let _ = SERIAL1.write_fmt(args);
     }
 }

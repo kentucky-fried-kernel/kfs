@@ -86,7 +86,7 @@ impl Buffer {
                         vga_buffer.buffer[padded_relative_index] = Entry::new(b' ').to_u16();
                     }
                 }
-                _ => vga_buffer.buffer[padded_relative_index] = entry, // _ => write_entry_to_vga(padded_relative_index, entry).unwrap(),
+                _ => vga_buffer.buffer[padded_relative_index] = entry,
             }
         }
 

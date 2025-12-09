@@ -10,6 +10,7 @@ use core::panic::PanicInfo;
 
 use kfs::alloc::vec::Vec;
 use kfs::boot::MultibootInfo;
+use kfs::vmm::allocators::kmalloc::{kfree, kmalloc};
 use kfs::{
     alloc::string::String,
     vmm::{self, allocators::backend::buddy::BUDDY_ALLOCATOR_SIZE, paging::PAGE_SIZE},
@@ -19,6 +20,24 @@ use kfs::{kassert, kassert_eq};
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     kfs::tester::panic_handler(info)
+}
+
+#[test_case]
+fn move_to_next_slabs() -> Result<(), &'static str> {
+    let mut ps = [core::ptr::null(); 16];
+
+    // 256 bytes objects are stored on order 0 slabs, which means one slab contains a maximum of
+    // 15 allocations. The 16th allocation should successfully move to the next slab instead of
+    // failing.
+    for p in ps.iter_mut() {
+        *p = kmalloc(256).map_err(|_| "Could not allocate")?;
+    }
+
+    for p in ps {
+        let _ = unsafe { kfree(p) };
+    }
+
+    Ok(())
 }
 
 #[test_case]
@@ -121,15 +140,37 @@ fn stress_test_many_allocations() -> Result<(), &'static str> {
     Ok(())
 }
 
+#[test_case]
+fn memory_corruption() -> Result<(), &'static str> {
+    for size in [8, 64, 256, 2048] {
+        let mut v1 = Vec::with_capacity(size);
+        let mut v2 = Vec::with_capacity(size);
+
+        for idx in 0..size {
+            v1.push(idx * 4);
+            v2.push(idx * 1000);
+        }
+
+        for (idx, (e1, e2)) in v1.iter().zip(&v2).enumerate() {
+            kassert!(*e1 == idx * 4, "Memory corruption error");
+            kassert!(*e2 == idx * 1000, "Memory corruption error");
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, qemu, vmm::paging::init::init_memory};
+    use kfs::{arch, qemu, serial_println, vmm::paging::init::init_memory};
+
+    serial_println!("");
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize dynamic memory allocation");

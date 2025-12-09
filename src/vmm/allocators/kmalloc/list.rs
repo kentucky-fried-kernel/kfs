@@ -54,7 +54,8 @@ where
 
         // SAFETY:
         // Assuming above Safety guidelines were followed, we can safely dereference `node`.
-        unsafe { *node.as_mut().next_ptr_mut() = Some(*node) };
+        unsafe { *node.as_mut().next_ptr_mut() = self.head };
+
         self.head = Some(*node);
     }
 
@@ -64,10 +65,14 @@ where
     /// already verified when added to the list.
     pub fn take_head(&mut self) -> Option<NonNull<T>> {
         let head = self.head.take()?;
+
         // SAFETY:
         // Assuming this list was only accessed via its documented API (`add_front`), it should be
         // safe to dereference `head`.
-        self.head = unsafe { head.as_ref() }.next_ptr();
+        let new_head = unsafe { head.as_ref() }.next_ptr();
+
+        self.head = new_head;
+
         Some(head)
     }
 }

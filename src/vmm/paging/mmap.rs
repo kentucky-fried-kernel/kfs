@@ -1,13 +1,9 @@
 use crate::{
     boot::KERNEL_BASE,
-    vmm::{
-        MEMORY_MAX,
-        paging::{
-            Access, PAGE_SIZE, Permissions,
-            init::KERNEL_END,
-            page_entries::PageTableEntry,
-            state::{self, KERNEL_PAGE_TABLES, USED_PAGES},
-        },
+    vmm::paging::{
+        Access, PAGE_SIZE, Permissions,
+        page_entries::PageTableEntry,
+        state::{self, KERNEL_PAGE_TABLES, USED_PAGES},
     },
 };
 
@@ -66,7 +62,7 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
     unsafe { USED_PAGES.iter_mut().enumerate() }
 }
 
-fn pages_physical_free_iter(pages_needed: usize, mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
+fn pages_physical_free_iter(pages_needed: usize, _mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
     let _lets_see = pages_physical_iter();
 
     let mut i = 0;
@@ -139,7 +135,7 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
-    let pages_physical = pages_physical_free_iter(pages_needed, &mode)?;
+    let pages_physical = pages_physical_free_iter(pages_needed, mode)?;
     if pages_physical.count() * PAGE_SIZE < size {
         return Err(MmapError::NotEnoughMemory);
     }
