@@ -2,7 +2,6 @@ use core::arch::asm;
 
 use crate::{
     boot::{KERNEL_BASE, MultibootInfo, MultibootMmapEntry},
-    printkln,
     vmm::paging::{
         Access, PAGE_SIZE,
         page_entries::{PageDirectoryEntry, PageTableEntry},
