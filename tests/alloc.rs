@@ -121,6 +121,26 @@ fn stress_test_many_allocations() -> Result<(), &'static str> {
     Ok(())
 }
 
+#[test_case]
+fn memory_corruption() -> Result<(), &'static str> {
+    for size in [8, 64, 256, 2048] {
+        let mut v1 = Vec::with_capacity(size);
+        let mut v2 = Vec::with_capacity(size);
+
+        for idx in 0..size {
+            v1.push(idx * 4);
+            v2.push(idx * 1000);
+        }
+
+        for (idx, (e1, e2)) in v1.iter().zip(&v2).enumerate() {
+            kassert!(*e1 == idx * 4, "Memory corruption error");
+            kassert!(*e2 == idx * 1000, "Memory corruption error");
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
@@ -129,7 +149,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize dynamic memory allocation");
