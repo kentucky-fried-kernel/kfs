@@ -1,9 +1,12 @@
 use crate::{
     boot::KERNEL_BASE,
-    vmm::paging::{
-        Access, PAGE_SIZE, Permissions,
-        page_entries::PageTableEntry,
-        state::{self, KERNEL_PAGE_TABLES, USED_PAGES},
+    vmm::{
+        MEMORY_MAX,
+        paging::{
+            Access, PAGE_SIZE, Permissions,
+            page_entries::PageTableEntry,
+            state::{self, KERNEL_PAGE_TABLES, USED_PAGES},
+        },
     },
 };
 
