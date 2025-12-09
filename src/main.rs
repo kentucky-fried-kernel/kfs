@@ -29,41 +29,6 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     init_memory(info);
 
-    for _ in 0..10 {
-        match mmap::mmap(
-            None,
-            PAGE_SIZE * 2,
-            vmm::paging::Permissions::ReadWrite,
-            vmm::paging::Access::Root,
-            &mmap::Mode::Continous,
-        ) {
-            Ok(n) => {
-                printkln!("allocated {}", n);
-                unsafe {
-                    *(n as *mut u8) = 42;
-                }
-            }
-            Err(n) => printkln!("{:?}", n),
-        }
-    }
-    for _ in 0..10 {
-        match mmap::mmap(
-            None,
-            1 << 10,
-            vmm::paging::Permissions::ReadWrite,
-            vmm::paging::Access::User,
-            &mmap::Mode::Continous,
-        ) {
-            Ok(n) => {
-                printkln!("allocated {}", n);
-                unsafe {
-                    *(n as *mut u8) = 42;
-                }
-            }
-            Err(n) => printkln!("{:?}", n),
-        }
-    }
-
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
     }

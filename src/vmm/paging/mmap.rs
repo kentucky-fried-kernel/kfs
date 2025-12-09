@@ -32,10 +32,17 @@ fn pages_virtual_iter() -> impl Iterator<Item = (usize, &'static mut PageTableEn
 fn pages_virtual_free_iter(pages_needed: usize, access: Access) -> Result<impl Iterator<Item = (usize, &'static mut PageTableEntry)>, MmapError> {
     let mut i = match access {
         Access::Root => KERNEL_BASE / PAGE_SIZE,
-        Access::User => 0,
+        Access::User => 1,
+    };
+    let max_size = match access {
+        Access::Root => (MEMORY_MAX - 1) as usize,
+        Access::User => KERNEL_BASE as usize,
     };
     loop {
         if i >= pages_virtual_iter().count() {
+            break;
+        }
+        if i + pages_needed >= max_size {
             break;
         }
         let pages_virtual = pages_virtual_iter().skip(i).take(pages_needed).filter(|(_, p)| p.present() == 0);

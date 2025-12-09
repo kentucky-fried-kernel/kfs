@@ -31,7 +31,7 @@ pub fn init_memory(info: &MultibootInfo) {
 }
 
 fn set_available_memory(info: &MultibootInfo) {
-    printkln!("MEM UPPER {} kb", info.mem_upper);
+    // printkln!("MEM UPPER {} kb", info.mem_upper);
     unsafe {
         #[allow(static_mut_refs)]
         for i in ((info.mem_upper * 1024) as usize / PAGE_SIZE)..USED_PAGES.len() {
@@ -51,7 +51,8 @@ fn set_mmap_entries_in_used_pages(info: &MultibootInfo) {
     loop {
         unsafe {
             let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
-            printkln!("addr: 0x{:09X} | len : 0x{:08X} | type : {:x}", (*entry).addr, (*entry).len, (*entry).ty);
+            // printkln!("addr: 0x{:09X} | len : 0x{:08X} | type : {:x}", (*entry).addr, (*entry).len,
+            // (*entry).ty);
             if (*entry).ty != 1 {
                 for i in 0..((*entry).len as usize / PAGE_SIZE) {
                     let index = ((*entry).addr as usize / PAGE_SIZE) + i;
