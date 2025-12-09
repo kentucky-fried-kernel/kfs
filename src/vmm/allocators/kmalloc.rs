@@ -174,6 +174,7 @@ pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmall
     allocator
         .buddy_allocator
         .set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+
     Ok(())
 }
 

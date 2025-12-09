@@ -1,8 +1,8 @@
-use core::ptr::NonNull;
+use core::{fmt::Display, ptr::NonNull};
 
 use crate::{
     bitmap::StaticBitmap,
-    expect_opt,
+    expect_opt, serial_println,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
@@ -273,10 +273,14 @@ impl BuddyAllocator {
             return;
         }
 
+        let parent_level = level - 1;
         let parent_index = index / 2;
 
-        let left_state = self.levels[level].get(index & !1);
-        let right_state = self.levels[level].get(index | 1);
+        let left_child_index = parent_index * 2;
+        let right_child_index = left_child_index + 1;
+
+        let left_state = self.levels[level].get(left_child_index);
+        let right_state = self.levels[level].get(right_child_index);
 
         let parent_state = match (left_state, right_state) {
             (0b00, 0b00) => BuddyAllocatorNode::Free,
@@ -284,9 +288,9 @@ impl BuddyAllocator {
             _ => BuddyAllocatorNode::PartiallyAllocated,
         };
 
-        self.levels[level].set(parent_index, parent_state as u8);
+        self.levels[parent_level].set(parent_index, parent_state as u8);
 
-        self.update_parent_states(level - 1, parent_index);
+        self.update_parent_states(parent_level, parent_index);
     }
 
     fn coalesce(&mut self, level: usize, index: usize) {
