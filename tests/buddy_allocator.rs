@@ -95,7 +95,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     init_memory(info.mem_upper as usize, info.mem_lower as usize);
 
     #[allow(static_mut_refs)]
-    if vmm::allocators::kmalloc::init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR.buddy_allocator }).is_err() {
+    if vmm::allocators::kmalloc::init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR }).is_err() {
         panic!("Failed to initialize buddy allocator");
     }
 

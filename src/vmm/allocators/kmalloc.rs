@@ -1,5 +1,5 @@
 use crate::{
-    buddy_allocator_levels, serial_println,
+    buddy_allocator_levels,
     vmm::{
         allocators::backend::{
             buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
@@ -59,10 +59,7 @@ unsafe impl GlobalAlloc for KernelAllocator {
         // Passing a random pointer to `kfree` would result in undefined behavior, but since we rely
         // on rustc to insert all allocation/free operations, we can safely assume that no
         // invalid pointers will be passed to this function.
-        if unsafe { kfree(ptr) }.is_err() {
-            serial_println!("freed invalid pointer {:p}", ptr);
-        }
-        // assert!(unsafe { kfree(ptr) }.is_ok(), "Freed invalid pointer");
+        assert!(unsafe { kfree(ptr) }.is_ok());
     }
 }
 
@@ -105,25 +102,17 @@ pub static mut KERNEL_ALLOCATOR: KernelAllocator = KernelAllocator {
 /// block of memory.
 #[allow(static_mut_refs)]
 pub unsafe fn kfree(addr: *const u8) -> Result<(), KfreeError> {
-    // let addr_usize = addr as usize;
-    // if addr_usize >= unsafe { KERNEL_ALLOCATOR.slabs_start } && unsafe { addr_usize <
-    // KERNEL_ALLOCATOR.slabs_end } {     unsafe { KERNEL_ALLOCATOR.slab_allocator.free(addr) }
-    // } else {
-    unsafe { KERNEL_ALLOCATOR.buddy_allocator.free(addr) }
     // SAFETY:
     // We are accessing a static mutable allocator, which is only accessible through this crate.
-    // The API of this crate ensures we are not touching it outside of its expected
-    // usage. match unsafe {} {
-    //     Ok(()) => Ok(()),
-    //     // SAFETY:
-    //     // We are accessing a static mutable allocator, which is only accessible through this
-    // crate. The API     // of this crate ensures we are not touching it outside of its
-    // expected usage.     Err(_) => match  } {
-    //         Ok(()) => Ok(()),
-    //         Err(_) => Err(KfreeError::InvalidPointer),
-    //     },
-    // }
-    // }
+    // The API of this crate ensures we are not touching it outside of its expected usage.
+    let allocator = unsafe { &mut KERNEL_ALLOCATOR };
+    let addr_usize = addr as usize;
+
+    if addr_usize >= allocator.slabs_start && addr_usize < allocator.slabs_end {
+        allocator.slab_allocator.free(addr)
+    } else {
+        allocator.buddy_allocator.free(addr)
+    }
 }
 
 /// # Errors
@@ -131,27 +120,17 @@ pub unsafe fn kfree(addr: *const u8) -> Result<(), KfreeError> {
 /// block of memory for the allocation.
 #[allow(static_mut_refs)]
 pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
-    // match size {
-    //     // SAFETY:
-    //     // We are accessing a static mutable allocator, which is only accessible through this crate.
-    // The API     // of this crate ensures we are not touching it outside of its expected usage.
-    //     0..=2048 => unsafe { KERNEL_ALLOCATOR.slab_allocator.alloc(size).map_err(|_|
-    // KmallocError::NotEnoughMemory) },     // SAFETY:
-    //     // We are accessing a static mutable allocator, which is only accessible through this crate.
-    // The API     // of this crate ensures we are not touching it outside of its expected usage.
-    //     2049.. => unsafe {
-    //         KERNEL_ALLOCATOR
-    //             .buddy_allocator
-    //             .alloc(1 << ((size - 1).ilog2() + 1))
-    //             .map_err(|_| KmallocError::NotEnoughMemory)
-    //     },
-    // }
+    // SAFETY:
+    // We are accessing a static mutable allocator, which is only accessible through this crate.
+    // The API of this crate ensures we are not touching it outside of its expected usage.
+    let allocator = unsafe { &mut KERNEL_ALLOCATOR };
 
-    unsafe {
-        KERNEL_ALLOCATOR
+    match size {
+        0..=2048 => allocator.slab_allocator.alloc(size).map_err(|_| KmallocError::NotEnoughMemory),
+        2049.. => allocator
             .buddy_allocator
-            .alloc((1 << ((size.max(2) - 1).ilog2() + 1)).max(PAGE_SIZE))
-            .map_err(|_| KmallocError::NotEnoughMemory)
+            .alloc(1 << ((size - 1).ilog2() + 1))
+            .map_err(|_| KmallocError::NotEnoughMemory),
     }
 }
 
@@ -189,10 +168,12 @@ pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
 /// This function will return an error if the initial allocation for the
 /// `BuddyAllocator` (made via `mmap`) fails.
 #[allow(static_mut_refs)]
-pub fn init_buddy_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), KmallocError> {
+pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
 
-    buddy_allocator.set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+    allocator
+        .buddy_allocator
+        .set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
     Ok(())
 }
 
@@ -201,27 +182,29 @@ pub fn init_buddy_allocator(buddy_allocator: &mut BuddyAllocator) -> Result<(), 
 /// initialized the buddy allocator, which would lead it to be unable to
 /// allocate slabs.
 #[allow(static_mut_refs)]
-pub fn init_slab_allocator(buddy_allocator: &mut BuddyAllocator, slab_allocator: &mut SlabAllocator) -> Result<(), KmallocError> {
-    const SLABS_PER_CACHE: usize = 16;
+pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
+    const SLABS_PER_CACHE: usize = 32;
+
+    let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
+
+    let mut allocation = mmap(None, total_size, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)? as *mut u8;
+
+    allocator.slabs_start = allocation as usize;
+    allocator.slabs_end = allocation as usize + total_size;
 
     for conf in SLAB_CONFIGS {
-        let slab_allocator_addr = buddy_allocator
-            .alloc(PAGE_SIZE * (conf.order * SLABS_PER_CACHE))
-            .map_err(|_| KmallocError::NotEnoughMemory)?;
-        if conf.object_size == 8 {
-            unsafe { KERNEL_ALLOCATOR.slabs_start = slab_allocator_addr as usize };
-        }
-
-        if conf.object_size == 2048 {
-            unsafe { KERNEL_ALLOCATOR.slabs_end = (slab_allocator_addr as usize) + conf.order * SLABS_PER_CACHE };
-        }
-
-        let slab_allocator_addr = NonNull::new(slab_allocator_addr).ok_or(KmallocError::NotEnoughMemory)?;
+        let slab_cache_addr = NonNull::new(allocation).ok_or(KmallocError::NotEnoughMemory)?;
         // SAFETY:
         // This function is assumed to only ever be called once the buddy allocator is initialized, which
         // would mean that the address we received from it is valid (otherwise we would have gotten an
         // error).
-        unsafe { slab_allocator.init_slab_cache(slab_allocator_addr, conf.object_size, SLABS_PER_CACHE) };
+        unsafe { allocator.slab_allocator.init_slab_cache(slab_cache_addr, conf.object_size, SLABS_PER_CACHE) };
+        let slab_size_bytes = PAGE_SIZE * conf.order * SLABS_PER_CACHE;
+
+        // SAFETY:
+        // The bounds of this loop ensure we do not increment this pointer beyond the end of the allocation
+        // it points to.
+        allocation = unsafe { allocation.add(slab_size_bytes) };
     }
 
     Ok(())
@@ -235,18 +218,14 @@ pub fn init() -> Result<(), KmallocError> {
     // SAFETY:
     // We are accessing a static mutable allocator, which is only accessible through this crate. The API
     // of this crate ensures we are not touching it outside of its expected usage.s
-    init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR.buddy_allocator })?;
+    init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR })?;
 
-    // init_slab_allocator(
-    //     // SAFETY:
-    //     // We are accessing a static mutable allocator, which is only accessible through this crate.
-    // The API     // of this crate ensures we are not touching it outside of its expected usage.s
-    //     unsafe { &mut KERNEL_ALLOCATOR.buddy_allocator },
-    //     // SAFETY:
-    //     // We are accessing a static mutable allocator, which is only accessible through this crate.
-    // The API     // of this crate ensures we are not touching it outside of its expected usage.s
-    //     unsafe { &mut KERNEL_ALLOCATOR.slab_allocator },
-    // )?;
+    init_slab_allocator(
+        // SAFETY:
+        // We are accessing a static mutable allocator, which is only accessible through this crate.
+        // The API of this crate ensures we are not touching it outside of its expected usage.s
+        unsafe { &mut KERNEL_ALLOCATOR },
+    )?;
 
     Ok(())
 }

@@ -51,65 +51,65 @@ fn consecutive_allocations() -> Result<(), &'static str> {
     Ok(())
 }
 
-// #[test_case]
-// fn reuse_after_free() -> Result<(), &'static str> {
-//     let mut addresses = [0usize; 10];
+#[test_case]
+fn reuse_after_free() -> Result<(), &'static str> {
+    let mut addresses = [0usize; 10];
 
-//     for a in addresses.iter_mut() {
-//         let v = Vec::<u8>::with_capacity(PAGE_SIZE);
-//         core::hint::black_box(&v);
-//         *a = v.as_ptr() as usize;
-//     }
+    for a in addresses.iter_mut() {
+        let v = Vec::<u8>::with_capacity(PAGE_SIZE);
+        core::hint::black_box(&v);
+        *a = v.as_ptr() as usize;
+    }
 
-//     let unique_count = {
-//         let mut sorted = addresses;
-//         sorted.sort_unstable();
-//         sorted.windows(2).filter(|w| w[0] != w[1]).count() + 1
-//     };
+    let unique_count = {
+        let mut sorted = addresses;
+        sorted.sort_unstable();
+        sorted.windows(2).filter(|w| w[0] != w[1]).count() + 1
+    };
 
-//     kassert!(unique_count < 5);
+    kassert!(unique_count < 5);
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[test_case]
-// fn drop() -> Result<(), &'static str> {
-//     {
-//         let v: Vec<u8> = Vec::with_capacity(BUDDY_ALLOCATOR_SIZE / 2);
-//         core::hint::black_box(&v);
-//     }
+#[test_case]
+fn drop() -> Result<(), &'static str> {
+    {
+        let v: Vec<u8> = Vec::with_capacity(BUDDY_ALLOCATOR_SIZE / 2);
+        core::hint::black_box(&v);
+    }
 
-//     {
-//         let v: Vec<u8> = Vec::with_capacity(BUDDY_ALLOCATOR_SIZE / 2);
-//         core::hint::black_box(&v);
-//     }
+    {
+        let v: Vec<u8> = Vec::with_capacity(BUDDY_ALLOCATOR_SIZE / 2);
+        core::hint::black_box(&v);
+    }
 
-//     {
-//         let v: Vec<u8> = Vec::with_capacity(BUDDY_ALLOCATOR_SIZE / 2);
-//         core::hint::black_box(&v);
-//     }
+    {
+        let v: Vec<u8> = Vec::with_capacity(BUDDY_ALLOCATOR_SIZE / 2);
+        core::hint::black_box(&v);
+    }
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[test_case]
-// fn mixed_size_allocations() -> Result<(), &'static str> {
-//     let v1 = Vec::<u8>::with_capacity(PAGE_SIZE);
-//     let v2 = Vec::<u8>::with_capacity(PAGE_SIZE * 2);
-//     let v3 = Vec::<u8>::with_capacity(PAGE_SIZE * 4);
-//     let v4 = Vec::<u8>::with_capacity(PAGE_SIZE * 8);
+#[test_case]
+fn mixed_size_allocations() -> Result<(), &'static str> {
+    let v1 = Vec::<u8>::with_capacity(PAGE_SIZE);
+    let v2 = Vec::<u8>::with_capacity(PAGE_SIZE * 2);
+    let v3 = Vec::<u8>::with_capacity(PAGE_SIZE * 4);
+    let v4 = Vec::<u8>::with_capacity(PAGE_SIZE * 8);
 
-//     let p1 = v1.as_ptr() as usize;
-//     let p2 = v2.as_ptr() as usize;
-//     let p3 = v3.as_ptr() as usize;
-//     let p4 = v4.as_ptr() as usize;
+    let p1 = v1.as_ptr() as usize;
+    let p2 = v2.as_ptr() as usize;
+    let p3 = v3.as_ptr() as usize;
+    let p4 = v4.as_ptr() as usize;
 
-//     kassert!(p2 >= p1 + PAGE_SIZE || p1 >= p2 + PAGE_SIZE * 2);
-//     kassert!(p3 >= p2 + PAGE_SIZE * 2 || p2 >= p3 + PAGE_SIZE * 4);
-//     kassert!(p4 >= p3 + PAGE_SIZE * 4 || p3 >= p4 + PAGE_SIZE * 8);
+    kassert!(p2 >= p1 + PAGE_SIZE || p1 >= p2 + PAGE_SIZE * 2);
+    kassert!(p3 >= p2 + PAGE_SIZE * 2 || p2 >= p3 + PAGE_SIZE * 4);
+    kassert!(p4 >= p3 + PAGE_SIZE * 4 || p3 >= p4 + PAGE_SIZE * 8);
 
-//     Ok(())
-// }
+    Ok(())
+}
 
 #[test_case]
 fn stress_test_many_allocations() -> Result<(), &'static str> {

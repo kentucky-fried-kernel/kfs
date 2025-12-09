@@ -2,11 +2,11 @@ use core::ptr::NonNull;
 
 use crate::{
     bitmap::StaticBitmap,
-    expect_opt, serial_println,
+    expect_opt,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 25;
 
 pub enum BuddyAllocationError {
     NotEnoughMemory,
@@ -241,7 +241,6 @@ impl BuddyAllocator {
     /// This function will return an error if no fitting memory block is found
     /// for the allocation.
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, BuddyAllocationError> {
-        // serial_println!("\nAllocating {} bytes through buddy allocator", size);
         assert!(size.is_multiple_of(PAGE_SIZE), "The buddy allocator can only allocate multiples of 0x1000");
         assert!(size <= self.size, "The buddy allocator cannot allocate more than its size");
         let root = expect_opt!(self.root, "alloc called on BuddyAllocator without root");
@@ -250,7 +249,6 @@ impl BuddyAllocator {
             .alloc_internal(size, root.as_ptr(), self.size, self.root_level, 0)
             .ok_or(BuddyAllocationError::NotEnoughMemory)?;
 
-        serial_println!("BUDDY {:p} 0x{:x}", ptr, ptr as usize + size);
         Ok(ptr)
     }
 
@@ -334,7 +332,7 @@ impl BuddyAllocator {
             if self.levels[level].get(index) == BuddyAllocatorNode::FullyAllocated as u8 {
                 self.levels[level].set(index, BuddyAllocatorNode::Free as u8);
                 self.coalesce(level, index);
-                serial_println!("FREEB {:p}", addr);
+
                 return Ok(());
             }
             index /= 2;

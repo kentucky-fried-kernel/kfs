@@ -1,7 +1,7 @@
 use core::ptr::NonNull;
 
 use crate::{
-    expect_opt, serial_println,
+    expect_opt,
     vmm::{
         allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
         paging::PAGE_SIZE,
@@ -166,7 +166,7 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
     // pointer is passed that is not at least 8-bytes aligned.
     #[allow(clippy::cast_ptr_alignment)]
     fn free(&mut self, addr: *const u8) -> Result<(), SlabFreeError> {
-        debug_assert!(addr.is_aligned_to(8));
+        assert!(addr.is_aligned_to(8));
 
         let slab_end = (self.address() as usize + Self::SLAB_SIZE) as *const u8;
         if addr < self.address() || addr > slab_end {
@@ -188,8 +188,8 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
 
     unsafe fn init(slab_ptr: *mut Self, object_size: usize) {
         let addr = slab_ptr.cast::<u8>();
-        debug_assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
-        debug_assert!(object_size >= 8, "object_size must be at least 8");
+        assert!(addr.is_aligned_to(PAGE_SIZE), "addr is not page-aligned");
+        assert!(object_size >= 8, "object_size must be at least 8");
 
         let header_overhead = slab_header_overhead::<ORDER>();
 
@@ -202,7 +202,7 @@ impl<const ORDER: usize> SlabOps for Slab<ORDER> {
         let available_space = Self::SLAB_SIZE - header_overhead;
         let n_objects = available_space / object_size;
 
-        debug_assert!(n_objects > 0, "object_size is too large for order {} slab", ORDER);
+        assert!(n_objects > 0, "object_size is too large for order {} slab", ORDER);
 
         // SAFETY:
         // According to this function's safety documentation, `slab_ptr` must point
@@ -464,6 +464,7 @@ pub struct SlabAllocator {
     caches: [SlabCacheType; SLAB_CONFIGS.len()],
 }
 
+#[derive(Debug)]
 pub struct SlabConfig {
     pub object_size: usize,
     pub order: usize,
@@ -557,7 +558,6 @@ impl SlabAllocator {
     /// This function will return an error if allocation fails due to
     /// insufficient memory.
     pub fn alloc(&mut self, size: usize) -> Result<*mut u8, KmallocError> {
-        // serial_println!("\nAllocating {} bytes through slab allocator", size);
         let slab_cache_index = if size <= 8 {
             0
         } else {
@@ -569,7 +569,7 @@ impl SlabAllocator {
         };
 
         let ptr = self.caches[slab_cache_index].alloc().map_err(|_| KmallocError::NotEnoughMemory)?;
-        serial_println!("SLAB {:p} 0x{:x}", ptr, ptr as usize + size);
+
         Ok(ptr)
     }
 
@@ -579,7 +579,6 @@ impl SlabAllocator {
     pub fn free(&mut self, addr: *const u8) -> Result<(), KfreeError> {
         for cache in &mut self.caches {
             if cache.free(addr).is_ok() {
-                serial_println!("FREES {:p}", addr);
                 return Ok(());
             }
         }
