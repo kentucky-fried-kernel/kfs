@@ -1,5 +1,6 @@
-#![allow(static_mut_refs)]
 #![allow(unused)]
+#![allow(static_mut_refs)]
+#![allow(clippy::cast_possible_truncation)]
 
 use crate::{printk, printkln};
 
@@ -52,12 +53,13 @@ impl InterruptDescriptor {
     }
 
     pub fn offset(&self) -> u32 {
-        ((self.isr_high as u32) << 16) | self.isr_low as u32
+        (u32::from(self.isr_high) << 16) | u32::from(self.isr_low)
     }
 }
 
 impl InterruptDescriptorTable {
-    /// Creates a new `InterruptDescriptorTable` filled with non-present entries.
+    /// Creates a new `InterruptDescriptorTable` filled with non-present
+    /// entries.
     pub fn new() -> Self {
         let mut idt = Self {
             entries: [InterruptDescriptor::new(0, 0, 0); MAX_INTERRUPT_DESCRIPTORS],
@@ -71,14 +73,17 @@ impl InterruptDescriptorTable {
     }
 
     pub fn load(&self) {
-        unsafe {
-            let idtr = InterruptDescriptorTableRegister {
-                base: self.entries.as_ptr() as usize,
-                limit: (core::mem::size_of::<[InterruptDescriptor; MAX_INTERRUPT_DESCRIPTORS]>() - 1) as u16,
-            };
+        let idtr = InterruptDescriptorTableRegister {
+            base: self.entries.as_ptr() as usize,
+            limit: (core::mem::size_of::<[InterruptDescriptor; MAX_INTERRUPT_DESCRIPTORS]>() - 1) as u16,
+        };
 
-            core::arch::asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags));
-            core::arch::asm!("sti")
+        // SAFETY:
+        // We are using inline assembly to get access to the `lidt` instruction. The
+        // value we pass to it contains the address to a static IDT, which is
+        // guaranteed stay valid for the entire lifetime of the program.
+        unsafe {
+            core::arch::asm!("lidt [{}]", "sti", in(reg) &raw const idtr, options(readonly, nostack, preserves_flags));
         }
     }
 
@@ -258,6 +263,10 @@ pub fn remap_pic() {
     const ICW1_ICW4: u8 = 0x01;
     const ICW4_8086: u8 = 0x01;
 
+    // SAFETY:
+    // We are using the `Port` struct to write to the programmable interrupt
+    // controller.
+    #[allow(clippy::multiple_unsafe_ops_per_block)]
     unsafe {
         use crate::port::Port;
 
@@ -284,16 +293,16 @@ pub fn remap_pic() {
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
-    unsafe {
-        let stubs = isr_stubs!();
-        let mut idt = InterruptDescriptorTable::new();
+    let stubs = isr_stubs!();
+    let mut idt = InterruptDescriptorTable::new();
 
-        for (index, stub) in stubs.iter().enumerate() {
-            idt.set_descriptor(
-                index as u8,
-                InterruptDescriptor::new(*stub, 0x08, build_attributes(1, 0, GateType::InterruptGate32)),
-            );
-        }
+    for (index, stub) in stubs.iter().enumerate() {
+        idt.set_descriptor(
+            index as u8,
+            InterruptDescriptor::new(*stub, 0x08, build_attributes(1, 0, GateType::InterruptGate32)),
+        );
+    }
+    unsafe {
         IDT = Some(idt);
 
         remap_pic();
@@ -301,7 +310,5 @@ pub fn init() {
         if let Some(ref idt) = IDT {
             idt.load();
         }
-
-        // core::arch::asm!("int 32");
     }
 }

@@ -8,7 +8,7 @@ LD_SCRIPT := ./src/arch/x86/linker.ld
 TARGET_CONFIG := ./src/arch/x86/i386-unknown-none.json
 
 QEMU_FLAGS := -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G
-DEBUG_QEMU_FLAGS := $(QEMU_FLAGS) -monitor stdio
+DEBUG_QEMU_FLAGS := $(QEMU_FLAGS) -serial stdio
 
 LIB := target/i386-unknown-none/release/libkfs.a
 

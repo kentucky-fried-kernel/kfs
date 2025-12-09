@@ -34,7 +34,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def build_tests() -> str:
     proc = subprocess.Popen(
-        ["cargo", "build", "--tests", "--release", "--lib", "--message-format=json"],
+        ["cargo", "build", "--tests", "--release", "--lib", "--features", "test-utils", "--message-format=json"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -61,11 +61,17 @@ def build_tests() -> str:
 
 def discover_unit_tests(build_output: str) -> list[str]:
     executables: list[str] = []
-    parsed_output: list[dict[str, str | typing.Any]] = [json.loads(o) for o in build_output.split("\n") if o != ""]
+    parsed_output: list[dict[str, typing.Any]] = [json.loads(o) for o in build_output.split("\n") if o != ""]
     for o in parsed_output:
-        if not (exe := o.get("executable")) or "target/i386-unknown-none/release/deps/kfs-" not in exe:
+        exe = o.get("executable")
+        if not exe or "target/i386-unknown-none/release/deps/kfs-" not in exe:
             continue
-        if o["target"]["kind"][0] == "bin" or o["target"]["src_path"].endswith("lib.rs"):
+
+        target = o.get("target")
+        if not isinstance(target, dict):
+            continue
+
+        if target.get("kind", [None])[0] == "bin" or target.get("src_path", "").endswith("lib.rs"):
             executables.append(exe)
 
     return executables
@@ -99,7 +105,7 @@ def run_tests(type: typing.Literal["E2E", "Unit"]):
         ok += int(proc.returncode == 0)
         ko += int(proc.returncode != 0)
 
-    LOGGER.info(f"\n{type} test results: {'ok' if ko == 0 else 'FAILED'}. {ok} suite passed; {ko} failed.")
+    LOGGER.info(f"\n{type} test results: {'ok' if ko == 0 else 'FAILED'}. {ok} suite{'s' if ok > 1 else ''} passed; {ko} failed.")
 
 
 if __name__ == "__main__":

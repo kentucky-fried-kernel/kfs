@@ -13,19 +13,22 @@ pub const VIEW_WIDTH: usize = 80;
 /// The `height` of the viewable area of the VGA Buffer in chars
 pub const VIEW_HEIGHT: usize = 25;
 
-/// The total number of character positions in the viewable area (width x height).
+/// The total number of character positions in the viewable area (width x
+/// height).
 pub const VIEW_BUFFER_SIZE: usize = VIEW_WIDTH * VIEW_HEIGHT;
 
 /// The base memory address of the VGA buffer for text mode display.
 const VGA_BUFFER_ADDR: *mut u16 = (KERNEL_BASE + 0xB8000) as *mut u16;
 
-/// A struct representing a screen buffer for VGA entry handling and cursor management.
+/// A struct representing a screen buffer for VGA entry handling and cursor
+/// management.
 ///
 /// The `Buffer` holds a 2D array representing the screen's character data,
-/// a cursor position (`cursor_x` and `cursor_y`), and provides methods for creating
-/// a new buffer from a screen and flushing its contents to a device.
+/// a cursor position (`cursor_x` and `cursor_y`), and provides methods for
+/// creating a new buffer from a screen and flushing its contents to a device.
 pub struct Buffer {
-    /// A fixed-size array to hold screen data, representing characters and their colors.
+    /// A fixed-size array to hold screen data, representing characters and
+    /// their colors.
     buffer: [u16; VIEW_BUFFER_SIZE],
 
     /// Cursor
@@ -35,15 +38,20 @@ pub struct Buffer {
 impl Buffer {
     /// Creates a new `Buffer` from a given `Screen` object.
     ///
-    /// This function processes a `Screen`'s buffer and computes a corresponding `Buffer` for display.
-    /// It handles cursor positioning, padding, and newline characters. The new buffer is populated
-    /// with the screen's entries, and the cursor position is updated based on the screen's cursor.
+    /// This function processes a `Screen`'s buffer and computes a corresponding
+    /// `Buffer` for display. It handles cursor positioning, padding, and
+    /// newline characters. The new buffer is populated with the screen's
+    /// entries, and the cursor position is updated based on the screen's
+    /// cursor.
     ///
     /// # Arguments
-    /// * `s` - A reference to a `Screen` object that contains the data to be converted into a `Buffer`.
+    /// * `s` - A reference to a `Screen` object that contains the data to be converted into a
+    ///   `Buffer`.
     ///
     /// # Returns
-    /// A new `Buffer` with the formatted data from the `Screen` and the updated cursor position.
+    /// A new `Buffer` with the formatted data from the `Screen` and the updated
+    /// cursor position.
+    #[must_use]
     pub fn from_screen(s: &Screen) -> Self {
         let mut view_padding_whitespace: usize = 0;
 
@@ -74,11 +82,11 @@ impl Buffer {
                     let padding = VIEW_WIDTH - (padded_relative_index % VIEW_WIDTH) - 1;
                     view_padding_whitespace += padding;
 
-                    for _ in 0..(padding + 1) {
-                        vga_buffer.buffer[padded_relative_index] = Entry::new(b' ').to_u16()
+                    for _ in 0..=padding {
+                        vga_buffer.buffer[padded_relative_index] = Entry::new(b' ').to_u16();
                     }
                 }
-                _ => vga_buffer.buffer[padded_relative_index] = entry, // _ => write_entry_to_vga(padded_relative_index, entry).unwrap(),
+                _ => vga_buffer.buffer[padded_relative_index] = entry,
             }
         }
 
@@ -87,16 +95,22 @@ impl Buffer {
     /// Flushes the contents of the buffer to the hardware VGA device.
     ///
     /// This function writes the entries in the buffer to the VGA display,
-    /// and updates the cursor position based on the `cursor_x` and `cursor_y` values stored in the buffer.
+    /// and updates the cursor position based on the `cursor_x` and `cursor_y`
+    /// values stored in the buffer.
     ///
     /// # Example
     /// ```
     /// let buffer = Buffer::from_screen(&screen);
     /// buffer.flush();
     /// ```
+    /// # Panics
+    /// If for whatever reason, [`write_entry_to_vga`] fails, this function will
+    /// panic.
     pub fn flush(&self) {
         for (i, e) in self.buffer.iter().enumerate() {
-            write_entry_to_vga(i, *e).unwrap();
+            if write_entry_to_vga(i, *e).is_err() {
+                panic!("Could not write entry to VGA buffer")
+            }
         }
         match self.cursor {
             Some(c) => {
@@ -161,8 +175,9 @@ pub struct OutOfBoundsErr;
 
 /// Writes an entry (a `u16` value) to the VGA buffer at the specified index.
 ///
-/// This function ensures that an entry is only written if it's different from the existing one at that index.
-/// It checks for the current value at the index and only performs the write if there's a change.
+/// This function ensures that an entry is only written if it's different from
+/// the existing one at that index. It checks for the current value at the index
+/// and only performs the write if there's a change.
 ///
 /// ### Parameters:
 /// - `index`: The index in the VGA buffer to which the entry should be written.
@@ -176,7 +191,10 @@ fn write_entry_to_vga(index: usize, entry: u16) -> Result<(), OutOfBoundsErr> {
         return Err(OutOfBoundsErr);
     }
 
-    let written_entry = read_entry_from_vga(index).unwrap(); // Have to think about how we want to handle this
+    let Ok(written_entry) = read_entry_from_vga(index) else {
+        panic!("Could not read from VGA buffer");
+    };
+
     if entry == written_entry {
         return Ok(());
     }
@@ -203,21 +221,24 @@ fn read_entry_from_vga(index: usize) -> Result<u16, OutOfBoundsErr> {
 
 /// Represents a single character entry for the Screen buffer.
 ///
-/// Each `Entry` consists of a character and a color attribute. The color is set to the default color (light gray on black)
-/// by default, but it can be customized. Each `Entry` can be converted into a `u16` value, which is the format used for
-/// writing to the VGA buffer.
+/// Each `Entry` consists of a character and a color attribute. The color is set
+/// to the default color (light gray on black) by default, but it can be
+/// customized. Each `Entry` can be converted into a `u16` value, which is the
+/// format used for writing to the VGA buffer.
 pub struct Entry {
     color: u8,
     character: u8,
 }
 
 impl Entry {
-    /// Creates a new `Entry` with the specified character and the default color.
+    /// Creates a new `Entry` with the specified character and the default
+    /// color.
     ///
     /// The default color is light gray (`0x07`).
     ///
     /// ### Parameters:
     /// - `character`: The character to be storedy.
+    #[must_use]
     pub const fn new(character: u8) -> Self {
         Entry {
             color: Color::Default as u8,
@@ -227,25 +248,33 @@ impl Entry {
 
     /// Creates a new `Entry` with the specified character and custom color.
     ///
-    /// This function allows the creation of a `Entry` with a specific character and color,
-    /// where the color is passed as a parameter. The color is represented as an 8-bit value,
-    /// allowing for a wide range of color codes (e.g., for screen colors). The character
-    /// is displayed with this color when rendered to the VGA buffer.
+    /// This function allows the creation of a `Entry` with a specific character
+    /// and color, where the color is passed as a parameter. The color is
+    /// represented as an 8-bit value, allowing for a wide range of color
+    /// codes (e.g., for screen colors). The character is displayed with
+    /// this color when rendered to the VGA buffer.
     ///
     /// ### Parameters:
-    /// - `character`: The character to be displayed (e.g., an ASCII value representing a letter or symbol).
-    /// - `color`: The color code for the character (an 8-bit value that determines the character's color).
-    ///   - The value should correspond to a color in the VGA color palette (for example, `0x0F` for white, `0x01` for blue, etc.).
+    /// - `character`: The character to be displayed (e.g., an ASCII value representing a letter or
+    ///   symbol).
+    /// - `color`: The color code for the character (an 8-bit value that determines the character's
+    ///   color).
+    ///   - The value should correspond to a color in the VGA color palette (for example, `0x0F` for
+    ///     white, `0x01` for blue, etc.).
+    #[must_use]
     pub fn new_with_color(character: u8, color: u8) -> Self {
         Entry { color, character }
     }
 
-    /// Converts this `Entry` into a `u16` value that can be written to the VGA buffer.
+    /// Converts this `Entry` into a `u16` value that can be written to the VGA
+    /// buffer.
     ///
-    /// The `u16` format stores the color in the upper 8 bits and the character in the lower 8 bits.
+    /// The `u16` format stores the color in the upper 8 bits and the character
+    /// in the lower 8 bits.
     ///
     /// ### Returns:
     /// A `u16` value representing this `Entry`.
+    #[must_use]
     pub const fn to_u16(&self) -> u16 {
         ((self.color as u16) << 8) | (self.character as u16)
     }
@@ -253,8 +282,8 @@ impl Entry {
 
 /// Represents the available color codes for screen entries.
 ///
-/// The colors are defined as `u8` values, where each value corresponds to a particular color.
-/// The default color is light gray on black.
+/// The colors are defined as `u8` values, where each value corresponds to a
+/// particular color. The default color is light gray on black.
 #[repr(u8)]
 pub enum Color {
     /// Light gray on black (default)
@@ -265,6 +294,7 @@ pub enum Color {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod test {
     use super::*;
     use crate::kassert_eq;
@@ -273,12 +303,12 @@ mod test {
     fn hello_world() -> Result<(), &'static str> {
         let test_string = "Hello World";
         let mut s = Screen::default();
-        s.write_str(&test_string);
+        s.write_str(test_string);
         let b = Buffer::from_screen(&s);
         kassert_eq!(b.cursor.unwrap().x, 11, "Cursor x position != 11");
         kassert_eq!(b.cursor.unwrap().y, 0, "Cursor y position != 0");
         for (i, c) in test_string.as_bytes().iter().enumerate() {
-            kassert_eq!(b.buffer[i], Entry::new(*c).to_u16(), "buffer value does not have expected value")
+            kassert_eq!(b.buffer[i], Entry::new(*c).to_u16(), "buffer value does not have expected value");
         }
         Ok(())
     }
@@ -289,9 +319,9 @@ mod test {
         let test_string_1 = "Coka";
         let test_string_2 = "Cola";
 
-        s.write_str(&test_string_1);
+        s.write_str(test_string_1);
         s.handle_key(crate::ps2::Key::Enter);
-        s.write_str(&test_string_2);
+        s.write_str(test_string_2);
 
         let b = Buffer::from_screen(&s);
 
@@ -324,7 +354,7 @@ mod test {
     fn backspacing() -> Result<(), &'static str> {
         let mut s = Screen::default();
         let test_string = "123";
-        s.write_str(&test_string);
+        s.write_str(test_string);
         s.handle_key(crate::ps2::Key::Backspace);
 
         let b = Buffer::from_screen(&s);

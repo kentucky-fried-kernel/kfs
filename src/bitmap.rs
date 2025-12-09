@@ -4,17 +4,40 @@
 // - 00: all nodes below are free, prefer if choice is possible
 // - 10/01: mixed subtree, if no 00 try both
 
+pub trait StaticBitmap {
+    fn get(&self, index: usize) -> u8;
+    fn set(&mut self, index: usize, value: u8);
+    fn clear(&mut self, index: usize);
+}
+
+impl<const N: usize, const G: usize> StaticBitmap for Bitmap<N, G>
+where
+    [(); N / G]:,
+{
+    fn get(&self, index: usize) -> u8 {
+        self.get(index)
+    }
+
+    fn set(&mut self, index: usize, value: u8) {
+        self.set(index, value);
+    }
+
+    fn clear(&mut self, index: usize) {
+        self.clear(index);
+    }
+}
+
 /// `N` (number): Total number of entries
 /// `G` (granularity): Entries per byte (one of 1, 2, 4, 8)
 #[derive(Clone, Copy, Debug)]
-pub struct BitMap<const N: usize, const G: usize>
+pub struct Bitmap<const N: usize, const G: usize>
 where
     [(); N / G]:,
 {
     bits: [u8; N / G],
 }
 
-impl<const N: usize, const G: usize> Default for BitMap<N, G>
+impl<const N: usize, const G: usize> Default for Bitmap<N, G>
 where
     [(); N / G]:,
 {
@@ -26,13 +49,14 @@ where
     }
 }
 
-impl<const N: usize, const G: usize> BitMap<N, G>
+impl<const N: usize, const G: usize> Bitmap<N, G>
 where
     [(); N / G]:,
 {
     const BITS_PER_ENTRY: usize = 8 / G;
     const MASK: u8 = (1 << (Self::BITS_PER_ENTRY)) - 1;
 
+    #[must_use]
     pub const fn new() -> Self
     where
         [(); N / G]:,
@@ -41,6 +65,7 @@ where
     }
 
     #[inline]
+    #[must_use]
     pub const fn get(&self, index: usize) -> u8
     where
         [(); N / G]:,
@@ -62,12 +87,13 @@ where
         self.bits[index / G] &= !(Self::MASK << ((index % G) * Self::BITS_PER_ENTRY));
     }
 
+    #[must_use]
     pub const fn as_ptr(&self) -> *const u8 {
-        self as *const BitMap<N, G> as *const u8
+        core::ptr::from_ref(self).cast()
     }
 }
 
-impl<const N: usize, const G: usize> IntoIterator for BitMap<N, G>
+impl<const N: usize, const G: usize> IntoIterator for Bitmap<N, G>
 where
     [(); N / G]:,
 {
@@ -83,7 +109,7 @@ pub struct BitMapIntoIterator<const N: usize, const G: usize>
 where
     [(); N / G]:,
 {
-    bitmap: BitMap<N, G>,
+    bitmap: Bitmap<N, G>,
     index: usize,
 }
 
@@ -99,7 +125,7 @@ where
             return None;
         }
 
-        let res = (self.bitmap.bits[self.index / G] >> ((self.index % G) * BitMap::<N, G>::BITS_PER_ENTRY)) & BitMap::<N, G>::MASK;
+        let res = (self.bitmap.bits[self.index / G] >> ((self.index % G) * Bitmap::<N, G>::BITS_PER_ENTRY)) & Bitmap::<N, G>::MASK;
         self.index += 1;
 
         Some(res)

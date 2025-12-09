@@ -32,7 +32,7 @@ pub fn launch(s: &mut Screen) {
                             PROMPT = [0; PROMPT_MAX_LENGTH];
                             s.move_cursor_to_end();
                             for (place, data) in PROMPT.iter_mut().zip(s.buffer[prompt_start..s.cursor].iter()) {
-                                *place = (*data & 0xFF) as u8
+                                *place = (*data & 0xFF) as u8;
                             }
                             s.handle_key(key);
                             prompt_execute(&PROMPT, s);
@@ -93,8 +93,9 @@ fn prompt_execute(prompt: &[u8], s: &mut Screen) {
         Some(pos) => pos,
         None => prompt.len(),
     };
-    // TODO: add a way to get the total prompt length from the prompt (`prompt.len()` does not work since the prompt
-    // is padded with trailing zeros).
+    // TODO: add a way to get the total prompt length from the prompt
+    // (`prompt.len()` does not work since the prompt is padded with trailing
+    // zeros).
     let prompt_len = match prompt.iter().position(|&c| c == 0) {
         Some(pos) => pos,
         None => prompt.len(),
@@ -135,7 +136,7 @@ fn get_stack_pointer() -> u32 {
         asm!(
             "mov {0}, esp",
             out(reg) sp,
-        )
+        );
     }
 
     sp as u32
@@ -162,18 +163,18 @@ fn dump_row(row: [u8; 16], ptr: *const u8) {
         for byte in word {
             printk!("{:02x}", byte);
         }
-        printk!(" ")
+        printk!(" ");
     }
     for byte in row {
-        printk!("{}", (if !(32..127).contains(&byte) { b'.' } else { byte }) as char);
+        printk!("{}", (if (32..127).contains(&byte) { byte } else { b'.' }) as char);
     }
     printk!("\n");
 }
 
 /// Prints the stack from %esp to the stack top.
 #[allow(static_mut_refs)]
-fn prints_cmd(_args: &[u8], s: &mut Screen) {
-    printsb_cmd(_args, s);
+fn prints_cmd(args: &[u8], s: &mut Screen) {
+    printsb_cmd(args, s);
     let sp_addr = get_stack_pointer();
     let st = unsafe { (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32 };
     let mut row: [u8; 16];
@@ -182,7 +183,7 @@ fn prints_cmd(_args: &[u8], s: &mut Screen) {
 
     for row_idx in (sp_addr..st).step_by(16) {
         let ptr = row_idx as *const u8;
-        row = unsafe { *(ptr as *const [u8; 16]) };
+        row = unsafe { *(ptr.cast::<[u8; 16]>()) };
         dump_row(row, ptr);
     }
 }

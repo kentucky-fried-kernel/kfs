@@ -8,6 +8,10 @@ use kfs::boot::MultibootInfo;
 
 mod panic;
 
+extern crate alloc;
+
+/// # Panics
+/// This function will panic if initialization of dynamic memory allocation fails.
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
@@ -19,7 +23,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
@@ -29,6 +33,8 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     shell::launch(unsafe { &mut terminal::SCREEN });
 }
 
+/// # Panics
+/// This function will panic if initialization of dynamic memory allocation fails.
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
@@ -37,8 +43,13 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    vmm::paging::init::init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    vmm::paging::init::init_memory(info);
+
+    if vmm::allocators::kmalloc::init().is_err() {
+        panic!("Failed to initialize kmalloc");
+    }
 
     test_main();
+
     unsafe { qemu::exit(qemu::ExitCode::Success) };
 }

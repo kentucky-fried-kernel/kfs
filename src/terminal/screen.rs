@@ -17,6 +17,7 @@ pub struct Screen {
 pub static mut SCREEN: Screen = Screen::default();
 
 impl Screen {
+    #[must_use]
     pub const fn default() -> Self {
         Screen {
             buffer: [Entry::new(b' ').to_u16(); BUFFER_SIZE],
@@ -27,24 +28,23 @@ impl Screen {
     }
 
     pub fn handle_key(&mut self, key: Key) {
-        use Key::*;
         match key {
-            Tab => {}
-            Enter => self.write(b'\n'),
-            Backspace => {
+            Key::Tab => {}
+            Key::Enter => self.write(b'\n'),
+            Key::Backspace => {
                 if self.cursor > 0 {
                     self.cursor -= 1;
                     self.remove_entry_at(self.cursor);
                 }
             }
-            ArrowUp => self.scroll(1),
-            ArrowDown => self.scroll(-1),
-            ArrowLeft => {
+            Key::ArrowUp => self.scroll(1),
+            Key::ArrowDown => self.scroll(-1),
+            Key::ArrowLeft => {
                 if self.cursor > 0 {
                     self.cursor -= 1;
                 }
             }
-            ArrowRight => {
+            Key::ArrowRight => {
                 if self.cursor < BUFFER_SIZE - 1 && self.cursor < self.last_entry_index {
                     self.cursor += 1;
                 }
@@ -84,14 +84,14 @@ impl Screen {
     }
 
     pub fn write_str(&mut self, string: &str) {
-        for &c in string.as_bytes().iter() {
+        for &c in string.as_bytes() {
             self.write(c);
         }
     }
 
     #[allow(dead_code)]
     pub fn write_color_str(&mut self, string: &str, color: u8) {
-        for &c in string.as_bytes().iter() {
+        for &c in string.as_bytes() {
             self.write_color(c, color);
         }
     }

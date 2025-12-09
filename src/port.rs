@@ -5,6 +5,7 @@ pub struct Port {
 }
 
 impl Port {
+    #[must_use]
     pub fn new(port: u16) -> Self {
         Self { port }
     }
@@ -25,6 +26,7 @@ impl Port {
     /// # Safety
     /// This function interacts with hardware directly and can
     /// therefore not be checked by the compiler.
+    #[must_use]
     pub unsafe fn read(&self) -> u8 {
         let res: u8;
 

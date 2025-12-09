@@ -22,6 +22,7 @@ env:
 
 jobs:
     build_and_test:
+        timeout-minutes: 10
         name: Rust project - latest
         runs-on: ubuntu-latest
         container: ghcr.io/kentucky-fried-kernel/kfs-test-runner

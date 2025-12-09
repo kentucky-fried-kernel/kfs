@@ -39,6 +39,7 @@ pub fn test_runner(tests: &[&dyn Testable]) {
             ko += 1;
         }
     }
+
     serial_println!("test result: {}. {} passed; {} failed.", if ko == 0 { "ok" } else { "FAILED" }, ok, ko);
 
     unsafe { qemu::exit(if ko == 0 { qemu::ExitCode::Success } else { qemu::ExitCode::Failed }) };
@@ -53,6 +54,17 @@ pub fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     unsafe { qemu::exit(qemu::ExitCode::Failed) };
+    #[allow(clippy::empty_loop)]
+    loop {}
+}
+
+// This panic handler function can be used as a `#[panic_handler]` for tests
+// that are expected to panic.
+pub fn should_panic_panic_handler() -> ! {
+    use crate::qemu;
+    serial_println!("[ok]\n");
+
+    unsafe { qemu::exit(qemu::ExitCode::Success) };
     #[allow(clippy::empty_loop)]
     loop {}
 }

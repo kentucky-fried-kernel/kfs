@@ -1,145 +1,232 @@
-#![allow(unused)]
-
 use crate::{
-    bitmap::BitMap,
-    printkln,
+    buddy_allocator_levels,
     vmm::{
-        allocators::{backend::buddy_allocator::BuddyAllocator, kmalloc::state::*},
+        allocators::backend::{
+            buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
+            slab::{SLAB_CONFIGS, SlabAllocator},
+        },
         paging::{
-            Access, Permissions,
-            mmap::{MmapError, Mode, mmap},
+            Access, PAGE_SIZE, Permissions,
+            mmap::{Mode, mmap},
         },
     },
 };
 
+use core::{alloc::GlobalAlloc, ptr::NonNull};
+
+mod list;
 mod state;
 
-#[repr(C, align(0x1000))]
-#[derive(Clone, Copy)]
-pub struct Page {
-    data: [u8; 4096],
+pub use list::{IntrusiveLink, List};
+
+#[derive(Debug)]
+pub enum KmallocError {
+    NotEnoughMemory,
 }
 
 #[derive(Debug)]
-pub enum Error {
-    NoSpaceLeft,
-    MmapFailure,
+pub enum KfreeError {
     InvalidPointer,
-    DoubleFree,
 }
 
-const PAGES_PER_CACHE: usize = 8;
-
-#[derive(Clone, Copy, Debug)]
-pub struct BlockCache {
-    pages: [*const u8; PAGES_PER_CACHE],
-    bitmap: BitMap<4096, 8>,
-    object_size: u16,
+#[allow(unused)]
+pub struct KernelAllocator {
+    pub buddy_allocator: BuddyAllocator,
+    pub slab_allocator: SlabAllocator,
+    pub slabs_start: usize,
+    pub slabs_end: usize,
 }
 
-impl BlockCache {
-    #[allow(static_mut_refs)]
-    pub fn new(object_size: u16) -> Result<Self, MmapError> {
-        let mut pages = [core::ptr::null::<u8>(); PAGES_PER_CACHE];
+/// # Safety:
+/// If any of the following conditions are violated, the result is Undefined Behavior:
+/// * The following initializations must have been made before allocating anything through the
+///   [`kfs::alloc`] API:
+///   * The paging-related data structures and registers must be ready to be used
+///     ([`kfs::vmm::paging::init::init_memory`])
+///   * The data structures used for dynamic memory allocation (buddy and slab allocators) must have
+///     been initialized ([`kfs::vmm::allocators::kmalloc::init`])
+///   * _Ideally_, the IDT should also be initialized ([`kfs::arch::x86::idt::init`]) in order to
+///     catch possible page faults
+unsafe impl GlobalAlloc for KernelAllocator {
+    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
+        let size = layout.size().max(layout.align());
 
-        for page in pages.iter_mut() {
-            *page = mmap(None, 4096, Permissions::ReadWrite, Access::Root, Mode::Continous)? as *const u8;
-        }
-
-        Ok(Self {
-            pages,
-            bitmap: BitMap::new(),
-            object_size,
-        })
+        kmalloc(size).unwrap_or_default()
     }
 
-    pub fn malloc(&mut self) -> Option<*const u8> {
-        for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
-            if bit == 0 {
-                self.bitmap.set(idx, 1);
-                return Some(object);
-            }
-        }
-        None
-    }
-
-    pub fn free(&mut self, addr: *const u8) -> Result<(), Error> {
-        for ((idx, object), bit) in self.into_iter().enumerate().zip(self.bitmap) {
-            if object == addr {
-                if bit == 0 {
-                    return Err(Error::InvalidPointer);
-                }
-                self.bitmap.clear(idx);
-                return Ok(());
-            }
-        }
-        Err(Error::InvalidPointer)
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
+        // SAFETY:
+        // Passing a random pointer to `kfree` would result in undefined behavior, but since we rely
+        // on rustc to insert all allocation/free operations, we can safely assume that no
+        // invalid pointers will be passed to this function.
+        assert!(unsafe { kfree(ptr) }.is_ok());
     }
 }
 
-impl IntoIterator for BlockCache {
-    type Item = *const u8;
-    type IntoIter = BlockCacheIntoIterator;
+#[cfg(all(not(test), not(feature = "test-utils")))]
+#[global_allocator]
+#[allow(clippy::multiple_unsafe_ops_per_block)]
+static mut KERNEL_ALLOCATOR: KernelAllocator = KernelAllocator {
+    // SAFETY:
+    // - We are creating references to static mutable variables. We make this safe by ensuring that the buddy allocator is the sole owner of these references,
+    //   and they are never touched by anything without going through the buddy allocator's API.
+    // - The safety requirements regarding the `root` argument of `BuddyAllocator::new()` do not apply, since we are initializing it with `None.
+    buddy_allocator: { unsafe { BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, buddy_allocator_levels!()) } },
+    slab_allocator: SlabAllocator::default(),
+    slabs_start: 0,
+    slabs_end: 0,
+};
 
-    fn into_iter(self) -> Self::IntoIter {
-        Self::IntoIter {
-            block_cache: self,
-            current_position: self.pages[0],
-            page_index: 0,
-        }
-    }
-}
+#[cfg(any(test, feature = "test-utils"))]
+#[global_allocator]
+#[allow(clippy::multiple_unsafe_ops_per_block)]
+pub static mut KERNEL_ALLOCATOR: KernelAllocator = KernelAllocator {
+    // SAFETY:
+    // - We are creating references to static mutable variables. We make this safe by ensuring that the buddy allocator is the sole owner of these references,
+    //   and they are never touched by anything without going through the buddy allocator's API.
+    // - The safety requirements regarding the `root` argument of `BuddyAllocator::new()` do not apply, since we are initializing it with `None.
+    buddy_allocator: { unsafe { BuddyAllocator::new(None, BUDDY_ALLOCATOR_SIZE, buddy_allocator_levels!()) } },
+    slab_allocator: SlabAllocator::default(),
+    slabs_start: 0,
+    slabs_end: 0,
+};
 
-pub struct BlockCacheIntoIterator {
-    block_cache: BlockCache,
-    current_position: *const u8,
-    page_index: usize,
-}
-
-impl Iterator for BlockCacheIntoIterator {
-    type Item = *const u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_position as usize + self.block_cache.object_size as usize >= (self.current_position as usize & !0xFFF) + 0x1000 {
-            if self.page_index == PAGES_PER_CACHE - 1 {
-                return None;
-            }
-            self.page_index += 1;
-            self.current_position = self.block_cache.pages[self.page_index];
-            return Some(self.current_position);
-        }
-
-        let current_position = self.current_position;
-
-        self.current_position = unsafe { self.current_position.add(self.block_cache.object_size as usize) };
-        Some(current_position)
-    }
-}
-
-static mut CACHE_8: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_16: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_32: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_64: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_128: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_256: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_512: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_1024: BlockCache = unsafe { core::mem::zeroed() };
-static mut CACHE_2048: BlockCache = unsafe { core::mem::zeroed() };
-
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 20;
-static mut BUDDY_ALLOCATOR: BuddyAllocator = BuddyAllocator::new(core::ptr::null(), BUDDY_ALLOCATOR_SIZE, unsafe { LEVELS });
-
+/// # Safety
+/// This function will interact with the kernel allocator, and therefore
+/// dereference raw pointers and all other sorts of bad stuff. It is the
+/// caller's responsibility to only _ever_ call this if the kernel allocator is
+/// properly initialized.
+///
+/// # Errors
+/// This function will return an error if `addr` is not pointing to an allocated
+/// block of memory.
 #[allow(static_mut_refs)]
-pub fn kmalloc(size: usize) -> Option<*const u8> {
-    unsafe { BUDDY_ALLOCATOR.alloc(size) }
+pub unsafe fn kfree(addr: *const u8) -> Result<(), KfreeError> {
+    // SAFETY:
+    // We are accessing a static mutable allocator, which is only accessible through this crate.
+    // The API of this crate ensures we are not touching it outside of its expected usage.
+    let allocator = unsafe { &mut KERNEL_ALLOCATOR };
+    let addr_usize = addr as usize;
+
+    if addr_usize >= allocator.slabs_start && addr_usize < allocator.slabs_end {
+        allocator.slab_allocator.free(addr)
+    } else {
+        allocator.buddy_allocator.free(addr)
+    }
 }
 
+/// # Errors
+/// This function will return an error if it fails to find a sufficiently large
+/// block of memory for the allocation.
 #[allow(static_mut_refs)]
-pub fn init() -> Result<(), Error> {
-    let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, Mode::Continous).map_err(|_| Error::MmapFailure)?;
+pub fn kmalloc(size: usize) -> Result<*mut u8, KmallocError> {
+    // SAFETY:
+    // We are accessing a static mutable allocator, which is only accessible through this crate.
+    // The API of this crate ensures we are not touching it outside of its expected usage.
+    let allocator = unsafe { &mut KERNEL_ALLOCATOR };
 
-    let mut bm = unsafe { &mut BUDDY_ALLOCATOR };
-    bm.set_root(cache_memory as *const u8);
+    match size {
+        0..=2048 => allocator.slab_allocator.alloc(size).map_err(|_| KmallocError::NotEnoughMemory),
+        2049.. => allocator
+            .buddy_allocator
+            .alloc(1 << ((size - 1).ilog2() + 1))
+            .map_err(|_| KmallocError::NotEnoughMemory),
+    }
+}
+
+/// Direct access to buddy allocator for testing purposes.
+///
+/// # Safety
+/// This bypasses the slab allocator and should only be used in tests.
+/// Normal code should use `kmalloc()` instead.
+#[doc(hidden)]
+#[allow(static_mut_refs)]
+#[cfg(any(test, feature = "test-utils"))]
+pub fn buddy_allocator_alloc(size: usize) -> Result<*mut u8, KmallocError> {
+    // SAFETY:
+    // We are accessing a static mutable allocator, which is only accessible through this crate. The API
+    // of this crate ensures we are not touching it outside of its expected usage.
+    unsafe { KERNEL_ALLOCATOR.buddy_allocator.alloc(size).map_err(|_| KmallocError::NotEnoughMemory) }
+}
+
+/// Direct access to buddy allocator for testing purposes.
+///
+/// # Safety
+/// This bypasses the slab allocator and should only be used in tests.
+/// Normal code should use `kfree()` instead.
+#[doc(hidden)]
+#[allow(static_mut_refs)]
+#[cfg(any(test, feature = "test-utils"))]
+pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
+    // SAFETY:
+    // We are accessing a static mutable allocator, which is only accessible through this crate. The API
+    // of this crate ensures we are not touching it outside of its expected usage.
+    unsafe { KERNEL_ALLOCATOR.buddy_allocator.free(addr) }
+}
+
+/// # Errors
+/// This function will return an error if the initial allocation for the
+/// `BuddyAllocator` (made via `mmap`) fails.
+#[allow(static_mut_refs)]
+pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
+    let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
+
+    allocator
+        .buddy_allocator
+        .set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+
+    Ok(())
+}
+
+/// # Errors
+/// This function will return an error if called without having previously
+/// initialized the buddy allocator, which would lead it to be unable to
+/// allocate slabs.
+#[allow(static_mut_refs)]
+pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
+    const SLABS_PER_CACHE: usize = 32;
+
+    let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
+
+    let mut allocation = mmap(None, total_size, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)? as *mut u8;
+
+    allocator.slabs_start = allocation as usize;
+    allocator.slabs_end = allocation as usize + total_size;
+
+    for conf in SLAB_CONFIGS {
+        let slab_cache_addr = NonNull::new(allocation).ok_or(KmallocError::NotEnoughMemory)?;
+        // SAFETY:
+        // This function is assumed to only ever be called once the buddy allocator is initialized, which
+        // would mean that the address we received from it is valid (otherwise we would have gotten an
+        // error).
+        unsafe { allocator.slab_allocator.init_slab_cache(slab_cache_addr, conf.object_size, SLABS_PER_CACHE) };
+        let slab_size_bytes = PAGE_SIZE * conf.order * SLABS_PER_CACHE;
+
+        // SAFETY:
+        // The bounds of this loop ensure we do not increment this pointer beyond the end of the allocation
+        // it points to.
+        allocation = unsafe { allocation.add(slab_size_bytes) };
+    }
+
+    Ok(())
+}
+
+/// # Errors
+/// This function will return an error if any of `init_buddy_allocator` or
+/// `init_slab_allocator` fail.
+#[allow(static_mut_refs)]
+pub fn init() -> Result<(), KmallocError> {
+    // SAFETY:
+    // We are accessing a static mutable allocator, which is only accessible through this crate. The API
+    // of this crate ensures we are not touching it outside of its expected usage.s
+    init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR })?;
+
+    init_slab_allocator(
+        // SAFETY:
+        // We are accessing a static mutable allocator, which is only accessible through this crate.
+        // The API of this crate ensures we are not touching it outside of its expected usage.s
+        unsafe { &mut KERNEL_ALLOCATOR },
+    )?;
 
     Ok(())
 }

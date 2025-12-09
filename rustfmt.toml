@@ -1,1 +1,4 @@
 max_width = 160
+comment_width = 100
+wrap_comments = true
+format_code_in_doc_comments = true

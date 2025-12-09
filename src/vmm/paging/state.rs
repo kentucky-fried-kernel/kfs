@@ -6,7 +6,7 @@ use crate::vmm::{
     },
 };
 
-pub const USED_PAGES_SIZE: usize = MEMORY_MAX / super::PAGE_SIZE;
+pub const USED_PAGES_SIZE: usize = (MEMORY_MAX / super::PAGE_SIZE as u64) as usize;
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
@@ -28,13 +28,14 @@ pub const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;
 pub static mut KERNEL_PAGE_DIRECTORY_TABLE: PageDirectory = {
     let mut dir: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from_usize(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
 
-    dir[0] = PageDirectoryEntry::from_usize((0 << 22) | 0b10000011);
+    dir[0] = PageDirectoryEntry::from_usize((0 << 22) | 0b1000_0011);
 
-    // Sets mappings temporary so that the kernel is mapped to the upper half of the vm space
-    dir[768] = PageDirectoryEntry::from_usize((0 << 22) | 0b10000011);
-    dir[769] = PageDirectoryEntry::from_usize((1 << 22) | 0b10000011);
-    dir[770] = PageDirectoryEntry::from_usize((2 << 22) | 0b10000011);
-    dir[771] = PageDirectoryEntry::from_usize((3 << 22) | 0b10000011);
+    // Sets mappings temporary so that the kernel is mapped to the upper half of the
+    // vm space
+    dir[768] = PageDirectoryEntry::from_usize((0 << 22) | 0b1000_0011);
+    dir[769] = PageDirectoryEntry::from_usize((1 << 22) | 0b1000_0011);
+    dir[770] = PageDirectoryEntry::from_usize((2 << 22) | 0b1000_0011);
+    dir[771] = PageDirectoryEntry::from_usize((3 << 22) | 0b1000_0011);
 
     PageDirectory(dir)
 };

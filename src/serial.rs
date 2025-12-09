@@ -1,4 +1,4 @@
-use core::fmt;
+use core::{fmt, sync::atomic::AtomicBool};
 
 enum SendError {
     WouldBlock,
@@ -8,11 +8,14 @@ pub struct SerialPort {
     base: u16,
 }
 
+static SERIAL_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
 impl SerialPort {
     /// # Safety
     /// It is the caller's responsibility to ensure that the passed base address
-    /// points to a serial port device, and that the caller has the permission to
-    /// perform the I/O operation.
+    /// points to a serial port device, and that the caller has the permission
+    /// to perform the I/O operation.
+    #[must_use]
     pub const unsafe fn new(base: u16) -> Self {
         Self { base }
     }
@@ -63,7 +66,7 @@ impl SerialPort {
     }
 
     fn send_raw(&mut self, data: u8) {
-        crate::retry_until_ok!(self.try_send_raw(data))
+        crate::retry_until_ok!(self.try_send_raw(data));
     }
 
     fn try_send_raw(&mut self, data: u8) -> Result<(), SendError> {
@@ -89,7 +92,7 @@ impl SerialPort {
             Port::new(self.port_fifo_control()).write(0xc7_u8);
             Port::new(self.port_modem_control()).write(0x0b_u8);
             Port::new(self.port_interrupt_enable()).write(0x01_u8);
-        }
+        };
     }
 }
 
@@ -106,18 +109,20 @@ pub static mut SERIAL1: SerialPort = unsafe { SerialPort::new(0x3f8) };
 
 #[doc(hidden)]
 #[allow(static_mut_refs)]
-pub fn _print(args: ::core::fmt::Arguments) {
+pub fn print_internal(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
     unsafe {
-        SERIAL1.init();
-        SERIAL1.write_fmt(args).expect("Printing to serial failed");
+        if !SERIAL_INITIALIZED.swap(true, core::sync::atomic::Ordering::Relaxed) {
+            SERIAL1.init();
+        }
+        let _ = SERIAL1.write_fmt(args);
     }
 }
 
 #[macro_export]
 macro_rules! serial_print {
 	($($arg:tt)*) => {
-		$crate::serial::_print(format_args!($($arg)*));
+		$crate::serial::print_internal(format_args!($($arg)*))
     };
 }
 

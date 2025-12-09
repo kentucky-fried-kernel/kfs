@@ -1,7 +1,9 @@
-/// Converts a slice of bytes into a `usize`, assuming hexadecimal format, skipping leading and
-/// trailing whitespaces.
+/// Converts a slice of bytes into a `usize`, assuming hexadecimal format,
+/// skipping leading and trailing whitespaces.
 ///
-/// Returns `None` if `bytes` cannot be converted to a `usize` deterministically.
+/// Returns `None` if `bytes` cannot be converted to a `usize`
+/// deterministically.
+#[must_use]
 #[allow(dead_code)]
 pub fn hextou(bytes: &[u8]) -> Option<usize> {
     let mut starting_idx = 0;
