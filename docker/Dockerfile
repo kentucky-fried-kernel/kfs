@@ -14,9 +14,11 @@ RUN apt update && \
     mtools && \
     rm -rf /var/lib/apt/lists/*
 
+
 # We cannot use 'ld' directly in the build process, since MacOS has a different
 # version of 'ld' and needs to install a port called 'i386-elf-ld'.
 RUN cp $(which ld) /usr/bin/i386-elf-ld
+
 
 RUN rustup target add x86_64-unknown-none && \
     rustup default nightly && \
