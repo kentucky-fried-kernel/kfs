@@ -35,7 +35,7 @@ fn pages_virtual_free_iter(pages_needed: usize, access: Access) -> Result<impl I
     };
     let max_size = match access {
         Access::Root => (MEMORY_MAX - 1) as usize,
-        Access::User => KERNEL_BASE as usize,
+        Access::User => KERNEL_BASE,
     };
     loop {
         if i >= pages_virtual_iter().count() {
