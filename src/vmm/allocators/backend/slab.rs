@@ -1,4 +1,4 @@
-use core::ptr::NonNull;
+use core::{fmt::Debug, ptr::NonNull};
 
 use crate::{
     expect_opt,
@@ -274,6 +274,7 @@ pub struct SlabCache<S: SlabOps> {
 impl<S: SlabOps> SlabCache<S>
 where
     S: Copy,
+    S: Debug,
 {
     #[must_use]
     pub const fn new(object_size: usize) -> Self {
@@ -297,6 +298,7 @@ where
         // This function's Safety contract enforces that `addr` point to a valid allocation of
         // at least `PAGE_SIZE * S::ORDER` bytes.
         unsafe { self.empty_slabs.add_front(&mut addr) };
+
         self.n_slabs += 1;
     }
 
@@ -334,6 +336,7 @@ where
                 // We are calling `add_front()` on `self.partial_slabs`, which is guaranteed to point
                 // to a valid node that will not be deallocated for the lifetime of this `SlabCache`.
                 unsafe { self.partial_slabs.add_front(&mut head) };
+
                 allocation
             }
             _ => Err(SlabAllocationError::NotEnoughMemory),
@@ -512,24 +515,23 @@ impl SlabAllocator {
         let order = SLAB_CONFIGS[config_idx].order;
         let slab_size = order * PAGE_SIZE;
 
-        macro_rules! init_slab {
-            ($cache:expr, $order:expr) => {{
-                let slab_ptr = addr.cast().as_ptr();
-                // SAFETY:
-                // We are calling `Slab::init`, which is unsafe since it initializes memory
-                // in-place, which the compiler cannot verify. If
-                // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
-                // valid memory which we can safely write to.
-                unsafe { Slab::<{ $order }>::init(slab_ptr, object_size) };
-                // SAFETY:
-                // Assuming the Safety directive of this function was followed, he address we are passing to
-                // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
-                unsafe { $cache.add_slab(addr.cast()) };
-            }};
-        }
-
         let mut addr = addr;
         for _ in 0..n_slabs {
+            macro_rules! init_slab {
+                ($cache:expr, $order:expr) => {{
+                    let slab_ptr = addr.cast().as_ptr();
+                    // SAFETY:
+                    // We are calling `Slab::init`, which is unsafe since it initializes memory
+                    // in-place, which the compiler cannot verify. If
+                    // `init_slab_cache`'s # Safety directive was followed, `slab_ptr` points to
+                    // valid memory which we can safely write to.
+                    unsafe { Slab::<{ $order }>::init(slab_ptr, object_size) };
+                    // SAFETY:
+                    // Assuming the Safety directive of this function was followed, he address we are passing to
+                    // `add_slab` is guaranteed to be a valid allocation due to the bounds of this loop.
+                    unsafe { $cache.add_slab(addr.cast()) };
+                }};
+            }
             match &mut self.caches[config_idx] {
                 SlabCacheType::Order0(cache) => init_slab!(cache, 1 << 0),
                 SlabCacheType::Order1(cache) => init_slab!(cache, 1 << 1),

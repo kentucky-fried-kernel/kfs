@@ -29,6 +29,23 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
         panic!("Failed to initialize kmalloc");
     }
 
+    // let mut ps = [core::ptr::null(); 16];
+
+    // use kfs::vmm::allocators::kmalloc::{kfree, kmalloc};
+    // // 256 bytes objects are stored on order 0 slabs, which means one slab contains a maximum of
+    // // 15 allocations. The 16th allocation should successfully move to the next slab instead of
+    // // failing.
+    // for p in ps.iter_mut() {
+    //     use kfs::serial_println;
+
+    //     *p = kmalloc(256).unwrap();
+    //     serial_println!("{:p}", *p);
+    // }
+
+    // for p in ps {
+    //     let _ = unsafe { kfree(p) };
+    // }
+
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });
 }
