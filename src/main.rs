@@ -4,7 +4,11 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::boot::MultibootInfo;
+use kfs::{
+    boot::MultibootInfo,
+    printkln,
+    vmm::paging::{PAGE_SIZE, mmap},
+};
 
 mod panic;
 
@@ -12,7 +16,7 @@ extern crate alloc;
 
 /// # Panics
 /// This function will panic initialization of dynamic memory allocation fails.
-#[cfg(not(test))]
+// #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
@@ -23,7 +27,42 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    init_memory(info.mem_upper as usize, info.mem_lower as usize);
+    init_memory(info);
+
+    for _ in 0..10 {
+        match mmap::mmap(
+            None,
+            PAGE_SIZE * 2,
+            vmm::paging::Permissions::ReadWrite,
+            vmm::paging::Access::Root,
+            &mmap::Mode::Continous,
+        ) {
+            Ok(n) => {
+                printkln!("allocated {}", n);
+                unsafe {
+                    *(n as *mut u8) = 42;
+                }
+            }
+            Err(n) => printkln!("{:?}", n),
+        }
+    }
+    for _ in 0..10 {
+        match mmap::mmap(
+            None,
+            1 << 10,
+            vmm::paging::Permissions::ReadWrite,
+            vmm::paging::Access::User,
+            &mmap::Mode::Continous,
+        ) {
+            Ok(n) => {
+                printkln!("allocated {}", n);
+                unsafe {
+                    *(n as *mut u8) = 42;
+                }
+            }
+            Err(n) => printkln!("{:?}", n),
+        }
+    }
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
@@ -33,16 +72,16 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     shell::launch(unsafe { &mut terminal::SCREEN });
 }
 
-#[cfg(test)]
-#[unsafe(no_mangle)]
-pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, qemu, vmm};
-
-    arch::x86::gdt::init();
-    arch::x86::idt::init();
-
-    vmm::paging::init::init_memory(info.mem_upper as usize, info.mem_lower as usize);
-
-    test_main();
-    unsafe { qemu::exit(qemu::ExitCode::Success) };
-}
+// #[cfg(test)]
+// #[unsafe(no_mangle)]
+// pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+//     use kfs::{arch, qemu, vmm};
+//
+//     arch::x86::gdt::init();
+//     arch::x86::idt::init();
+//
+//     vmm::paging::init::init_memory(info);
+//
+//     test_main();
+//     unsafe { qemu::exit(qemu::ExitCode::Success) };
+// }

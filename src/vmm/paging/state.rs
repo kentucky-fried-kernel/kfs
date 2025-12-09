@@ -6,7 +6,7 @@ use crate::vmm::{
     },
 };
 
-pub const USED_PAGES_SIZE: usize = MEMORY_MAX / super::PAGE_SIZE;
+pub const USED_PAGES_SIZE: usize = (MEMORY_MAX / super::PAGE_SIZE as u64) as usize;
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]

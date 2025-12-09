@@ -25,29 +25,29 @@ pub enum Mode {
 }
 
 #[allow(static_mut_refs)]
-fn pages_virtual_iter(access: Access) -> impl Iterator<Item = (usize, &'static mut PageTableEntry)> {
-    unsafe {
-        let pages_virtual_all = KERNEL_PAGE_TABLES.iter_mut().flat_map(|p| &mut p.0);
-
-        // NOTE: have to .skip(0) here so that the types are the same
-        #[allow(clippy::iter_skip_zero)]
-        match access {
-            Access::User => pages_virtual_all.enumerate().skip(0).take(KERNEL_BASE / PAGE_SIZE),
-            Access::Root => pages_virtual_all
-                .enumerate()
-                .skip(KERNEL_BASE / PAGE_SIZE)
-                .take(MEMORY_MAX - (KERNEL_BASE / PAGE_SIZE)),
-        }
-    }
+fn pages_virtual_iter() -> impl Iterator<Item = (usize, &'static mut PageTableEntry)> {
+    unsafe { KERNEL_PAGE_TABLES.iter_mut().flat_map(|p| &mut p.0).enumerate() }
 }
 
 fn pages_virtual_free_iter(pages_needed: usize, access: Access) -> Result<impl Iterator<Item = (usize, &'static mut PageTableEntry)>, MmapError> {
-    let pages_virtual = pages_virtual_iter(access);
-
-    for i in 0..pages_virtual.count() {
-        let pages_virtual = pages_virtual_iter(access).skip(i).take(pages_needed).filter(|(_, p)| p.present() == 0);
+    let mut i = match access {
+        Access::Root => KERNEL_BASE / PAGE_SIZE,
+        Access::User => 0,
+    };
+    loop {
+        if i >= pages_virtual_iter().count() {
+            break;
+        }
+        let pages_virtual = pages_virtual_iter().skip(i).take(pages_needed).filter(|(_, p)| p.present() == 0);
         if pages_virtual.count() == pages_needed {
-            return Ok(pages_virtual_iter(access).skip(i).take(pages_needed));
+            return Ok(pages_virtual_iter().skip(i).take(pages_needed));
+        } else {
+            match pages_virtual_iter().skip(i).take(pages_needed).filter(|(_, p)| p.present() == 1).last() {
+                Some((x, _)) => i = x + 1,
+                None => {
+                    return Err(MmapError::VaddrRangeNotAvailable);
+                }
+            }
         }
     }
 
@@ -62,35 +62,25 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
 fn pages_physical_free_iter(pages_needed: usize, mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
     let _lets_see = pages_physical_iter();
 
-    let kernel_end_phys = unsafe { KERNEL_END } as *const u8 as usize - KERNEL_BASE;
-
-    let i = match mode {
-        Mode::Continous => {
-            if pages_physical_iter()
-                .skip(kernel_end_phys / PAGE_SIZE)
-                .filter(|(_, p)| p.is_none())
-                .take(pages_needed)
-                .count()
-                == pages_needed
-            {
-                Ok(kernel_end_phys / PAGE_SIZE)
-            } else {
-                Err(MmapError::NotEnoughMemory)
-            }
+    let mut i = 0;
+    loop {
+        if i >= pages_physical_iter().count() {
+            break;
         }
-        Mode::Scattered => {
-            let mut res = Err(MmapError::NotEnoughMemory);
-            for i in 0..pages_physical_iter().count() {
-                let pages_physical = pages_physical_iter().skip(i).take(pages_needed).filter(|(_, p)| p.is_none());
-                if pages_physical.count() == pages_needed {
-                    res = Ok(i);
+        let pages_physical = pages_physical_iter().skip(i).take(pages_needed).filter(|(_, p)| (**p).is_none());
+        if pages_physical.count() == pages_needed {
+            return Ok(pages_physical_iter().skip(i).take(pages_needed));
+        } else {
+            match pages_physical_iter().skip(i).take(pages_needed).filter(|(_, p)| p.is_some()).last() {
+                Some((x, _)) => i = x + 1,
+                None => {
+                    return Err(MmapError::NotEnoughMemory);
                 }
             }
-            res
         }
-    }?;
+    }
 
-    Ok(pages_physical_iter().skip(i).filter(|(_, p)| p.is_none()).take(pages_needed))
+    Err(MmapError::NotEnoughMemory)
 }
 
 #[derive(Debug)]
@@ -142,6 +132,10 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
+    let pages_physical = pages_physical_free_iter(pages_needed, &mode)?;
+    if pages_physical.count() * PAGE_SIZE < size {
+        return Err(MmapError::NotEnoughMemory);
+    }
     let pages_virtual = pages_virtual_free_iter(pages_needed, access)?;
 
     let pages_physical = pages_physical_free_iter(pages_needed, mode)?;
