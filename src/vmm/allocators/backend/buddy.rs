@@ -1,8 +1,8 @@
-use core::{fmt::Display, ptr::NonNull};
+use core::ptr::NonNull;
 
 use crate::{
     bitmap::StaticBitmap,
-    expect_opt, serial_println,
+    expect_opt,
     vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
