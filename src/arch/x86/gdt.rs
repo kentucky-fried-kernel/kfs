@@ -1,5 +1,3 @@
-use core::ptr::write_volatile;
-
 fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
     let mut descriptor: u64;
 
@@ -14,8 +12,12 @@ fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
     descriptor
 }
 
+struct GdtTable {
+    entries: [u64; GDT_SIZE],
+}
+
 const GDT_SIZE: usize = 7;
-const GDT_ADDRESS: *mut u64 = 0x0000_0800 as *mut u64;
+static mut GDT: GdtTable = GdtTable { entries: [0u64; GDT_SIZE] };
 
 #[repr(C, packed)]
 struct Gdtr {
@@ -24,7 +26,7 @@ struct Gdtr {
 }
 
 #[unsafe(no_mangle)]
-static GDTR: Gdtr = Gdtr { limit: 0x37, base: 0x800 };
+static mut GDTR: Gdtr = Gdtr { limit: 0x37, base: 0 };
 
 #[unsafe(no_mangle)]
 #[unsafe(naked)]
@@ -48,25 +50,19 @@ unsafe extern "C" fn flush_gdt_registers() {
 }
 
 pub fn init() {
-    let mut gdt: [u64; GDT_SIZE] = [0u64; GDT_SIZE];
-    gdt[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
-    gdt[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
-    gdt[3] = gdt[2];
-    gdt[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
-    gdt[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
-    gdt[6] = gdt[5];
-
-    for (i, entry) in gdt.iter().enumerate() {
-        // SAFETY:
-        // When `gdt::init` is called, `GDT_ADDRESS` is guaranteed to be a valid,
-        // writable address.
-        let ptr = unsafe { GDT_ADDRESS.add(i) };
-        // SAFETY:
-        // We write to GDT_ADDRESS, which we know is valid.
-        unsafe { write_volatile(ptr, *entry) };
+    unsafe {
+        GDT.entries[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
+        GDT.entries[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
+        GDT.entries[3] = GDT.entries[2];
+        GDT.entries[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
+        GDT.entries[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
+        GDT.entries[6] = GDT.entries[5];
     }
 
-    // SAFETY:
-    // `flush_gdt_registers()` needs to be unsafe due to the naked assembly.
-    unsafe { flush_gdt_registers() };
+    unsafe {
+        GDTR.base = &raw const GDT as u32;
+    }
+    unsafe {
+        flush_gdt_registers();
+    }
 }
