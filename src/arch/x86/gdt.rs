@@ -59,10 +59,7 @@ pub fn init() {
         GDT.entries[6] = GDT.entries[5];
     }
 
-    unsafe {
-        GDTR.base = &raw const GDT as u32;
-    }
-    unsafe {
-        flush_gdt_registers();
-    }
+    unsafe { GDTR.base = &raw const GDT as u32 };
+
+    unsafe { flush_gdt_registers() };
 }
