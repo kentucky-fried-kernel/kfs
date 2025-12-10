@@ -21,20 +21,22 @@ pub struct PageDirectoryEntry {
     present: u1,
 }
 
+impl const From<usize> for PageDirectoryEntry {
+    fn from(value: usize) -> Self {
+        Self(value as u32)
+    }
+}
+
+impl const From<PageDirectoryEntry> for usize {
+    fn from(value: PageDirectoryEntry) -> Self {
+        value.0 as Self
+    }
+}
+
 impl PageDirectoryEntry {
     #[must_use]
     pub const fn empty() -> Self {
-        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(0) }
-    }
-
-    #[must_use]
-    pub const fn from_usize(value: usize) -> Self {
-        unsafe { core::mem::transmute::<usize, PageDirectoryEntry>(value) }
-    }
-
-    #[must_use]
-    pub const fn to_usize(&self) -> usize {
-        unsafe { core::mem::transmute::<PageDirectoryEntry, usize>(*self) }
+        Self(0)
     }
 }
 
@@ -53,19 +55,21 @@ pub struct PageTableEntry {
     present: u1,
 }
 
+impl const From<usize> for PageTableEntry {
+    fn from(value: usize) -> Self {
+        Self(value as u32)
+    }
+}
+
+impl const From<PageTableEntry> for usize {
+    fn from(value: PageTableEntry) -> Self {
+        value.0 as Self
+    }
+}
+
 impl PageTableEntry {
     #[must_use]
     pub const fn empty() -> Self {
-        unsafe { core::mem::transmute::<usize, Self>(0) }
-    }
-
-    #[must_use]
-    pub const fn from_usize(value: usize) -> Self {
-        unsafe { core::mem::transmute::<usize, Self>(value) }
-    }
-
-    #[must_use]
-    pub const fn to_usize(&self) -> usize {
-        unsafe { core::mem::transmute::<Self, usize>(*self) }
+        Self(0)
     }
 }
