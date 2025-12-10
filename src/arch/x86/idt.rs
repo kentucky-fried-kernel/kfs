@@ -114,6 +114,8 @@ macro_rules! isr_err_stub {
 
 #[unsafe(no_mangle)]
 extern "C" fn handle_interrupt() {
+    // SAFETY:
+    // We use inline assembly to halt the CPU here.
     unsafe { core::arch::asm!("cli; hlt") };
 }
 
@@ -201,11 +203,14 @@ pub fn init() {
             InterruptDescriptor::new(*stub, KERNEL_CODE_OFFSET as u16, build_attributes(1, 0, GateType::InterruptGate32)),
         );
     }
-    unsafe {
-        IDT = Some(idt);
+    // SAFETY:
+    // We are saving a reference to the static IDT, which we know is valid.
+    let mut idt_ref = unsafe { &mut IDT };
 
-        if let Some(ref idt) = IDT {
-            idt.load();
-        }
+    let mut binding = Some(idt);
+    idt_ref = &mut binding;
+
+    if let Some(idt) = idt_ref {
+        idt.load();
     }
 }

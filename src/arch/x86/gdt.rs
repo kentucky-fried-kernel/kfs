@@ -52,16 +52,23 @@ unsafe extern "C" fn flush_gdt_registers() {
 }
 
 pub fn init() {
-    unsafe {
-        GDT.entries[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
-        GDT.entries[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
-        GDT.entries[3] = GDT.entries[2];
-        GDT.entries[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
-        GDT.entries[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
-        GDT.entries[6] = GDT.entries[5];
-    }
+    // SAFETY:
+    // We know this is safe since this module is the only one that can access GDT.
+    #[allow(static_mut_refs)]
+    let gdt = unsafe { &mut GDT };
 
-    unsafe { GDTR.base = &raw const GDT as u32 };
+    gdt.entries[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
+    gdt.entries[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
+    gdt.entries[3] = gdt.entries[2];
+    gdt.entries[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
+    gdt.entries[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
+    gdt.entries[6] = gdt.entries[5];
 
+    // SAFETY:
+    // We know this is safe since this module is the only one that can access GDTR.
+    unsafe { GDTR.base = &raw const gdt as u32 };
+
+    // SAFETY:
+    // We make sure that GDTR is properly initialized before loading it.
     unsafe { flush_gdt_registers() };
 }
