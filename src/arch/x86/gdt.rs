@@ -1,3 +1,5 @@
+pub const KERNEL_CODE_OFFSET: usize = 0x08;
+
 fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
     let mut descriptor: u64;
 

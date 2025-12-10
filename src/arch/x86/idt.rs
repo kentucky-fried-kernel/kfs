@@ -2,7 +2,7 @@
 #![allow(static_mut_refs)]
 #![allow(clippy::cast_possible_truncation)]
 
-use crate::{printk, printkln};
+use crate::{arch::x86::gdt::KERNEL_CODE_OFFSET, printk, printkln};
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
 
@@ -189,43 +189,6 @@ macro_rules! isr_stubs {
     };
 }
 
-pub fn remap_pic() {
-    const PIC1_CMD: u16 = 0x20;
-    const PIC1_DATA: u16 = 0x21;
-    const PIC2_CMD: u16 = 0xA0;
-    const PIC2_DATA: u16 = 0xA1;
-
-    const ICW1_INIT: u8 = 0x10;
-    const ICW1_ICW4: u8 = 0x01;
-    const ICW4_8086: u8 = 0x01;
-
-    // SAFETY:
-    // We are using the `Port` struct to write to the programmable interrupt
-    // controller.
-    #[allow(clippy::multiple_unsafe_ops_per_block)]
-    unsafe {
-        use crate::port::Port;
-
-        _ = Port::new(PIC1_DATA).read();
-        _ = Port::new(PIC2_DATA).read();
-
-        Port::new(PIC1_CMD).write(ICW1_INIT | ICW1_ICW4);
-        Port::new(PIC2_CMD).write(ICW1_INIT | ICW1_ICW4);
-
-        Port::new(PIC1_DATA).write(0x20);
-        Port::new(PIC2_DATA).write(0x28);
-
-        Port::new(PIC1_DATA).write(4);
-        Port::new(PIC2_DATA).write(2);
-
-        Port::new(PIC1_DATA).write(ICW4_8086);
-        Port::new(PIC2_DATA).write(ICW4_8086);
-
-        Port::new(PIC1_DATA).write(0xFF);
-        Port::new(PIC2_DATA).write(0xFF);
-    }
-}
-
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
@@ -235,13 +198,11 @@ pub fn init() {
     for (index, stub) in stubs.iter().enumerate() {
         idt.set_descriptor(
             index as u8,
-            InterruptDescriptor::new(*stub, 0x08, build_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(*stub, KERNEL_CODE_OFFSET as u16, build_attributes(1, 0, GateType::InterruptGate32)),
         );
     }
     unsafe {
         IDT = Some(idt);
-
-        remap_pic();
 
         if let Some(ref idt) = IDT {
             idt.load();
