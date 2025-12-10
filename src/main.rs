@@ -20,9 +20,12 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
         vmm::{self, paging::init::init_memory},
     };
 
-    init_memory(info);
     arch::x86::gdt::init();
     arch::x86::idt::init();
+
+    init_memory(info);
+
+    unsafe { core::arch::asm!("int 13") };
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");

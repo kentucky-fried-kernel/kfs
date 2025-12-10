@@ -92,31 +92,12 @@ impl InterruptDescriptorTable {
     }
 }
 
-#[unsafe(naked)]
-#[unsafe(no_mangle)]
-extern "C" fn exception_handler() {
-    core::arch::naked_asm!("pusha", "call handle_exception", "popa", "iret")
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn handle_exception() {
-    // panic!("FUCK");
-}
-
 macro_rules! isr_no_err_stub {
     ($func: ident, $nb: expr) => {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            core::arch::naked_asm!(
-            	"pusha",
-                "push {}",
-                "call handle_interrupt",
-                "add esp, 4",
-                "popa",
-                "iret",
-                const $nb
-            )
+            core::arch::naked_asm!("call handle_interrupt", "iret",)
         }
     };
 }
@@ -126,27 +107,14 @@ macro_rules! isr_err_stub {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            core::arch::naked_asm!(
-                "pusha",
-                "push {}",
-                "call handle_interrupt",
-                "add esp, 4",
-                "popa",
-                "add esp, 4",
-                "iret",
-                const $nb
-            )
+            core::arch::naked_asm!("call handle_interrupt", "iret",)
         }
     };
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn handle_interrupt(interrupt_number: usize) {
-    match interrupt_number {
-        13 => panic!("General Protection Fault"),
-        14 => panic!("Page Fault"),
-        _ => panic!("Interrupt"),
-    }
+extern "C" fn handle_interrupt() {
+    unsafe { core::arch::asm!("cli; hlt") };
 }
 
 isr_no_err_stub!(isr_stub_0, 0);
@@ -181,22 +149,6 @@ isr_no_err_stub!(isr_stub_28, 28);
 isr_no_err_stub!(isr_stub_29, 29);
 isr_err_stub!(isr_stub_30, 30);
 isr_no_err_stub!(isr_stub_31, 31);
-isr_no_err_stub!(isr_stub_32, 32);
-isr_no_err_stub!(isr_stub_33, 33);
-isr_no_err_stub!(isr_stub_34, 34);
-isr_no_err_stub!(isr_stub_35, 35);
-isr_no_err_stub!(isr_stub_36, 36);
-isr_no_err_stub!(isr_stub_37, 37);
-isr_no_err_stub!(isr_stub_38, 38);
-isr_no_err_stub!(isr_stub_39, 39);
-isr_no_err_stub!(isr_stub_40, 40);
-isr_no_err_stub!(isr_stub_41, 41);
-isr_no_err_stub!(isr_stub_42, 42);
-isr_no_err_stub!(isr_stub_43, 43);
-isr_no_err_stub!(isr_stub_44, 44);
-isr_no_err_stub!(isr_stub_45, 45);
-isr_no_err_stub!(isr_stub_46, 46);
-isr_no_err_stub!(isr_stub_47, 47);
 
 macro_rules! isr_stubs {
     () => {
@@ -233,22 +185,6 @@ macro_rules! isr_stubs {
             isr_stub_29 as *const () as usize,
             isr_stub_30 as *const () as usize,
             isr_stub_31 as *const () as usize,
-            isr_stub_32 as *const () as usize,
-            isr_stub_33 as *const () as usize,
-            isr_stub_34 as *const () as usize,
-            isr_stub_35 as *const () as usize,
-            isr_stub_36 as *const () as usize,
-            isr_stub_37 as *const () as usize,
-            isr_stub_38 as *const () as usize,
-            isr_stub_39 as *const () as usize,
-            isr_stub_40 as *const () as usize,
-            isr_stub_41 as *const () as usize,
-            isr_stub_42 as *const () as usize,
-            isr_stub_43 as *const () as usize,
-            isr_stub_44 as *const () as usize,
-            isr_stub_45 as *const () as usize,
-            isr_stub_46 as *const () as usize,
-            isr_stub_47 as *const () as usize,
         ]
     };
 }
