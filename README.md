@@ -85,13 +85,13 @@ This project is separated into 10 subprojects.
         - [x] GDT must be set at address 0x000008000
     - [x] Tool to print the kernel stack
     - [x] Basic shell with commands like `reboot`, `halt`, etc.
-- [ ] kfs-3
-    - [ ] Complete memory code structure with pagination
-    - [ ] Read/Write operations on memory
-    - [ ] User Space and Kernel Space memory
-    - [ ] Physical and Virtual memory
-    - [ ] Allocators
-    - [ ] Kernel Panic handling
+- [x] kfs-3
+    - [x] Complete memory code structure with pagination
+    - [x] Read/Write operations on memory
+    - [x] User Space and Kernel Space memory
+    - [x] Physical and Virtual memory
+    - [x] Allocators
+    - [x] Kernel Panic handling
 - [ ] kfs-4
     - [ ] Hardware Interrupts
     - [ ] Software Interrupts
