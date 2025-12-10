@@ -26,16 +26,16 @@ pub const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;
 #[allow(clippy::identity_op)]
 #[unsafe(link_section = ".data")]
 pub static mut KERNEL_PAGE_DIRECTORY_TABLE: PageDirectory = {
-    let mut dir: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from_usize(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
+    let mut dir: [PageDirectoryEntry; KERNEL_PAGE_DIRECTORY_TABLE_SIZE] = [PageDirectoryEntry::from(0); KERNEL_PAGE_DIRECTORY_TABLE_SIZE];
 
-    dir[0] = PageDirectoryEntry::from_usize((0 << 22) | 0b1000_0011);
+    dir[0] = PageDirectoryEntry::from((0 << 22) | 0b1000_0011);
 
     // Sets mappings temporary so that the kernel is mapped to the upper half of the
     // vm space
-    dir[768] = PageDirectoryEntry::from_usize((0 << 22) | 0b1000_0011);
-    dir[769] = PageDirectoryEntry::from_usize((1 << 22) | 0b1000_0011);
-    dir[770] = PageDirectoryEntry::from_usize((2 << 22) | 0b1000_0011);
-    dir[771] = PageDirectoryEntry::from_usize((3 << 22) | 0b1000_0011);
+    dir[768] = PageDirectoryEntry::from((0 << 22) | 0b1000_0011);
+    dir[769] = PageDirectoryEntry::from((1 << 22) | 0b1000_0011);
+    dir[770] = PageDirectoryEntry::from((2 << 22) | 0b1000_0011);
+    dir[771] = PageDirectoryEntry::from((3 << 22) | 0b1000_0011);
 
     PageDirectory(dir)
 };
