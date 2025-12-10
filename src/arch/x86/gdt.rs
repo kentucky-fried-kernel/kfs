@@ -66,7 +66,10 @@ pub fn init() {
 
     // SAFETY:
     // We know this is safe since this module is the only one that can access GDTR.
-    unsafe { GDTR.base = &raw const gdt as u32 };
+    #[allow(clippy::multiple_unsafe_ops_per_block)]
+    unsafe {
+        GDTR.base = &raw const GDT as u32;
+    }
 
     // SAFETY:
     // We make sure that GDTR is properly initialized before loading it.
