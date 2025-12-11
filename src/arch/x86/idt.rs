@@ -2,7 +2,13 @@
 #![allow(static_mut_refs)]
 #![allow(clippy::cast_possible_truncation)]
 
-use crate::{arch::x86::gdt::KERNEL_CODE_OFFSET, printk, printkln};
+use crate::{
+    arch::x86::{
+        gdt::KERNEL_CODE_OFFSET,
+        pic::{self, send_eoi},
+    },
+    printk, printkln, serial_println,
+};
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
 
@@ -12,7 +18,7 @@ struct InterruptDescriptor {
     isr_low: u16,
     kernel_cs: u16,
     zero: u8,
-    attributes: u8,
+    attributes: Attributes,
     isr_high: u16,
 }
 
@@ -53,6 +59,7 @@ enum PresentBit {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone, Copy)]
 struct Attributes(u8);
 
 impl Attributes {
@@ -77,7 +84,7 @@ impl InterruptDescriptor {
             isr_low: (offset & 0xFFFF) as u16,
             kernel_cs,
             zero: 0,
-            attributes: u8::from(attributes),
+            attributes,
             isr_high: ((offset >> 16) & 0xFFFF) as u16,
         }
     }
@@ -127,7 +134,18 @@ macro_rules! isr_no_err_stub {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            core::arch::naked_asm!("call handle_interrupt", "iret",)
+            core::arch::naked_asm!(
+                "pusha",
+                "push 0",
+                "push esp",
+                "push {0}",
+                "call {1}",
+                "add esp, 12",
+                "popa",
+                "iret",
+                const $nb,
+                sym handle_interrupt
+            )
         }
     };
 }
@@ -137,16 +155,29 @@ macro_rules! isr_err_stub {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            core::arch::naked_asm!("call handle_interrupt", "iret",)
+            core::arch::naked_asm!(
+                "pop eax",
+                "pusha",
+                "push eax",
+                "push esp",
+                "push {0}",
+                "call {1}",
+                "add esp, 12",
+                "popa",
+                "iret",
+                const $nb,
+                sym handle_interrupt
+            )
         }
     };
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn handle_interrupt() {
+extern "C" fn handle_interrupt(intno: u32, stack_ptr: u32) {
+    serial_println!("INT {}", intno);
     // SAFETY:
     // We use inline assembly to halt the CPU here.
-    unsafe { core::arch::asm!("cli; hlt") };
+    // unsafe { core::arch::asm!("cli; hlt") };
 }
 
 isr_no_err_stub!(isr_stub_0, 0);
@@ -224,6 +255,7 @@ macro_rules! isr_stubs {
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
+    pic::remap(32, 40);
     let stubs = isr_stubs!();
     let mut idt = InterruptDescriptorTable::new();
 
@@ -237,14 +269,13 @@ pub fn init() {
             ),
         );
     }
-    // SAFETY:
-    // We are saving a reference to the static IDT, which we know is valid.
-    let mut idt_ref = unsafe { &mut IDT };
+    // SAFETY: We're initializing the static IDT exactly once.
+    #[allow(clippy::multiple_unsafe_ops_per_block)]
+    unsafe {
+        IDT = Some(idt);
 
-    let mut binding = Some(idt);
-    idt_ref = &mut binding;
-
-    if let Some(idt) = idt_ref {
-        idt.load();
+        if let Some(ref idt) = IDT {
+            idt.load();
+        }
     }
 }
