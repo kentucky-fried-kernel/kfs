@@ -27,7 +27,6 @@ pub mod printk;
 pub mod ps2;
 pub mod qemu;
 pub mod serial;
-pub mod shell;
 pub mod terminal;
 pub mod tester;
 pub mod vmm;

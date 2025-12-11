@@ -33,12 +33,12 @@ impl PrintkWriter {
     }
 
     pub fn flush(&mut self) {
-        let b = Buffer::from_screen(self.screen);
-        for byte in &self.buffer[..self.position] {
-            self.screen.write(*byte);
-        }
-        b.flush();
-        self.position = 0;
+        // let b = Buffer::from_screen(self.screen);
+        // for byte in &self.buffer[..self.position] {
+        //     self.screen.write(*byte);
+        // }
+        // b.flush();
+        // self.position = 0;
     }
 }
 
