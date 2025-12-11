@@ -30,6 +30,7 @@ struct InterruptDescriptorTable {
 
 #[repr(u8)]
 enum GateType {
+    None = 0,
     TaskGate = 0b0101,
     InterruptGate16 = 0b0110,
     TrapGate16 = 0b0111,
@@ -37,22 +38,51 @@ enum GateType {
     TrapGate32 = 0b1111,
 }
 
-fn build_attributes(present: u8, privilege_level: u8, gate_type: GateType) -> u8 {
-    (present << 7) | (privilege_level << 5) | gate_type as u8
+#[repr(u8)]
+enum PrivilegeLevel {
+    KernelMode = 0,
+    _Ring1 = 1,
+    _Ring2 = 2,
+    UserMode = 3,
+}
+
+#[repr(u8)]
+enum PresentBit {
+    Absent = 0,
+    Present = 1,
+}
+
+#[repr(C)]
+struct Attributes(u8);
+
+impl Attributes {
+    fn new(present: PresentBit, dpl: PrivilegeLevel, gate_type: GateType) -> Self {
+        Self(((present as u8) << 7) | ((dpl as u8) << 5) | gate_type as u8)
+    }
+
+    fn empty() -> Self {
+        Self(0)
+    }
+}
+
+impl From<Attributes> for u8 {
+    fn from(value: Attributes) -> Self {
+        value.0
+    }
 }
 
 impl InterruptDescriptor {
-    pub fn new(offset: usize, kernel_cs: u16, attributes: u8) -> Self {
+    fn new(offset: usize, kernel_cs: u16, attributes: Attributes) -> Self {
         Self {
             isr_low: (offset & 0xFFFF) as u16,
             kernel_cs,
             zero: 0,
-            attributes,
+            attributes: u8::from(attributes),
             isr_high: ((offset >> 16) & 0xFFFF) as u16,
         }
     }
 
-    pub fn offset(&self) -> u32 {
+    fn offset(&self) -> u32 {
         (u32::from(self.isr_high) << 16) | u32::from(self.isr_low)
     }
 }
@@ -60,9 +90,9 @@ impl InterruptDescriptor {
 impl InterruptDescriptorTable {
     /// Creates a new `InterruptDescriptorTable` filled with non-present
     /// entries.
-    pub fn new() -> Self {
+    fn new() -> Self {
         let mut idt = Self {
-            entries: [InterruptDescriptor::new(0, 0, 0); MAX_INTERRUPT_DESCRIPTORS],
+            entries: [InterruptDescriptor::new(0, 0, Attributes::empty()); MAX_INTERRUPT_DESCRIPTORS],
             idtr: InterruptDescriptorTableRegister { base: 0, limit: 0 },
         };
 
@@ -72,7 +102,7 @@ impl InterruptDescriptorTable {
         idt
     }
 
-    pub fn load(&self) {
+    fn load(&self) {
         let idtr = InterruptDescriptorTableRegister {
             base: self.entries.as_ptr() as usize,
             limit: (core::mem::size_of::<[InterruptDescriptor; MAX_INTERRUPT_DESCRIPTORS]>() - 1) as u16,
@@ -87,7 +117,7 @@ impl InterruptDescriptorTable {
         }
     }
 
-    pub fn set_descriptor(&mut self, index: u8, descriptor: InterruptDescriptor) {
+    fn set_descriptor(&mut self, index: u8, descriptor: InterruptDescriptor) {
         self.entries[index as usize] = descriptor;
     }
 }
@@ -200,7 +230,11 @@ pub fn init() {
     for (index, stub) in stubs.iter().enumerate() {
         idt.set_descriptor(
             index as u8,
-            InterruptDescriptor::new(*stub, KERNEL_CODE_OFFSET as u16, build_attributes(1, 0, GateType::InterruptGate32)),
+            InterruptDescriptor::new(
+                *stub,
+                KERNEL_CODE_OFFSET as u16,
+                Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
+            ),
         );
     }
     // SAFETY:
