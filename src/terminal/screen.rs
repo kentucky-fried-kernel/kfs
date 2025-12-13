@@ -1,6 +1,6 @@
 use crate::terminal::{entry::Entry, vga::LinesIterator};
 
-pub const BUFFER_SIZE: usize = 100;
+pub const BUFFER_SIZE: usize = 0x10000;
 
 pub static mut SCREEN: Screen = Screen::default();
 

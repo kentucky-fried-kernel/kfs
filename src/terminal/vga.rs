@@ -24,8 +24,8 @@ impl Buffer {
     }
 
     pub fn from_screen(screen: &mut Screen, rows_scrolled_up: usize) -> Self {
-        let line_viewable_first_index = if screen.lines().count() > BUFFER_HEIGHT + rows_scrolled_up {
-            screen.lines().count() - BUFFER_HEIGHT
+        let line_viewable_first_index = if screen.lines().count() > (BUFFER_HEIGHT + rows_scrolled_up) {
+            screen.lines().count() - (BUFFER_HEIGHT + rows_scrolled_up)
         } else {
             0
         };

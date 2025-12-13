@@ -2,7 +2,11 @@ use crate::{
     ps2::{self, Key},
     qemu::{ExitCode, exit},
     serial_print, serial_println,
-    terminal::{self, Screen, entry::Entry, vga::Buffer},
+    terminal::{
+        self, Screen,
+        entry::Entry,
+        vga::{self, Buffer},
+    },
 };
 
 type Character = u8;
@@ -10,7 +14,7 @@ type Character = u8;
 pub struct Shell<'a> {
     screen: &'a mut Screen,
     prompt: Prompt,
-    rows_scrolled: usize,
+    rows_scrolled_up: usize,
 }
 
 impl<'a> Shell<'a> {
@@ -18,7 +22,7 @@ impl<'a> Shell<'a> {
         Self {
             screen,
             prompt: Prompt::default(),
-            rows_scrolled: 0,
+            rows_scrolled_up: 0,
         }
     }
     pub fn launch(&mut self) {
@@ -41,10 +45,14 @@ impl<'a> Shell<'a> {
                                 self.prompt.len -= 1;
                             }
                         }
-                        Key::ArrowUp => self.rows_scrolled += 1,
+                        Key::ArrowUp => {
+                            if self.screen.lines().count() > self.rows_scrolled_up + vga::BUFFER_HEIGHT {
+                                self.rows_scrolled_up += 1;
+                            }
+                        }
                         Key::ArrowDown => {
-                            if self.rows_scrolled > 0 {
-                                self.rows_scrolled -= 1;
+                            if self.rows_scrolled_up > 0 {
+                                self.rows_scrolled_up -= 1;
                             }
                         }
                         _ => {
@@ -64,7 +72,7 @@ impl<'a> Shell<'a> {
     }
 
     pub fn flush(&mut self) {
-        let b = Buffer::from_screen(self.screen, self.rows_scrolled);
+        let b = Buffer::from_screen(self.screen, self.rows_scrolled_up);
         b.flush();
     }
 }
