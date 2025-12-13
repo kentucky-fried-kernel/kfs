@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::terminal::{SCREEN, Screen, vga::Buffer};
+use crate::terminal::{SCREEN, Screen, entry::Entry, vga::Buffer};
 
 const BUFFER_SIZE: usize = 1024;
 
@@ -33,12 +33,12 @@ impl PrintkWriter {
     }
 
     pub fn flush(&mut self) {
-        // let b = Buffer::from_screen(self.screen);
-        // for byte in &self.buffer[..self.position] {
-        //     self.screen.write(*byte);
-        // }
-        // b.flush();
-        // self.position = 0;
+        for byte in &self.buffer[..self.position] {
+            self.screen.push(Entry::new(*byte));
+        }
+        let b = Buffer::from_screen(self.screen, 0);
+        b.flush();
+        self.position = 0;
     }
 }
 

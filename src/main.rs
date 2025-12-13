@@ -6,7 +6,7 @@
 
 use kfs::{
     boot::MultibootInfo,
-    serial_println,
+    printkln, serial_println,
     shell::{self, Shell},
     terminal::{SCREEN, entry::Entry, vga::Buffer},
 };
