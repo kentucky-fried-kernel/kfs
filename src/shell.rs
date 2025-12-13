@@ -79,6 +79,8 @@ impl<'a> Shell<'a> {
     }
 
     pub fn flush(&mut self) {
+        // This pushing and remove_last is so that the cursor which is ON the last
+        // element is one after the last element
         self.screen.push(Entry::new(b' '));
         let b = Buffer::from_screen(self.screen, self.rows_scrolled_up);
         self.screen.remove_last();
