@@ -78,24 +78,22 @@ pub struct Prompt {
 impl Prompt {
     pub fn default() -> Self {
         Self {
-            entries: [0; PROMT_SIZE],
+            entries: [b' '; PROMT_SIZE],
             len: 0,
         }
     }
 
     pub fn execute(&self, screen: &mut Screen) -> Result<(), ()> {
-        let prompt = &self.entries[..self.len];
-
         for command in COMMANDS {
-            let is_the_same_string = &self.entries[..command.name.len()] == command.name.as_bytes();
-            let has_trailing_space_or_same_size = self.entries[command.name.len()] == b' ' || command.name.len() == self.len;
-            if is_the_same_string {
-                if has_trailing_space_or_same_size {}
-                let args = if command.name.len() >= self.len {
-                    &[]
-                } else {
-                    &self.entries[(command.name.len() + 1)..self.len]
-                };
+            let cmd = &self.entries[..command.name.len()];
+            let args = if command.name.len() >= self.len {
+                &[]
+            } else {
+                &self.entries[(command.name.len() + 1)..self.len]
+            };
+            let cmd_has_trailing_space = self.entries[command.name.len()] == b' ';
+
+            if cmd == command.name.as_bytes() && cmd_has_trailing_space {
                 (command.func)(args, screen);
                 return Ok(());
             }
@@ -115,7 +113,7 @@ impl Prompt {
 
     pub fn clear(&mut self) {
         self.len = 0;
-        self.entries = [b'\n'; PROMT_SIZE]
+        self.entries = [b' '; PROMT_SIZE]
     }
 }
 
