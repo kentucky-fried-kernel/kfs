@@ -59,7 +59,7 @@ impl Entry {
         ((self.color as u16) << 8) | (self.character as u16)
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn get_character(&self) -> u8 {
         self.character
     }

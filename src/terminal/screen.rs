@@ -15,7 +15,7 @@ pub struct Screen {
 }
 
 impl Screen {
-    #[must_use] 
+    #[must_use]
     pub const fn default() -> Self {
         Self {
             entries: [Entry::new(b' '); BUFFER_SIZE],
