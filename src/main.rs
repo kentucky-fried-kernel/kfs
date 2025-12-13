@@ -7,7 +7,8 @@
 use kfs::{
     boot::MultibootInfo,
     serial_println,
-    terminal::{entry::Entry, vga::Buffer},
+    shell::{self, Shell},
+    terminal::{SCREEN, entry::Entry, vga::Buffer},
 };
 
 mod panic;
@@ -33,25 +34,9 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
         panic!("Failed to initialize kmalloc");
     }
 
-    let mut s = Screen::default();
-    for i in 0..20 {
-        for _ in 0..60 {
-            s.push(Entry::new(b'a'));
-        }
-        s.push(Entry::new(b'\n'));
-    }
-    for i in 0..20 {
-        for _ in 0..50 {
-            s.push(Entry::new(b'a'));
-        }
-        s.push(Entry::new(b'\n'));
-    }
-
-    let b = Buffer::from_screen(&mut s);
-
-    b.flush();
-    // #[allow(static_mut_refs)]
-    // shell::launch(unsafe { &mut terminal::SCREEN });
+    #[allow(static_mut_refs)]
+    let mut shell = Shell::default(unsafe { &mut SCREEN });
+    shell.launch();
 }
 
 // /// # Panics

@@ -1,6 +1,6 @@
 use crate::terminal::{entry::Entry, vga::LinesIterator};
 
-pub const BUFFER_SIZE: usize = 0x1000;
+pub const BUFFER_SIZE: usize = 0x10000;
 
 pub static mut SCREEN: Screen = Screen::default();
 
@@ -27,6 +27,12 @@ impl Screen {
         } else {
             self.entries[(self.head + self.len) % self.entries.len()] = e;
             self.len += 1;
+        }
+    }
+
+    pub fn write(&mut self, str: &str) {
+        for c in str.chars() {
+            self.push(Entry::new(c as u8));
         }
     }
 
