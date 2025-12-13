@@ -149,6 +149,10 @@ struct Command<'a> {
 }
 const COMMANDS: &[Command] = &[
     Command { name: "echo", func: echo_cmd },
+    Command {
+        name: "clear",
+        func: clear_cmd,
+    },
     // Command {
     //     name: "panic",
     //     func: panic_cmd,
@@ -177,7 +181,10 @@ fn echo_cmd(args: &[u8], s: &mut Screen) {
     s.push(Entry::new(b'\n'));
 }
 
-// TODO: doesn't correctly exit
+fn clear_cmd(args: &[u8], s: &mut Screen) {
+    *s = Screen::default();
+}
+
 fn exit_cmd(_: &[u8], _: &mut Screen) {
     serial_println!("exited");
     unsafe { exit(ExitCode::Success) };
