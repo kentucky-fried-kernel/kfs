@@ -3,7 +3,7 @@ use core::ptr::write_volatile;
 use crate::{
     boot::KERNEL_BASE,
     serial_println,
-    terminal::{Screen, entry::Entry},
+    terminal::{Screen, cursor::Cursor, entry::Entry},
 };
 
 pub const BUFFER_HEIGHT: usize = 25;
@@ -14,12 +14,14 @@ const VGA_BUFFER_ADDR: *mut u16 = (KERNEL_BASE + 0xB8000) as *mut u16;
 #[derive(Debug)]
 pub struct Buffer {
     pub entries: [[Entry; BUFFER_WIDTH]; BUFFER_HEIGHT],
+    pub cursor: Option<Cursor>,
 }
 
 impl Buffer {
     pub fn default() -> Self {
         Self {
             entries: [[Entry::new(b' '); BUFFER_WIDTH]; BUFFER_HEIGHT],
+            cursor: None,
         }
     }
 
@@ -37,6 +39,22 @@ impl Buffer {
             }
         }
 
+        new.cursor = if rows_scrolled_up > 0 {
+            None
+        } else {
+            if let Some((cursor_line_index, cursor_line)) = screen.lines().skip(line_viewable_first_index).enumerate().take(BUFFER_HEIGHT).last() {
+                if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
+                    Some(Cursor {
+                        x: last_char_index as u16,
+                        y: cursor_line_index as u16,
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
         new
     }
 
@@ -45,6 +63,16 @@ impl Buffer {
             for (character_index, c) in line.iter().enumerate() {
                 let index = line_index * BUFFER_WIDTH + character_index;
                 unsafe { write_volatile(VGA_BUFFER_ADDR.add(index), c.to_u16()) }
+            }
+        }
+
+        match self.cursor {
+            None => Cursor::hide(),
+            Some(cursor) => {
+                unsafe {
+                    cursor.flush_pos();
+                };
+                Cursor::show();
             }
         }
     }

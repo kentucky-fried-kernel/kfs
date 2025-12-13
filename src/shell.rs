@@ -4,6 +4,7 @@ use crate::{
     serial_print, serial_println,
     terminal::{
         self, Screen,
+        cursor::Cursor,
         entry::Entry,
         vga::{self, Buffer},
     },
@@ -40,6 +41,7 @@ impl<'a> Shell<'a> {
                     match key {
                         Key::Enter => {
                             self.screen.push(Entry::new(b'\n'));
+                            Cursor::hide();
                             let _ = self.prompt.execute(self.screen);
                             self.prompt.clear();
                             break;
@@ -77,7 +79,9 @@ impl<'a> Shell<'a> {
     }
 
     pub fn flush(&mut self) {
+        self.screen.push(Entry::new(b' '));
         let b = Buffer::from_screen(self.screen, self.rows_scrolled_up);
+        self.screen.remove_last();
         b.flush();
     }
 }
