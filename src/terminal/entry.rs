@@ -69,6 +69,7 @@ impl Entry {
 /// The colors are defined as `u8` values, where each value corresponds to a
 /// particular color. The default color is light gray on black.
 #[repr(u8)]
+#[derive(Clone, Copy)]
 pub enum Color {
     /// Light gray on black (default)
     Default = 0x07,

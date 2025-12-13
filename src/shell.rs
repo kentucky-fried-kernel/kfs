@@ -32,6 +32,11 @@ impl<'a> Shell<'a> {
 
             loop {
                 if let Some(key) = ps2::read_if_ready() {
+                    // So that on any other key it resets to the bottom
+                    match key {
+                        Key::ArrowUp | Key::ArrowDown => {}
+                        _ => self.rows_scrolled_up = 0,
+                    }
                     match key {
                         Key::Enter => {
                             self.screen.push(Entry::new(b'\n'));

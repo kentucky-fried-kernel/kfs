@@ -1,4 +1,7 @@
-use crate::terminal::{entry::Entry, vga::LinesIterator};
+use crate::terminal::{
+    entry::{Color, Entry},
+    vga::LinesIterator,
+};
 
 pub const BUFFER_SIZE: usize = 0x10000;
 
@@ -33,6 +36,12 @@ impl Screen {
     pub fn write(&mut self, str: &str) {
         for c in str.chars() {
             self.push(Entry::new(c as u8));
+        }
+    }
+
+    pub fn write_color(&mut self, str: &str, color: Color) {
+        for c in str.chars() {
+            self.push(Entry::new_with_color(c as u8, color as u8));
         }
     }
 
