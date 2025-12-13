@@ -87,11 +87,15 @@ impl Prompt {
         let prompt = &self.entries[..self.len];
 
         for command in COMMANDS {
-            serial_println!("hello");
-            let is_the_same_string = &prompt[..command.name.len()] == command.name.as_bytes();
-            let has_trailing_space_or_same_size = prompt[command.name.len()] == b' ' || command.name.len() == self.len;
-            if is_the_same_string && has_trailing_space_or_same_size {
-                let args = &prompt[command.name.len() + 1..];
+            let is_the_same_string = &self.entries[..command.name.len()] == command.name.as_bytes();
+            let has_trailing_space_or_same_size = self.entries[command.name.len()] == b' ' || command.name.len() == self.len;
+            if is_the_same_string {
+                if has_trailing_space_or_same_size {}
+                let args = if command.name.len() >= self.len {
+                    &[]
+                } else {
+                    &self.entries[(command.name.len() + 1)..self.len]
+                };
                 (command.func)(args, screen);
                 return Ok(());
             }
@@ -111,6 +115,7 @@ impl Prompt {
 
     pub fn clear(&mut self) {
         self.len = 0;
+        self.entries = [b'\n'; PROMT_SIZE]
     }
 }
 
