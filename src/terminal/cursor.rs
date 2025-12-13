@@ -1,8 +1,9 @@
-use super::vga::{VIEW_HEIGHT, VIEW_WIDTH};
 use core::arch::asm;
 
+use crate::terminal::vga::{BUFFER_HEIGHT, BUFFER_WIDTH};
+
 /// Abstraction for managing the [Text-mode cursor](https://wiki.osdev.org/Text_Mode_Cursor).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Cursor {
     pub x: u16,
     pub y: u16,
@@ -30,13 +31,14 @@ impl Cursor {
     /// 2. `flush_pos` may cause undefined behavior if called with `x` or `y` values outside of the
     ///    range `0x00..=0x0F`.
     pub unsafe fn flush_pos(&self) {
-        let out_of_bounds: bool = !(0..VIEW_HEIGHT).contains(&(self.y as usize)) || !(0..VIEW_WIDTH).contains(&(self.x as usize));
+        let out_of_bounds: bool = !(0..BUFFER_HEIGHT).contains(&(self.y as usize)) || !(0..BUFFER_WIDTH).contains(&(self.x as usize));
         if out_of_bounds {
             return;
         }
 
-        let pos = self.y * VIEW_WIDTH as u16 + self.x;
+        let pos = self.y * BUFFER_WIDTH as u16 + self.x;
 
+        #[allow(clippy::undocumented_unsafe_blocks)]
         unsafe {
             Self::update(Cursor::LOCATION_REG_LOW, (pos & 0xFF) as u8);
             Self::update(Cursor::LOCATION_REG_HIGH, ((pos >> 8) & 0xFF) as u8);
@@ -54,6 +56,7 @@ impl Cursor {
     /// 2. `resize` may cause undefined behavior if called with `start` or `end` values outside of
     ///    the range `0x00..=0x0F`.
     pub unsafe fn resize(start: u8, end: u8) {
+        #[allow(clippy::undocumented_unsafe_blocks)]
         unsafe {
             Self::update(Cursor::REG_START, start);
             Self::update(Cursor::REG_END, end);
@@ -70,11 +73,11 @@ impl Cursor {
     /// register is stored) can be incremented by one. This will move it to
     /// `0x3D5`, the CRTC's data register, signifying the CRTC's readiness to
     /// receive the input values.
-    ///
     /// ## SAFETY:
     /// This writes to the VGA buffer directly, running this in a non-bare-metal
     /// environment will result in invalid memory access.
     unsafe fn update(index: u8, value: u8) {
+        #[allow(clippy::undocumented_unsafe_blocks)]
         unsafe {
             asm!(
                 "mov dx, 0x3D4",
@@ -92,12 +95,14 @@ impl Cursor {
     }
 
     pub fn show() {
+        // SAFETY: The values are between 0 and 0xF)
         unsafe {
             Self::resize(0, 15);
         }
     }
 
     pub fn hide() {
+        // SAFETY: We are running this on bare metal right now which makes this valid
         unsafe {
             Self::update(Cursor::REG_START, 1 << 5);
         }
