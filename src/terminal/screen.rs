@@ -83,6 +83,8 @@ impl<'a> Iterator for ScreenIterator<'a> {
             None
         } else {
             let idx: usize = (self.screen.head + self.index) % self.screen.entries.len();
+            // SAFETY: This is safe because ScreenIterator is liked to the lifetime
+            // of Screen which this returned element depends on
             unsafe {
                 let next = &raw mut self.screen.entries[idx];
                 self.index += 1;
@@ -99,6 +101,8 @@ impl<'a> DoubleEndedIterator for ScreenIterator<'a> {
         } else {
             let offset = self.screen.len - self.index - 1;
             let idx: usize = (self.screen.head + offset) % self.screen.entries.len();
+            // SAFETY: This is safe because ScreenIterator is liked to the lifetime
+            // of Screen which this returned element depends on
             unsafe {
                 let next = &raw mut self.screen.entries[idx];
                 self.index += 1;

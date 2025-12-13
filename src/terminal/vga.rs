@@ -61,6 +61,8 @@ impl Buffer {
         for (line_index, line) in self.entries.iter().enumerate() {
             for (character_index, c) in line.iter().enumerate() {
                 let index = line_index * BUFFER_WIDTH + character_index;
+                // SAFETY: This is safe because the iterators will never go over
+                // BUFFER_HEIGHT * BUFFER_WIDTH which is the max len of the VGA BUFFER
                 unsafe { write_volatile(VGA_BUFFER_ADDR.add(index), c.to_u16()) }
             }
         }
@@ -68,6 +70,7 @@ impl Buffer {
         match self.cursor {
             None => Cursor::hide(),
             Some(cursor) => {
+                // SAFETY: This is safe because we don't call flush in usermode right now
                 unsafe {
                     cursor.flush_pos();
                 };
@@ -104,6 +107,8 @@ impl<'a> Iterator for LinesIterator<'a> {
 
         let next = self.screen as *mut Screen;
 
+        // SAFETY: This lifetime is valid because it is linked
+        // to the Lifetime of LinesIterator<'a> which itself is dependend on Screen
         unsafe {
             let next = Line::new(&mut *next, self.index, c);
             self.index += c;
@@ -139,6 +144,8 @@ impl<'a> Iterator for Line<'a> {
         } else {
             let idx: usize = (self.screen.head + self.start + self.index) % self.screen.entries.len();
 
+            // SAFETY: This lifetime is valid because it is linked
+            // to the Lifetime of Line<'a> which itself is dependend on Screen
             unsafe {
                 let next = &raw mut self.screen.entries[idx];
                 self.index += 1;
