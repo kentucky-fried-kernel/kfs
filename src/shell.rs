@@ -1,4 +1,8 @@
+use alloc::{fmt::format, format, string::String};
+
 use crate::{
+    boot::{STACK, STACK_SIZE},
+    printk, printkln,
     ps2::{self, Key},
     qemu::{ExitCode, exit},
     serial_print, serial_println,
@@ -42,7 +46,9 @@ impl<'a> Shell<'a> {
                         Key::Enter => {
                             self.screen.push(Entry::new(b'\n'));
                             Cursor::hide();
-                            let _ = self.prompt.execute(self.screen);
+                            if let Err(e) = self.prompt.execute(self.screen) {
+                                printkln!("{}", e);
+                            }
                             self.prompt.clear();
                             break;
                         }
@@ -106,7 +112,7 @@ impl Prompt {
         }
     }
 
-    pub fn execute(&self, screen: &mut Screen) -> Result<(), ()> {
+    pub fn execute(&self, screen: &mut Screen) -> Result<(), &'static str> {
         for command in COMMANDS {
             let cmd = &self.entries[..command.name.len()];
             let args = if command.name.len() >= self.len {
@@ -121,7 +127,7 @@ impl Prompt {
                 return Ok(());
             }
         }
-        Ok(())
+        Err("command not found - run `help` for available commands")
     }
 
     pub fn push(&mut self, c: Character) -> Result<(), PromptPushError> {
@@ -153,24 +159,19 @@ const COMMANDS: &[Command] = &[
         name: "clear",
         func: clear_cmd,
     },
-    // Command {
-    //     name: "panic",
-    //     func: panic_cmd,
-    // },
-    // Command { name: "halt", func: halt_cmd },
-    // Command {
-    //     name: "reboot",
-    //     func: reboot_cmd,
-    // },
-    // Command {
-    //     name: "prints",
-    //     func: prints_cmd,
-    // },
-    // Command { name: "help", func: help_cmd },
-    // Command {
-    //     name: "printsb",
-    //     func: printsb_cmd,
-    // },
+    Command {
+        name: "reboot",
+        func: reboot_cmd,
+    },
+    Command {
+        name: "prints",
+        func: prints_cmd,
+    },
+    Command { name: "help", func: help_cmd },
+    Command {
+        name: "printsb",
+        func: printsb_cmd,
+    },
     Command { name: "exit", func: exit_cmd },
 ];
 
@@ -181,11 +182,79 @@ fn echo_cmd(args: &[u8], s: &mut Screen) {
     s.push(Entry::new(b'\n'));
 }
 
-fn clear_cmd(args: &[u8], s: &mut Screen) {
+fn clear_cmd(_: &[u8], s: &mut Screen) {
     *s = Screen::default();
 }
-
+fn reboot_cmd(_: &[u8], _: &mut Screen) {
+    unsafe { core::arch::asm!("out dx, al", in("dx") 0x64, in("al") 0xFEu8) };
+}
 fn exit_cmd(_: &[u8], _: &mut Screen) {
     serial_println!("exited");
     unsafe { exit(ExitCode::Success) };
+}
+#[allow(unused)]
+fn help_cmd(args: &[u8], s: &mut Screen) {
+    printk!("\nAvailable commands:\n\n");
+    printk!("    echo:                echoes input to the console\n");
+    printk!("    clear:               clears the screen\n");
+    printk!("    reboot:              reboot the kernel\n");
+    printk!("    prints               display the kernel stack from %esp to the top\n");
+    printk!("    printsb              display the kernel stack boundaries\n");
+    printk!("    help                 display this help message\n\n");
+}
+
+fn get_stack_pointer() -> u32 {
+    let sp: usize;
+    unsafe {
+        core::arch::asm!(
+            "mov {0}, esp",
+            out(reg) sp,
+        );
+    }
+
+    sp as u32
+}
+#[allow(static_mut_refs)]
+fn prints_cmd(args: &[u8], s: &mut Screen) {
+    printsb_cmd(args, s);
+    let sp_addr = get_stack_pointer();
+    let st = unsafe { (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32 };
+    let mut row: [u8; 16];
+
+    assert!(sp_addr <= st);
+
+    for row_idx in (sp_addr..st).step_by(16) {
+        let ptr = row_idx as *const u8;
+        row = unsafe { *(ptr.cast::<[u8; 16]>()) };
+        dump_row(row, ptr);
+    }
+}
+
+#[allow(static_mut_refs)]
+fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
+    printk!("ESP: {:#08x} STACK_TOP: {:#08x}\n", get_stack_pointer(), unsafe {
+        (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32
+    });
+}
+
+/// Dumps a row of 16 bytes in the following format:
+///
+/// ```
+/// 001c503c-001c504b 20077007 72076907 6e077407 73072007  .p.r.i.n.t.s. .`
+/// ^                 ^                                    ^
+/// address range     hexdump                              ASCII dump
+/// ```
+fn dump_row(row: [u8; 16], ptr: *const u8) {
+    printk!("{:08x}-{:08x} ", ptr as u32, ptr as u32 + 15);
+    for word in row.chunks(4) {
+        // Reminder to future self: casting to u32 prints the bytes in little-endian.
+        for byte in word {
+            printk!("{:02x}", byte);
+        }
+        printk!(" ");
+    }
+    for byte in row {
+        printk!("{}", (if (32..127).contains(&byte) { byte } else { b'.' }) as char);
+    }
+    printk!("\n");
 }
