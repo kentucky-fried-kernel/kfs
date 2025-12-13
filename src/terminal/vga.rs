@@ -2,7 +2,6 @@ use core::ptr::write_volatile;
 
 use crate::{
     boot::KERNEL_BASE,
-    serial_println,
     terminal::{Screen, cursor::Cursor, entry::Entry},
 };
 
@@ -17,14 +16,16 @@ pub struct Buffer {
     pub cursor: Option<Cursor>,
 }
 
-impl Buffer {
-    pub fn default() -> Self {
+impl Default for Buffer {
+    fn default() -> Self {
         Self {
             entries: [[Entry::new(b' '); BUFFER_WIDTH]; BUFFER_HEIGHT],
             cursor: None,
         }
     }
+}
 
+impl Buffer {
     pub fn from_screen(screen: &mut Screen, rows_scrolled_up: usize) -> Self {
         let line_viewable_first_index = if screen.lines().count() > (BUFFER_HEIGHT + rows_scrolled_up) {
             screen.lines().count() - (BUFFER_HEIGHT + rows_scrolled_up)
@@ -41,19 +42,17 @@ impl Buffer {
 
         new.cursor = if rows_scrolled_up > 0 {
             None
-        } else {
-            if let Some((cursor_line_index, cursor_line)) = screen.lines().skip(line_viewable_first_index).enumerate().take(BUFFER_HEIGHT).last() {
-                if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
-                    Some(Cursor {
-                        x: last_char_index as u16,
-                        y: cursor_line_index as u16,
-                    })
-                } else {
-                    None
-                }
+        } else if let Some((cursor_line_index, cursor_line)) = screen.lines().skip(line_viewable_first_index).enumerate().take(BUFFER_HEIGHT).last() {
+            if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
+                Some(Cursor {
+                    x: last_char_index as u16,
+                    y: cursor_line_index as u16,
+                })
             } else {
                 None
             }
+        } else {
+            None
         };
         new
     }
@@ -141,7 +140,7 @@ impl<'a> Iterator for Line<'a> {
             let idx: usize = (self.screen.head + self.start + self.index) % self.screen.entries.len();
 
             unsafe {
-                let next = &mut self.screen.entries[idx] as *mut Entry;
+                let next = &raw mut self.screen.entries[idx];
                 self.index += 1;
                 Some(&mut *next)
             }

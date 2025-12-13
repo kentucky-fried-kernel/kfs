@@ -4,12 +4,7 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::{
-    boot::MultibootInfo,
-    printkln, serial_println,
-    shell::{self, Shell},
-    terminal::{SCREEN, entry::Entry, vga::Buffer},
-};
+use kfs::{boot::MultibootInfo, shell::Shell, terminal::SCREEN};
 
 mod panic;
 
@@ -22,7 +17,6 @@ extern crate alloc;
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
         arch,
-        terminal::{self, Screen},
         vmm::{self, paging::init::init_memory},
     };
 

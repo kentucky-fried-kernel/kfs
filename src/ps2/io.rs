@@ -1,4 +1,4 @@
-use crate::{port::Port, ps2::scancodes::SCANCODE_TO_KEY_SECOND, serial_println};
+use crate::{port::Port, ps2::scancodes::SCANCODE_TO_KEY_SECOND};
 
 use super::{
     COMMAND_PORT, DATA_PORT, Key, OUTPUT_BUFFER_STATUS_BIT, STATUS_PORT,

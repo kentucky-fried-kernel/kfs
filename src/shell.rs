@@ -1,11 +1,9 @@
-use alloc::{fmt::format, format, string::String};
-
 use crate::{
     boot::{STACK, STACK_SIZE},
     printk, printkln,
     ps2::{self, Key},
     qemu::{ExitCode, exit},
-    serial_print, serial_println,
+    serial_println,
     terminal::{
         self, Screen,
         cursor::Cursor,
@@ -104,14 +102,21 @@ pub struct Prompt {
     len: usize,
 }
 
-impl Prompt {
-    pub fn default() -> Self {
+impl Default for Prompt {
+    fn default() -> Self {
         Self {
             entries: [b' '; PROMT_SIZE],
             len: 0,
         }
     }
+}
 
+impl Prompt {
+    /// Executes the command contained in the prompt buffer
+    ///
+    /// # Errors
+    /// Returns an error if the command is not found in the
+    /// available commands
     pub fn execute(&self, screen: &mut Screen) -> Result<(), &'static str> {
         for command in COMMANDS {
             let cmd = &self.entries[..command.name.len()];
@@ -130,6 +135,10 @@ impl Prompt {
         Err("command not found - run `help` for available commands")
     }
 
+    /// Pushes an element to the prompt
+    ///
+    /// # Errors
+    /// Returns an error if the prompt buffer is full
     pub fn push(&mut self, c: Character) -> Result<(), PromptPushError> {
         if self.len >= self.entries.len() {
             Err(PromptPushError::PromptFull)
@@ -142,7 +151,7 @@ impl Prompt {
 
     pub fn clear(&mut self) {
         self.len = 0;
-        self.entries = [b' '; PROMT_SIZE]
+        self.entries = [b' '; PROMT_SIZE];
     }
 }
 

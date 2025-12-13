@@ -15,6 +15,7 @@ pub struct Screen {
 }
 
 impl Screen {
+    #[must_use] 
     pub const fn default() -> Self {
         Self {
             entries: [Entry::new(b' '); BUFFER_SIZE],
@@ -83,7 +84,7 @@ impl<'a> Iterator for ScreenIterator<'a> {
         } else {
             let idx: usize = (self.screen.head + self.index) % self.screen.entries.len();
             unsafe {
-                let next = &mut self.screen.entries[idx] as *mut Entry;
+                let next = &raw mut self.screen.entries[idx];
                 self.index += 1;
                 Some(&mut *next)
             }
@@ -99,7 +100,7 @@ impl<'a> DoubleEndedIterator for ScreenIterator<'a> {
             let offset = self.screen.len - self.index - 1;
             let idx: usize = (self.screen.head + offset) % self.screen.entries.len();
             unsafe {
-                let next = &mut self.screen.entries[idx] as *mut Entry;
+                let next = &raw mut self.screen.entries[idx];
                 self.index += 1;
                 Some(&mut *next)
             }
