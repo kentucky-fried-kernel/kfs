@@ -1,8 +1,8 @@
 use crate::{
     ps2::{self, Key},
     qemu::{ExitCode, exit},
-    serial, serial_print, serial_println,
-    terminal::{self, Screen, entry::Entry, screen, vga::Buffer},
+    serial_print, serial_println,
+    terminal::{self, Screen, entry::Entry, vga::Buffer},
 };
 
 type Character = u8;
@@ -10,6 +10,7 @@ type Character = u8;
 pub struct Shell<'a> {
     screen: &'a mut Screen,
     prompt: Prompt,
+    rows_scrolled: usize,
 }
 
 impl<'a> Shell<'a> {
@@ -17,6 +18,7 @@ impl<'a> Shell<'a> {
         Self {
             screen,
             prompt: Prompt::default(),
+            rows_scrolled: 0,
         }
     }
     pub fn launch(&mut self) {
@@ -29,10 +31,6 @@ impl<'a> Shell<'a> {
                     match key {
                         Key::Enter => {
                             self.screen.push(Entry::new(b'\n'));
-                            for c in self.prompt.entries.iter().take(self.prompt.len) {
-                                serial_print!("{:?} ", *c as char);
-                            }
-                            serial_println!("");
                             let _ = self.prompt.execute(self.screen);
                             self.prompt.clear();
                             break;
@@ -43,7 +41,12 @@ impl<'a> Shell<'a> {
                                 self.prompt.len -= 1;
                             }
                         }
-                        Key::ArrowUp => {}
+                        Key::ArrowUp => self.rows_scrolled += 1,
+                        Key::ArrowDown => {
+                            if self.rows_scrolled > 0 {
+                                self.rows_scrolled -= 1;
+                            }
+                        }
                         _ => {
                             let _ = Self::push(self, key as u8);
                         }
@@ -61,13 +64,14 @@ impl<'a> Shell<'a> {
     }
 
     pub fn flush(&mut self) {
-        let b = Buffer::from_screen(self.screen);
+        let b = Buffer::from_screen(self.screen, self.rows_scrolled);
         b.flush();
     }
 }
 
 // This is to validate that the prompt is never bigger than the screen size
-const PROMT_SIZE: usize = terminal::screen::BUFFER_SIZE - 0x1000;
+const PROMPT_SIZE_PERCENTAGE_OF_SCREEN_SIZE: usize = 10;
+const PROMT_SIZE: usize = (terminal::screen::BUFFER_SIZE * PROMPT_SIZE_PERCENTAGE_OF_SCREEN_SIZE) / 100;
 
 #[derive(Debug)]
 pub struct Prompt {

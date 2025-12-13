@@ -23,8 +23,8 @@ impl Buffer {
         }
     }
 
-    pub fn from_screen(screen: &mut Screen) -> Self {
-        let line_viewable_first_index = if screen.lines().count() > BUFFER_HEIGHT {
+    pub fn from_screen(screen: &mut Screen, rows_scrolled_up: usize) -> Self {
+        let line_viewable_first_index = if screen.lines().count() > BUFFER_HEIGHT + rows_scrolled_up {
             screen.lines().count() - BUFFER_HEIGHT
         } else {
             0
@@ -32,7 +32,7 @@ impl Buffer {
 
         let mut new = Self::default();
         for (line_index, l) in screen.lines().skip(line_viewable_first_index).enumerate().take(BUFFER_HEIGHT) {
-            for (char_index, c) in l.enumerate() {
+            for (char_index, c) in l.enumerate().take(BUFFER_WIDTH) {
                 new.entries[line_index][char_index] = *c;
             }
         }

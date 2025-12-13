@@ -1,4 +1,4 @@
-use crate::port::Port;
+use crate::{port::Port, ps2::scancodes::SCANCODE_TO_KEY_SECOND, serial_println};
 
 use super::{
     COMMAND_PORT, DATA_PORT, Key, OUTPUT_BUFFER_STATUS_BIT, STATUS_PORT,
@@ -59,9 +59,9 @@ pub fn read_if_ready() -> Option<Key> {
 
     if code == 0xF0 || code == 0xE0 {
         while !is_ps2_data_available() {}
-        let _ = unsafe { data_port.read() };
+        let second_code = unsafe { data_port.read() };
         unsafe { LAST_KEY = None };
-        return None;
+        return SCANCODE_TO_KEY_SECOND[second_code as usize].1;
     }
 
     unsafe { LAST_KEY = Some(code) };
