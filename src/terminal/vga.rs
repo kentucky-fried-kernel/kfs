@@ -152,9 +152,16 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
             self.index_back -= 1;
         } else {
             if self.index_back == last_new_line_index {
-                start = 0;
-                line_len = last_new_line_index + 1;
-                self.index_back = 0;
+                if last_new_line_index >= BUFFER_WIDTH {
+                    last_new_line_index %= BUFFER_WIDTH;
+                    start = self.index_back - last_new_line_index;
+                    line_len = last_new_line_index + 1;
+                    self.index_back -= last_new_line_index + 1;
+                } else {
+                    start = 0;
+                    line_len = last_new_line_index + 1;
+                    self.index_back = 0;
+                }
             } else {
                 let loong = last_new_line_index == BUFFER_WIDTH - 1;
                 last_new_line_index %= BUFFER_WIDTH;
@@ -167,10 +174,10 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
             }
         }
 
-        // serial_println!("start {}", start);
-        // serial_println!("line_len {}", line_len);
-        // serial_println!("index_back {}", self.index_back);
-        // serial_println!("");
+        serial_println!("start {}", start);
+        serial_println!("line_len {}", line_len);
+        serial_println!("index_back {}", self.index_back);
+        serial_println!("");
         // let mut c = 0;
         // for e in self.screen.into_iter().skip(self.index).take(BUFFER_WIDTH) {
         //     if e.get_character() == b'\n' {

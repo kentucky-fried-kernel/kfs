@@ -38,6 +38,7 @@ impl<'a> Shell<'a> {
 
             loop {
                 if let Some(key) = ps2::read_if_ready() {
+                    serial_println!("-----------------");
                     // So that on any other key it resets to the bottom
                     match key {
                         Key::ArrowUp | Key::ArrowDown => {}
@@ -88,9 +89,9 @@ impl<'a> Shell<'a> {
     pub fn flush(&mut self) {
         // This pushing and remove_last is so that the cursor which is ON the last
         // element is one after the last element
-        self.screen.push(Entry::new(b' '));
+        // self.screen.push(Entry::new(b' '));
         let b = Buffer::from_screen(self.screen, self.rows_scrolled_up);
-        self.screen.remove_last();
+        // self.screen.remove_last();
         b.flush();
     }
 }
