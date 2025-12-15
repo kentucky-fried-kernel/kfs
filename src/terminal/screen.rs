@@ -6,7 +6,7 @@ use crate::{
     },
 };
 
-pub const BUFFER_SIZE: usize = 10000;
+pub const BUFFER_SIZE: usize = 0x10000;
 
 pub static mut SCREEN: Screen = Screen::default();
 
