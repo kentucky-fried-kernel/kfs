@@ -158,8 +158,17 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
             let len_all = (self.index_back + 1) - start_of_line;
             if len_all > BUFFER_WIDTH {
                 // serial_println!("hello");
-                let len_inner = len_all % BUFFER_WIDTH;
-                let start_inner = start_of_line + (len_all / BUFFER_WIDTH) * BUFFER_WIDTH;
+                let mut len_inner = len_all;
+                let mut counter = 0;
+                loop {
+                    if len_inner > BUFFER_WIDTH {
+                        len_inner -= BUFFER_WIDTH;
+                        counter += 1;
+                    } else {
+                        break;
+                    }
+                }
+                let start_inner = start_of_line + counter * BUFFER_WIDTH;
                 start = start_inner;
                 line_len = len_inner;
                 // serial_println!("start_of_line {}", start_of_line);
