@@ -127,53 +127,96 @@ impl<'a> Iterator for LinesIterator<'a> {
 
 impl<'a> DoubleEndedIterator for LinesIterator<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
+        serial_println!("hello");
+        serial_println!("index_back {}", self.index_back);
         if self.index_back <= self.index {
             return None;
         }
 
-        let mut last_new_line_index = 0;
+        let mut start_of_line = self.index_back + 1;
         let mut found_new_line = false;
-        let len = self.screen.len;
-        for (i, c) in self.screen.into_iter().rev().skip(len - (self.index_back + 1)).enumerate() {
-            last_new_line_index = i;
-            // serial_println!("inside {}", i);
+        let mut screel_len = self.screen.len;
+        for c in self.screen.into_iter().rev().skip(screel_len - (self.index_back + 1)) {
             if c.get_character() == b'\n' {
                 found_new_line = true;
                 break;
             }
+            if start_of_line > 0 {
+                start_of_line -= 1;
+            }
+            // serial_println!("start_of_line {}", start_of_line);
         }
 
         let mut start = 0;
         let mut line_len = 0;
 
-        if last_new_line_index == 0 {
-            start = self.index_back;
+        if start_of_line == self.index_back {
+            start = start_of_line;
             line_len = 0;
             self.index_back -= 1;
         } else {
-            if self.index_back == last_new_line_index {
-                if last_new_line_index >= BUFFER_WIDTH {
-                    last_new_line_index %= BUFFER_WIDTH;
-                    start = self.index_back - last_new_line_index;
-                    line_len = last_new_line_index + 1;
-                    self.index_back -= last_new_line_index + 1;
+            let len_all = (self.index_back + 1) - start_of_line;
+            if len_all > BUFFER_WIDTH {
+                // serial_println!("hello");
+                let len_inner = len_all % BUFFER_WIDTH;
+                let start_inner = start_of_line + (len_all / BUFFER_WIDTH) * BUFFER_WIDTH;
+                start = start_inner;
+                line_len = len_inner;
+                // serial_println!("start_of_line {}", start_of_line);
+                // serial_println!("len {}", len_all);
+                // serial_println!("len_all {}", len_all);
+                // serial_println!("start_inner {}", start_inner);
+                // serial_println!("len_inner {}", len_inner);
+                // serial_println!("index_back {}", self.index_back);
+                if self.index_back >= len_inner {
+                    self.index_back -= len_inner;
                 } else {
-                    start = 0;
-                    line_len = last_new_line_index + 1;
                     self.index_back = 0;
                 }
             } else {
-                let loong = last_new_line_index == BUFFER_WIDTH - 1;
-                last_new_line_index %= BUFFER_WIDTH;
-                start = self.index_back - last_new_line_index + 1;
-                line_len = last_new_line_index;
-                if loong {
-                    line_len += 1;
+                let len_inner = len_all;
+                let start_inner = start_of_line;
+                start = start_inner;
+                line_len = len_inner;
+                if self.index_back >= len_inner {
+                    self.index_back -= len_inner;
+                } else {
+                    self.index_back = 0;
                 }
-                self.index_back -= last_new_line_index + 1;
+                if found_new_line {
+                    self.index_back -= 1;
+                }
             }
         }
 
+        // if start_of_line == 0 {
+        //     start = self.index_back;
+        //     line_len = 0;
+        //     self.index_back -= 1;
+        // } else {
+        //     if self.index_back == last_new_line_index {
+        //         if last_new_line_index >= BUFFER_WIDTH {
+        //             last_new_line_index %= BUFFER_WIDTH;
+        //             start = self.index_back - last_new_line_index;
+        //             line_len = last_new_line_index + 1;
+        //             self.index_back -= last_new_line_index + 1;
+        //         } else {
+        //             start = 0;
+        //             line_len = last_new_line_index + 1;
+        //             self.index_back = 0;
+        //         }
+        //     } else {
+        //         let loong = last_new_line_index == BUFFER_WIDTH - 1;
+        //         last_new_line_index %= BUFFER_WIDTH;
+        //         start = self.index_back - last_new_line_index + 1;
+        //         line_len = last_new_line_index;
+        //         if loong {
+        //             line_len += 1;
+        //         }
+        //         self.index_back -= last_new_line_index + 1;
+        //     }
+        // }
+        //
         serial_println!("start {}", start);
         serial_println!("line_len {}", line_len);
         serial_println!("index_back {}", self.index_back);
@@ -185,7 +228,6 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
         //     }
         //     c += 1;
         // }
-
         let next = self.screen as *mut Screen;
 
         // SAFETY: This lifetime is valid because it is linked
