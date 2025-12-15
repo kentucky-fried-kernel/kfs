@@ -58,7 +58,7 @@ impl Buffer {
                 let index = line_index * BUFFER_WIDTH + character_index;
                 // SAFETY: This is safe because the iterators will never go over
                 // BUFFER_HEIGHT * BUFFER_WIDTH which is the max len of the VGA BUFFER
-                unsafe { write_volatile(VGA_BUFFER_ADDR.add(index), c.to_u16()) }
+                unsafe { write_volatile(VGA_BUFFER_ADDR.add(index), u16::from(*c)) }
             }
         }
 
