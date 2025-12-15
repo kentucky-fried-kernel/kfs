@@ -30,7 +30,7 @@ impl Buffer {
         let lines_push_up = BUFFER_HEIGHT - screen.lines().rev().take(BUFFER_HEIGHT).count();
         let mut new = Self::default();
         for (line_index, l) in screen.lines().rev().skip(rows_scrolled_up).enumerate().take(BUFFER_HEIGHT) {
-            for (char_index, c) in l.enumerate().take(BUFFER_WIDTH) {
+            for (char_index, c) in l.into_iter().enumerate().take(BUFFER_WIDTH) {
                 new.entries[BUFFER_HEIGHT - line_index - 1 - lines_push_up][char_index] = *c;
             }
         }
@@ -38,7 +38,7 @@ impl Buffer {
         new.cursor = if rows_scrolled_up > 0 {
             None
         } else if let Some(cursor_line) = screen.lines().next_back() {
-            if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
+            if let Some((last_char_index, _)) = cursor_line.into_iter().enumerate().last() {
                 Some(Cursor {
                     x: last_char_index as u16,
                     y: (BUFFER_HEIGHT - lines_push_up - 1) as u16,
@@ -198,28 +198,41 @@ pub struct Line<'a> {
     screen: &'a Screen,
     start: usize,
     len: usize,
-    index: usize,
 }
 
 impl<'a> Line<'a> {
     pub fn new(screen: &'a Screen, start: usize, len: usize) -> Self {
-        Self { screen, start, len, index: 0 }
+        Self { screen, start, len }
     }
 }
 
-impl<'a> Iterator for Line<'a> {
+pub struct LineIterator<'a> {
+    line: Line<'a>,
+    index: usize,
+}
+
+impl<'a> IntoIterator for Line<'a> {
+    type Item = &'a Entry;
+    type IntoIter = LineIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        LineIterator { line: self, index: 0 }
+    }
+}
+
+impl<'a> Iterator for LineIterator<'a> {
     type Item = &'a Entry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.len {
+        if self.index >= self.line.len {
             None
         } else {
-            let idx: usize = (self.screen.head + self.start + self.index) % self.screen.entries.len();
+            let idx: usize = (self.line.screen.head + self.line.start + self.index) % self.line.screen.entries.len();
 
             // SAFETY: This lifetime is valid because it is linked
             // to the Lifetime of Line<'a> which itself is dependend on Screen
             unsafe {
-                let next = &raw const self.screen.entries[idx];
+                let next = &raw const self.line.screen.entries[idx];
                 self.index += 1;
                 Some(&*next)
             }
