@@ -11,7 +11,7 @@ use crate::{
         self, Screen,
         cursor::Cursor,
         entry::Entry,
-        vga::{self, Buffer},
+        vga::{self, BUFFER_HEIGHT, Buffer},
     },
 };
 
@@ -60,7 +60,7 @@ impl<'a> Shell<'a> {
                             }
                         }
                         Key::ArrowUp => {
-                            if self.screen.lines().count() > self.rows_scrolled_up + vga::BUFFER_HEIGHT {
+                            if self.screen.lines().rev().take(self.rows_scrolled_up + BUFFER_HEIGHT + 1).count() > self.rows_scrolled_up + vga::BUFFER_HEIGHT {
                                 self.rows_scrolled_up += 1;
                             }
                         }
@@ -195,7 +195,8 @@ fn echo_cmd(args: &[u8], s: &mut Screen) {
 }
 
 fn clear_cmd(_: &[u8], s: &mut Screen) {
-    *s = Screen::default();
+    s.head = 0;
+    s.len = 0;
 }
 fn reboot_cmd(_: &[u8], _: &mut Screen) {
     unsafe { core::arch::asm!("out dx, al", in("dx") 0x64, in("al") 0xFEu8) };

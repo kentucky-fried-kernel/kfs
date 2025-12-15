@@ -1,9 +1,12 @@
-use crate::terminal::{
-    entry::{Color, Entry},
-    vga::LinesIterator,
+use crate::{
+    serial_println,
+    terminal::{
+        entry::{Color, Entry},
+        vga::LinesIterator,
+    },
 };
 
-pub const BUFFER_SIZE: usize = 0x10000;
+pub const BUFFER_SIZE: usize = 10000;
 
 pub static mut SCREEN: Screen = Screen::default();
 
