@@ -75,13 +75,13 @@ impl Buffer {
     }
 }
 pub struct LinesIterator<'a> {
-    screen: &'a mut Screen,
+    screen: &'a Screen,
     index: usize,
     index_back: usize,
 }
 
 impl<'a> LinesIterator<'a> {
-    pub fn new(screen: &'a mut Screen) -> Self {
+    pub fn new(screen: &'a Screen) -> Self {
         let len = screen.len;
         Self {
             screen,
@@ -106,12 +106,12 @@ impl<'a> Iterator for LinesIterator<'a> {
             c += 1;
         }
 
-        let next = self.screen as *mut Screen;
+        let next = self.screen as *const Screen;
 
         // SAFETY: This lifetime is valid because it is linked
         // to the Lifetime of LinesIterator<'a> which itself is dependend on Screen
         unsafe {
-            let next = Line::new(&mut *next, self.index, c);
+            let next = Line::new(&*next, self.index, c);
             self.index += c;
 
             let new_line_found = c != BUFFER_WIDTH;
@@ -183,32 +183,32 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
                 }
             }
         }
-        let next = self.screen as *mut Screen;
+        let next = self.screen as *const Screen;
 
         // SAFETY: This lifetime is valid because it is linked
         // to the Lifetime of LinesIterator<'a> which itself is dependend on Screen
         unsafe {
-            let next = Line::new(&mut *next, start, line_len);
+            let next = Line::new(&*next, start, line_len);
             Some(next)
         }
     }
 }
 
 pub struct Line<'a> {
-    screen: &'a mut Screen,
+    screen: &'a Screen,
     start: usize,
     len: usize,
     index: usize,
 }
 
 impl<'a> Line<'a> {
-    pub fn new(screen: &'a mut Screen, start: usize, len: usize) -> Self {
+    pub fn new(screen: &'a Screen, start: usize, len: usize) -> Self {
         Self { screen, start, len, index: 0 }
     }
 }
 
 impl<'a> Iterator for Line<'a> {
-    type Item = &'a mut Entry;
+    type Item = &'a Entry;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.len {
@@ -219,9 +219,9 @@ impl<'a> Iterator for Line<'a> {
             // SAFETY: This lifetime is valid because it is linked
             // to the Lifetime of Line<'a> which itself is dependend on Screen
             unsafe {
-                let next = &raw mut self.screen.entries[idx];
+                let next = &raw const self.screen.entries[idx];
                 self.index += 1;
-                Some(&mut *next)
+                Some(&*next)
             }
         }
     }

@@ -1,7 +1,7 @@
 use crate::terminal::{
-        entry::{Color, Entry},
-        vga::LinesIterator,
-    };
+    entry::{Color, Entry},
+    vga::LinesIterator,
+};
 
 pub const BUFFER_SIZE: usize = 0x10000;
 
@@ -57,13 +57,13 @@ impl Screen {
         }
     }
 
-    pub fn lines<'a>(&'a mut self) -> LinesIterator<'a> {
+    pub fn lines<'a>(&'a self) -> LinesIterator<'a> {
         LinesIterator::new(self)
     }
 }
 
-impl<'a> IntoIterator for &'a mut Screen {
-    type Item = &'a mut Entry;
+impl<'a> IntoIterator for &'a Screen {
+    type Item = &'a Entry;
     type IntoIter = ScreenIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -72,13 +72,13 @@ impl<'a> IntoIterator for &'a mut Screen {
 }
 
 pub struct ScreenIterator<'a> {
-    screen: &'a mut Screen,
+    screen: &'a Screen,
     index: usize,
 }
 
 impl<'a> Iterator for ScreenIterator<'a> {
-    type Item = &'a mut Entry;
-    fn next(&mut self) -> Option<&'a mut Entry> {
+    type Item = &'a Entry;
+    fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.screen.len {
             None
         } else {
@@ -86,16 +86,16 @@ impl<'a> Iterator for ScreenIterator<'a> {
             // SAFETY: This is safe because ScreenIterator is liked to the lifetime
             // of Screen which this returned element depends on
             unsafe {
-                let next = &raw mut self.screen.entries[idx];
+                let next = &raw const self.screen.entries[idx];
                 self.index += 1;
-                Some(&mut *next)
+                Some(&*next)
             }
         }
     }
 }
 
 impl<'a> DoubleEndedIterator for ScreenIterator<'a> {
-    fn next_back(&mut self) -> Option<&'a mut Entry> {
+    fn next_back(&mut self) -> Option<Self::Item> {
         if self.index >= self.screen.len {
             None
         } else {
@@ -104,9 +104,9 @@ impl<'a> DoubleEndedIterator for ScreenIterator<'a> {
             // SAFETY: This is safe because ScreenIterator is liked to the lifetime
             // of Screen which this returned element depends on
             unsafe {
-                let next = &raw mut self.screen.entries[idx];
+                let next = &raw const self.screen.entries[idx];
                 self.index += 1;
-                Some(&mut *next)
+                Some(&*next)
             }
         }
     }
