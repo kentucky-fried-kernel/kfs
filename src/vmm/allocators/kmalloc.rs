@@ -190,16 +190,16 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
 
     let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
 
-    // serial_println!("init_slab_allocator");
+    serial_println!("init_slab_allocator");
     let mut allocation = mmap(None, total_size, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)? as *mut u8;
 
-    // serial_println!("init_slab_allocator");
+    serial_println!("init_slab_allocator");
 
     allocator.slabs_start = allocation as usize;
     allocator.slabs_end = allocation as usize + total_size;
 
     for conf in SLAB_CONFIGS {
-        // serial_println!("in slab initialization loop");
+        serial_println!("in slab initialization loop");
         let slab_cache_addr = NonNull::new(allocation).ok_or(KmallocError::NotEnoughMemory)?;
         // SAFETY:
         // This function is assumed to only ever be called once the buddy allocator is initialized, which
@@ -225,7 +225,11 @@ pub fn init() -> Result<(), KmallocError> {
     // SAFETY:
     // We are accessing a static mutable allocator, which is only accessible through this crate. The API
     // of this crate ensures we are not touching it outside of its expected usage.s
-    init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR })?;
+    let res = init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR });
+    serial_println!("{:?}", res);
+    if res.is_err() {
+        return Err(KmallocError::NotEnoughMemory);
+    }
 
     init_slab_allocator(
         // SAFETY:

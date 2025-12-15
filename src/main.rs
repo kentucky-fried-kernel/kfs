@@ -23,11 +23,10 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    unsafe { core::arch::asm!("int 0") };
-
     init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
+        serial_println!("Failed to initialize kmalloc");
         panic!("Failed to initialize kmalloc");
     }
 

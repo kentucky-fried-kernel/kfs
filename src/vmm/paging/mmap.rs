@@ -68,7 +68,6 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
 
 fn pages_physical_free_iter(pages_needed: usize, _mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
     let _lets_see = pages_physical_iter();
-
     let mut i = 0;
     loop {
         if i >= pages_physical_iter().count() {
@@ -140,9 +139,11 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
     let pages_needed = (PAGE_SIZE + size - 1) / PAGE_SIZE;
 
     let pages_physical = pages_physical_free_iter(pages_needed, mode)?;
+
     if pages_physical.count() * PAGE_SIZE < size {
         return Err(MmapError::NotEnoughMemory);
     }
+
     serial_println!("After pages_physical_free_iter 1");
     let pages_virtual = pages_virtual_free_iter(pages_needed, access)?;
     serial_println!("After pages_virtuall_free_iter 1");
