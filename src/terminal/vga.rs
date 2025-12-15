@@ -81,6 +81,7 @@ pub struct LinesIterator<'a> {
 }
 
 impl<'a> LinesIterator<'a> {
+    #[must_use]
     pub fn new(screen: &'a Screen) -> Self {
         let len = screen.len;
         Self {
@@ -201,6 +202,7 @@ pub struct Line<'a> {
 }
 
 impl<'a> Line<'a> {
+    #[must_use]
     pub fn new(screen: &'a Screen, start: usize, len: usize) -> Self {
         Self { screen, start, len }
     }

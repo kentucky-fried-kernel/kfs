@@ -57,6 +57,7 @@ impl Screen {
         }
     }
 
+    #[must_use]
     pub fn lines<'a>(&'a self) -> LinesIterator<'a> {
         LinesIterator::new(self)
     }
