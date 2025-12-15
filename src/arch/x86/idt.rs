@@ -469,16 +469,16 @@ pub fn init() {
         );
     }
 
-    for (index, stub) in irq_stubs.iter().enumerate() {
-        idt.set_descriptor(
-            index as u8 + 32,
-            InterruptDescriptor::new(
-                *stub,
-                KERNEL_CODE_OFFSET as u16,
-                Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
-            ),
-        );
-    }
+    // for (index, stub) in irq_stubs.iter().enumerate() {
+    //     idt.set_descriptor(
+    //         index as u8 + 32,
+    //         InterruptDescriptor::new(
+    //             *stub,
+    //             KERNEL_CODE_OFFSET as u16,
+    //             Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode,
+    // GateType::InterruptGate32),         ),
+    //     );
+    // }
 
     // SAFETY: The AtomicBool guarding the IDT static ensures we initialize it exactly once.
     #[allow(clippy::multiple_unsafe_ops_per_block)]
