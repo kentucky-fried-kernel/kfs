@@ -46,6 +46,13 @@ impl Entry {
         Entry { color, character }
     }
 
+    #[must_use]
+    pub const fn get_character(&self) -> u8 {
+        self.character
+    }
+}
+
+impl From<Entry> for u16 {
     /// Converts this `Entry` into a `u16` value that can be written to the VGA
     /// buffer.
     ///
@@ -54,14 +61,8 @@ impl Entry {
     ///
     /// ### Returns:
     /// A `u16` value representing this `Entry`.
-    #[must_use]
-    pub const fn to_u16(&self) -> u16 {
-        ((self.color as u16) << 8) | (self.character as u16)
-    }
-
-    #[must_use]
-    pub const fn get_character(&self) -> u8 {
-        self.character
+    fn from(e: Entry) -> u16 {
+        ((e.color as u16) << 8) | (e.character as u16)
     }
 }
 
