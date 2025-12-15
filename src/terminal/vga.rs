@@ -36,21 +36,20 @@ impl Buffer {
             }
         }
 
-        // new.cursor = if rows_scrolled_up > 0 {
-        //     None
-        // } else if let Some((cursor_line_index, cursor_line)) =
-        // screen.lines().skip(line_viewable_first_index).enumerate().take(BUFFER_HEIGHT).last() {
-        //     if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
-        //         Some(Cursor {
-        //             x: last_char_index as u16,
-        //             y: cursor_line_index as u16,
-        //         })
-        //     } else {
-        //         None
-        //     }
-        // } else {
-        //     None
-        // };
+        new.cursor = if rows_scrolled_up > 0 {
+            None
+        } else if let Some(cursor_line) = screen.lines().rev().next() {
+            if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
+                Some(Cursor {
+                    x: last_char_index as u16,
+                    y: (BUFFER_HEIGHT - lines_push_up - 1) as u16,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         new
     }
 
@@ -144,8 +143,8 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
             }
         }
 
-        let mut start = 0;
-        let mut line_len = 0;
+        let mut start;
+        let mut line_len;
 
         if start_of_line == self.index_back {
             start = start_of_line;
