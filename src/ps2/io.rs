@@ -38,8 +38,6 @@ pub fn flush_output_buffer() {
     }
 }
 
-static mut LAST_KEY: Option<u8> = None;
-
 /// Reads from the PS2 data port if the PS2 status port is ready. Returns
 /// `Some(KeyScanCode)` if the converted scancode is a supported character.
 ///
@@ -60,11 +58,9 @@ pub fn read_if_ready() -> Option<Key> {
     if code == 0xF0 || code == 0xE0 {
         while !is_ps2_data_available() {}
         let second_code = unsafe { data_port.read() };
-        unsafe { LAST_KEY = None };
         return SCANCODE_TO_KEY_SECOND[second_code as usize].1;
     }
 
-    unsafe { LAST_KEY = Some(code) };
     SCANCODE_TO_KEY[code as usize].1
 }
 
