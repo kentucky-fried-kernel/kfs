@@ -96,18 +96,18 @@ impl<'a> Shell<'a> {
 
 // This is to validate that the prompt is never bigger than the screen size
 const PROMPT_SIZE_PERCENTAGE_OF_SCREEN_SIZE: usize = 10;
-const PROMT_SIZE: usize = (terminal::screen::BUFFER_SIZE * PROMPT_SIZE_PERCENTAGE_OF_SCREEN_SIZE) / 100;
+const PROMPT_SIZE: usize = (terminal::screen::BUFFER_SIZE * PROMPT_SIZE_PERCENTAGE_OF_SCREEN_SIZE) / 100;
 
 #[derive(Debug)]
 pub struct Prompt {
-    entries: [Character; PROMT_SIZE],
+    entries: [Character; PROMPT_SIZE],
     len: usize,
 }
 
 impl Default for Prompt {
     fn default() -> Self {
         Self {
-            entries: [b' '; PROMT_SIZE],
+            entries: [b' '; PROMPT_SIZE],
             len: 0,
         }
     }
@@ -153,7 +153,7 @@ impl Prompt {
 
     pub fn clear(&mut self) {
         self.len = 0;
-        self.entries = [b' '; PROMT_SIZE];
+        self.entries = [b' '; PROMPT_SIZE];
     }
 }
 
