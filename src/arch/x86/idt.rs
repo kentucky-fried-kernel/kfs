@@ -120,7 +120,7 @@ impl InterruptDescriptorTable {
         // value we pass to it contains the address to a static IDT, which is
         // guaranteed stay valid for the entire lifetime of the program.
         unsafe {
-            core::arch::asm!("lidt [{}]", "sti", in(reg) &raw const idtr, options(readonly, nostack, preserves_flags));
+            core::arch::asm!("lidt [{}]" , "sti" , in(reg) &raw const idtr, options(readonly, nostack, preserves_flags));
         }
     }
 
@@ -134,18 +134,7 @@ macro_rules! isr_no_err_stub {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            core::arch::naked_asm!(
-                "pusha",
-                "push 0",
-                "push esp",
-                "push {0}",
-                "call {1}",
-                "add esp, 12",
-                "popa",
-                "iret",
-                const $nb,
-                sym handle_interrupt
-            )
+            core::arch::naked_asm!("cli", "push 0", "push {0}", "jmp isr_common_stub", const $nb);
         }
     };
 }
@@ -155,29 +144,117 @@ macro_rules! isr_err_stub {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
-            core::arch::naked_asm!(
-                "pop eax",
-                "pusha",
-                "push eax",
-                "push esp",
-                "push {0}",
-                "call {1}",
-                "add esp, 12",
-                "popa",
-                "iret",
-                const $nb,
-                sym handle_interrupt
-            )
+            core::arch::naked_asm!("cli", "push {0}", "jmp isr_common_stub", const $nb);
         }
     };
 }
 
+#[unsafe(naked)]
 #[unsafe(no_mangle)]
-extern "C" fn handle_interrupt(intno: u32, stack_ptr: u32) {
-    serial_println!("INT {}", intno);
-    // SAFETY:
-    // We use inline assembly to halt the CPU here.
+extern "C" fn isr_common_stub(intno: u32, stack_ptr: u32) {
+    core::arch::naked_asm!(
+        "pusha",
+        "mov eax, ds",
+        "push eax",
+        "mov eax, cr2",
+        "push eax",
+        //
+        "mov ax, 0x10",
+        "mov ds, ax",
+        "mov es, ax",
+        "mov fs, ax",
+        "mov gs, ax",
+        //
+        "push esp",
+        "call isr_handler",
+        //
+        "add esp, 8",
+        "pop ebx",
+        "mov ds, bx",
+        "mov es, bx",
+        "mov fs, bx",
+        "mov gs, bx",
+        //
+        "popa",
+        "add esp, 8",
+        "iret"
+    )
+    // serial_println!("INT {}", intno);
+    // // SAFETY:
+    // // We use inline assembly to halt the CPU here.
     // unsafe { core::arch::asm!("cli; hlt") };
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct InterruptRegisters {
+    cr2: u32,
+    ds: u32,
+    edi: u32,
+    esi: u32,
+    ebp: u32,
+    esp: u32,
+    ebx: u32,
+    edx: u32,
+    ecx: u32,
+    eax: u32,
+    intno: u32,
+    err_code: u32,
+    eip: u32,
+    csm: u32,
+    eflags: u32,
+    useresp: u32,
+    ss: u32,
+}
+
+const INTERRUPT_MESSAGE: &[&str] = &[
+    "Division By Zero",
+    "Debug Interrupt",
+    "Non-Maskable Interrupt",
+    "Breakpoint",
+    "Into Detected Overflow",
+    "Out of Bounds",
+    "Invalid Opcode",
+    "No Coprocessor",
+    "Double Fault",
+    "Coprocessor Segment Overrun",
+    "Bad TSS",
+    "Segment not Present",
+    "Stack Fault",
+    "General Protection Fault",
+    "Page Fault",
+    "Unknown Interrupt",
+    "Coprocessor Fault",
+    "Aligment Fault",
+    "Machine Check",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+    "Reserved",
+];
+
+#[unsafe(no_mangle)]
+unsafe extern "C" fn isr_handler(regs: *const InterruptRegisters) {
+    let regs = &*regs;
+    serial_println!("Got Interrupt: {:?}", regs);
+    if regs.intno < 32 {
+        printkln!("\nGot Interrupt {}: {}", regs.intno, INTERRUPT_MESSAGE[regs.intno as usize]);
+        printkln!("Exception: System Halted\n");
+        // SAFETY:
+        // We are using inline assembly to halt the system.
+        unsafe { core::arch::asm!("cli", "hlt") };
+    } else {
+        panic!("Got unknown interrupt");
+    }
 }
 
 isr_no_err_stub!(isr_stub_0, 0);
@@ -252,14 +329,136 @@ macro_rules! isr_stubs {
     };
 }
 
+macro_rules! irq_stub {
+    ($func: ident, $nb: expr, $val: expr) => {
+        #[unsafe(naked)]
+        #[unsafe(no_mangle)]
+        unsafe extern "C" fn $func() {
+            core::arch::naked_asm!("cli", "push 0", "push {}", "jmp irq_common_stub", const $val);
+        }
+    };
+}
+
+irq_stub!(irq_stub_0, 0, 32);
+irq_stub!(irq_stub_1, 1, 33);
+irq_stub!(irq_stub_2, 2, 34);
+irq_stub!(irq_stub_3, 3, 35);
+irq_stub!(irq_stub_4, 4, 36);
+irq_stub!(irq_stub_5, 5, 37);
+irq_stub!(irq_stub_6, 6, 38);
+irq_stub!(irq_stub_7, 7, 39);
+irq_stub!(irq_stub_8, 8, 40);
+irq_stub!(irq_stub_9, 9, 41);
+irq_stub!(irq_stub_10, 10, 42);
+irq_stub!(irq_stub_11, 11, 43);
+irq_stub!(irq_stub_12, 12, 44);
+irq_stub!(irq_stub_13, 13, 45);
+irq_stub!(irq_stub_14, 14, 46);
+irq_stub!(irq_stub_15, 15, 47);
+
+macro_rules! irq_stubs {
+    () => {
+        &[
+            irq_stub_0 as *const () as usize,
+            irq_stub_1 as *const () as usize,
+            irq_stub_2 as *const () as usize,
+            irq_stub_3 as *const () as usize,
+            irq_stub_4 as *const () as usize,
+            irq_stub_5 as *const () as usize,
+            irq_stub_6 as *const () as usize,
+            irq_stub_7 as *const () as usize,
+            irq_stub_8 as *const () as usize,
+            irq_stub_9 as *const () as usize,
+            irq_stub_10 as *const () as usize,
+            irq_stub_11 as *const () as usize,
+            irq_stub_12 as *const () as usize,
+            irq_stub_13 as *const () as usize,
+            irq_stub_14 as *const () as usize,
+            irq_stub_15 as *const () as usize,
+        ]
+    };
+}
+
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
+    core::arch::naked_asm!(
+        "pusha",
+        "mov eax, ds",
+        "push eax",
+        "mov eax, cr2",
+        "push eax",
+        //
+        "mov ax, 0x10",
+        "mov ds, ax",
+        "mov es, ax",
+        "mov fs, ax",
+        "mov gs, ax",
+        //
+        "push esp",
+        "call irq_handler",
+        //
+        "add esp, 8",
+        "pop ebx",
+        "mov ds, bx",
+        "mov es, bx",
+        "mov fs, bx",
+        "mov gs, bx",
+        //
+        "popa",
+        "add esp, 8",
+        "sti",
+        "iret"
+    )
+}
+
+static mut IRQ_ROUTINES: [Option<extern "C" fn(InterruptRegisters)>; 16] = [None; 16];
+
+#[unsafe(no_mangle)]
+#[allow(static_mut_refs)]
+unsafe extern "C" fn irq_install_handler(irq: u32, handler: extern "C" fn(InterruptRegisters)) {
+    // SAFETY:
+    // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
+    // will not be modified by any other part of the kernel.
+    unsafe { IRQ_ROUTINES[irq as usize] = Some(handler) };
+}
+
+#[unsafe(no_mangle)]
+#[allow(static_mut_refs)]
+unsafe extern "C" fn irq_uninstall_handler(irq: u32) {
+    // SAFETY:
+    // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
+    // will not be modified by any other part of the kernel.
+    unsafe { IRQ_ROUTINES[irq as usize] = None };
+}
+
+#[unsafe(no_mangle)]
+#[allow(static_mut_refs)]
+unsafe extern "C" fn irq_handler(regs: InterruptRegisters) {
+    // SAFETY:
+    // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program.
+    let handler = match unsafe { IRQ_ROUTINES[(regs.intno - 32) as usize] } {
+        Some(handler) => handler,
+        None => panic!("Got unhandled IRQ code"),
+    };
+
+    let intno = regs.intno;
+
+    handler(regs);
+
+    pic::send_eoi(intno as u8);
+}
+
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
-    pic::remap(32, 40);
-    let stubs = isr_stubs!();
+    pic::remap(0x20, 0x28);
+
+    let isr_stubs = isr_stubs!();
+    let irq_stubs = irq_stubs!();
     let mut idt = InterruptDescriptorTable::new();
 
-    for (index, stub) in stubs.iter().enumerate() {
+    for (index, stub) in isr_stubs.iter().enumerate() {
         idt.set_descriptor(
             index as u8,
             InterruptDescriptor::new(
@@ -269,7 +468,19 @@ pub fn init() {
             ),
         );
     }
-    // SAFETY: We're initializing the static IDT exactly once.
+
+    for (index, stub) in irq_stubs.iter().enumerate() {
+        idt.set_descriptor(
+            index as u8 + 32,
+            InterruptDescriptor::new(
+                *stub,
+                KERNEL_CODE_OFFSET as u16,
+                Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
+            ),
+        );
+    }
+
+    // SAFETY: The AtomicBool guarding the IDT static ensures we initialize it exactly once.
     #[allow(clippy::multiple_unsafe_ops_per_block)]
     unsafe {
         IDT = Some(idt);

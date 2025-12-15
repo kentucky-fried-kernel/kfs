@@ -16,16 +16,16 @@ extern crate alloc;
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
-        arch, shell, terminal,
+        arch, serial_println, shell, terminal,
         vmm::{self, paging::init::init_memory},
     };
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    init_memory(info);
+    unsafe { core::arch::asm!("int 0") };
 
-    unsafe { core::arch::asm!("int 12") };
+    init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
