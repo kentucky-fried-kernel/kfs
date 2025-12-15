@@ -100,7 +100,7 @@ impl<'a> Iterator for LinesIterator<'a> {
 
         let mut c = 0;
         for e in self.screen.into_iter().skip(self.index).take(BUFFER_WIDTH) {
-            if e.get_character() == b'\n' {
+            if e.character() == b'\n' {
                 break;
             }
             c += 1;
@@ -133,7 +133,7 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
         let mut found_new_line = false;
         let screen_len = self.screen.len;
         for c in self.screen.into_iter().rev().skip(screen_len - (self.index_back + 1)) {
-            if c.get_character() == b'\n' {
+            if c.character() == b'\n' {
                 found_new_line = true;
                 break;
             }

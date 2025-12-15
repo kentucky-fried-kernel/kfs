@@ -47,7 +47,7 @@ impl Entry {
     }
 
     #[must_use]
-    pub const fn get_character(&self) -> u8 {
+    pub const fn character(&self) -> u8 {
         self.character
     }
 }
