@@ -2,7 +2,6 @@ use core::ptr::write_volatile;
 
 use crate::{
     boot::KERNEL_BASE,
-    serial_print, serial_println,
     terminal::{Screen, cursor::Cursor, entry::Entry},
 };
 
@@ -38,7 +37,7 @@ impl Buffer {
 
         new.cursor = if rows_scrolled_up > 0 {
             None
-        } else if let Some(cursor_line) = screen.lines().rev().next() {
+        } else if let Some(cursor_line) = screen.lines().next_back() {
             if let Some((last_char_index, _)) = cursor_line.enumerate().last() {
                 Some(Cursor {
                     x: last_char_index as u16,
@@ -138,13 +137,11 @@ impl<'a> DoubleEndedIterator for LinesIterator<'a> {
                 found_new_line = true;
                 break;
             }
-            if start_of_line > 0 {
-                start_of_line -= 1;
-            }
+            start_of_line = start_of_line.saturating_sub(1);
         }
 
-        let mut start;
-        let mut line_len;
+        let start;
+        let line_len;
 
         if start_of_line == self.index_back {
             start = start_of_line;

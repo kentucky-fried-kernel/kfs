@@ -16,9 +16,8 @@ extern crate alloc;
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
-        arch, printk, printkln, serial_println,
-        terminal::vga::Buffer,
-        vmm::{self, paging::init::init_memory},
+        arch,
+        vmm::paging::init::init_memory,
     };
 
     init_memory(info);

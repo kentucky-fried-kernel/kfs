@@ -1,10 +1,7 @@
-use crate::{
-    serial_println,
-    terminal::{
+use crate::terminal::{
         entry::{Color, Entry},
         vga::LinesIterator,
-    },
-};
+    };
 
 pub const BUFFER_SIZE: usize = 0x10000;
 

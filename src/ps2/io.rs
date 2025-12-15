@@ -48,6 +48,7 @@ pub fn flush_output_buffer() {
 /// if let Some(c) = read_if_ready() == KeyScanCode::A {
 ///     v.write_char(b'a');
 /// }
+#[must_use] 
 pub fn read_if_ready() -> Option<Key> {
     if !is_ps2_data_available() {
         return None;
