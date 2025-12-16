@@ -2,6 +2,7 @@ use core::arch::asm;
 
 use crate::{
     boot::{KERNEL_BASE, MultibootInfo, MultibootMmapEntry},
+    serial_println,
     vmm::paging::{
         Access, PAGE_SIZE,
         page_entries::{PageDirectoryEntry, PageTableEntry},
@@ -50,15 +51,17 @@ fn set_mmap_entries_in_used_pages(info: &MultibootInfo) {
 
     loop {
         unsafe {
-            let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
-            if (*entry).ty != 1 {
-                for i in 0..((*entry).len as usize / PAGE_SIZE) {
-                    let index = ((*entry).addr as usize / PAGE_SIZE) + i;
+            let entry: MultibootMmapEntry = *((info.mmap_addr + i) as *const MultibootMmapEntry);
+
+            serial_println!("base: 0x{:x} - len: 0x{:x}", entry.addr, entry.len);
+            if entry.ty != 1 {
+                for i in 0..(entry.len as usize / PAGE_SIZE) {
+                    let index = (entry.addr as usize / PAGE_SIZE) + i;
                     USED_PAGES[index] = Some(Access::Root);
                 }
             }
 
-            i += (*entry).size + 4;
+            i += entry.size + 4;
             if i >= info.mmap_length {
                 break;
             }

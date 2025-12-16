@@ -29,7 +29,6 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
-        serial_println!("Failed to initialize kmalloc");
         panic!("Failed to initialize kmalloc");
     }
     let e = vmm::paging::mmap::mmap(None, 4096, Permissions::ReadWrite, Access::Root, &Mode::Continous);
