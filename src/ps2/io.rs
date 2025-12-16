@@ -1,4 +1,4 @@
-use crate::port::Port;
+use crate::{port::Port, ps2::scancodes::SCANCODE_TO_KEY_SECOND};
 
 use super::{
     COMMAND_PORT, DATA_PORT, Key, OUTPUT_BUFFER_STATUS_BIT, STATUS_PORT,
@@ -38,8 +38,6 @@ pub fn flush_output_buffer() {
     }
 }
 
-static mut LAST_KEY: Option<u8> = None;
-
 /// Reads from the PS2 data port if the PS2 status port is ready. Returns
 /// `Some(KeyScanCode)` if the converted scancode is a supported character.
 ///
@@ -50,6 +48,7 @@ static mut LAST_KEY: Option<u8> = None;
 /// if let Some(c) = read_if_ready() == KeyScanCode::A {
 ///     v.write_char(b'a');
 /// }
+#[must_use]
 pub fn read_if_ready() -> Option<Key> {
     if !is_ps2_data_available() {
         return None;
@@ -59,12 +58,10 @@ pub fn read_if_ready() -> Option<Key> {
 
     if code == 0xF0 || code == 0xE0 {
         while !is_ps2_data_available() {}
-        let _ = unsafe { data_port.read() };
-        unsafe { LAST_KEY = None };
-        return None;
+        let second_code = unsafe { data_port.read() };
+        return SCANCODE_TO_KEY_SECOND[second_code as usize].1;
     }
 
-    unsafe { LAST_KEY = Some(code) };
     SCANCODE_TO_KEY[code as usize].1
 }
 
