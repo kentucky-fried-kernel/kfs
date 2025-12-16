@@ -435,9 +435,17 @@ unsafe extern "C" fn irq_uninstall_handler(irq: u32) {
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
 unsafe extern "C" fn irq_handler(regs: InterruptRegisters) {
+    #[allow(clippy::cast_possible_wrap)]
+    let irq_index = if regs.intno as isize - 32 < 0 {
+        printkln!("Got unhandled IRQ code {}", regs.intno);
+        return;
+    } else {
+        (regs.intno - 32) as usize
+    };
+
     // SAFETY:
     // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program.
-    let handler = match unsafe { IRQ_ROUTINES[(regs.intno - 32) as usize] } {
+    let handler = match unsafe { IRQ_ROUTINES[irq_index] } {
         Some(handler) => handler,
         None => panic!("Got unhandled IRQ code"),
     };
@@ -469,16 +477,16 @@ pub fn init() {
         );
     }
 
-    // for (index, stub) in irq_stubs.iter().enumerate() {
-    //     idt.set_descriptor(
-    //         index as u8 + 32,
-    //         InterruptDescriptor::new(
-    //             *stub,
-    //             KERNEL_CODE_OFFSET as u16,
-    //             Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode,
-    // GateType::InterruptGate32),         ),
-    //     );
-    // }
+    for (index, stub) in irq_stubs.iter().enumerate() {
+        idt.set_descriptor(
+            index as u8 + 32,
+            InterruptDescriptor::new(
+                *stub,
+                KERNEL_CODE_OFFSET as u16,
+                Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
+            ),
+        );
+    }
 
     // SAFETY: The AtomicBool guarding the IDT static ensures we initialize it exactly once.
     #[allow(clippy::multiple_unsafe_ops_per_block)]
