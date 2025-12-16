@@ -6,6 +6,8 @@ use core::panic::PanicInfo;
 fn panic(info: &PanicInfo) -> ! {
     use kfs::{printkln, serial_println};
 
+    unsafe { core::arch::asm!("cli") };
+
     printkln!("KERNEL PANIC: {:?}\n", info.message());
 
     serial_println!("KERNEL PANIC: {:?}", info.message());
