@@ -58,13 +58,13 @@ impl Screen {
     }
 
     #[must_use]
-    pub fn lines<'a>(&'a self) -> LinesIterator<'a> {
+    pub fn lines<'a>(&'a mut self) -> LinesIterator<'a> {
         LinesIterator::new(self)
     }
 }
 
 impl<'a> IntoIterator for &'a Screen {
-    type Item = &'a Entry;
+    type Item = Entry;
     type IntoIter = ScreenIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -78,37 +78,28 @@ pub struct ScreenIterator<'a> {
 }
 
 impl<'a> Iterator for ScreenIterator<'a> {
-    type Item = &'a Entry;
+    type Item = Entry;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.screen.len {
             None
         } else {
-            let idx: usize = (self.screen.head + self.index) % self.screen.entries.len();
-            // SAFETY: This is safe because ScreenIterator is liked to the lifetime
-            // of Screen which this returned element depends on
-            unsafe {
-                let next = &raw const self.screen.entries[idx];
-                self.index += 1;
-                Some(&*next)
-            }
+            let idx = (self.screen.head + self.index) % self.screen.entries.len();
+            self.index += 1;
+            Some(self.screen.entries[idx])
         }
     }
 }
 
 impl<'a> DoubleEndedIterator for ScreenIterator<'a> {
-    fn next_back(&mut self) -> Option<Self::Item> {
+    fn next_back(&mut self) -> Option<Entry> {
         if self.index >= self.screen.len {
             None
         } else {
             let offset = self.screen.len - self.index - 1;
             let idx: usize = (self.screen.head + offset) % self.screen.entries.len();
-            // SAFETY: This is safe because ScreenIterator is liked to the lifetime
-            // of Screen which this returned element depends on
-            unsafe {
-                let next = &raw const self.screen.entries[idx];
-                self.index += 1;
-                Some(&*next)
-            }
+            self.index += 1;
+            Some(self.screen.entries[idx])
         }
     }
 }
