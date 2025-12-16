@@ -16,11 +16,8 @@ extern crate alloc;
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
-        arch, serial_println, shell, terminal,
-        vmm::{
-            self,
-            paging::{Access, Permissions, init::init_memory, mmap::Mode},
-        },
+        arch, shell, terminal,
+        vmm::{self, paging::init::init_memory},
     };
 
     arch::x86::gdt::init();
@@ -31,8 +28,6 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
     }
-    let e = vmm::paging::mmap::mmap(None, 4096, Permissions::ReadWrite, Access::Root, &Mode::Continous);
-    serial_println!("{:?}", e);
 
     #[allow(static_mut_refs)]
     shell::launch(unsafe { &mut terminal::SCREEN });

@@ -177,16 +177,13 @@ extern "C" fn isr_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
+        "sti",
         "iret"
     )
-    // serial_println!("INT {}", intno);
-    // // SAFETY:
-    // // We use inline assembly to halt the CPU here.
-    // unsafe { core::arch::asm!("cli; hlt") };
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct InterruptRegisters {
     cr2: u32,
     ds: u32,
@@ -244,8 +241,10 @@ const INTERRUPT_MESSAGE: &[&str] = &[
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn isr_handler(regs: *const InterruptRegisters) {
-    let regs = &*regs;
-    serial_println!("Got Interrupt: {:?}", regs);
+    // SAFETY:
+    // The address of `regs` is pushed onto the stack by `isr_common_stub`.
+    let regs = unsafe { &*regs };
+    serial_println!("isr_handler: {:?}", regs);
     if regs.intno < 32 {
         printkln!("\nGot Interrupt {}: {}", regs.intno, INTERRUPT_MESSAGE[regs.intno as usize]);
         printkln!("Exception: System Halted\n");
@@ -434,7 +433,12 @@ unsafe extern "C" fn irq_uninstall_handler(irq: u32) {
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-unsafe extern "C" fn irq_handler(regs: InterruptRegisters) {
+unsafe extern "C" fn irq_handler(regs: *const InterruptRegisters) {
+    // SAFETY:
+    // The address of `regs` is pushed onto the stack by `irq_common_stub`.
+    let regs = unsafe { &*regs };
+    serial_println!("irq_handler: {:?}", regs);
+
     #[allow(clippy::cast_possible_wrap)]
     let irq_index = if regs.intno as isize - 32 < 0 {
         printkln!("Got unhandled IRQ code {}", regs.intno);
@@ -447,12 +451,15 @@ unsafe extern "C" fn irq_handler(regs: InterruptRegisters) {
     // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program.
     let handler = match unsafe { IRQ_ROUTINES[irq_index] } {
         Some(handler) => handler,
-        None => panic!("Got unhandled IRQ code"),
+        None => {
+            serial_println!("Unhandled IRQ");
+            return;
+        }
     };
 
     let intno = regs.intno;
 
-    handler(regs);
+    handler(*regs);
 
     pic::send_eoi(intno as u8);
 }
@@ -464,6 +471,7 @@ pub fn init() {
 
     let isr_stubs = isr_stubs!();
     let irq_stubs = irq_stubs!();
+
     let mut idt = InterruptDescriptorTable::new();
 
     for (index, stub) in isr_stubs.iter().enumerate() {
@@ -488,7 +496,8 @@ pub fn init() {
         );
     }
 
-    // SAFETY: The AtomicBool guarding the IDT static ensures we initialize it exactly once.
+    // SAFETY:
+    // The AtomicBool guarding the IDT static ensures we initialize it exactly once.
     #[allow(clippy::multiple_unsafe_ops_per_block)]
     unsafe {
         IDT = Some(idt);
