@@ -169,9 +169,7 @@ pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
 /// `BuddyAllocator` (made via `mmap`) fails.
 #[allow(static_mut_refs)]
 pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
-    serial_println!("init_buddy_allocator");
     let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
-    serial_println!("{:x}", cache_memory);
 
     allocator
         .buddy_allocator
@@ -226,7 +224,7 @@ pub fn init() -> Result<(), KmallocError> {
     // We are accessing a static mutable allocator, which is only accessible through this crate. The API
     // of this crate ensures we are not touching it outside of its expected usage.s
     let res = init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR });
-    serial_println!("{:?}", res);
+    serial_println!("init_buddy_allocator: {:?}", res);
     if res.is_err() {
         return Err(KmallocError::NotEnoughMemory);
     }
