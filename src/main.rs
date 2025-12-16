@@ -23,11 +23,11 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
-    init_memory(info);
+    // init_memory(info);
 
-    if vmm::allocators::kmalloc::init().is_err() {
-        panic!("Failed to initialize kmalloc");
-    }
+    // if vmm::allocators::kmalloc::init().is_err() {
+    //     panic!("Failed to initialize kmalloc");
+    // }
 
     #[allow(static_mut_refs)]
     let mut shell = Shell::default(unsafe { &mut SCREEN });
