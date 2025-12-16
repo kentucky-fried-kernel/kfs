@@ -10,7 +10,7 @@
 	"linker": "i386-elf-ld",
 	"linker-flavor": "ld",
 	"pre-link-args": {
-		"ld": ["-melf_i386"]
+		"ld": ["-melf_i386", "--build-id=none"]
 	},
 	"panic-strategy": "abort"
 }
