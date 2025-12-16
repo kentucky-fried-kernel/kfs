@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 use core::panic::PanicInfo;
 
+use kfs::terminal::entry::Color;
+
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {

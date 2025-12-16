@@ -4,7 +4,7 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::boot::MultibootInfo;
+use kfs::{boot::MultibootInfo, shell::Shell, terminal::SCREEN};
 
 mod panic;
 
@@ -16,7 +16,7 @@ extern crate alloc;
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
-        arch, shell, terminal,
+        arch,
         vmm::{self, paging::init::init_memory},
     };
 
@@ -30,7 +30,8 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     }
 
     #[allow(static_mut_refs)]
-    shell::launch(unsafe { &mut terminal::SCREEN });
+    let mut shell = Shell::default(unsafe { &mut SCREEN });
+    shell.launch();
 }
 
 /// # Panics
