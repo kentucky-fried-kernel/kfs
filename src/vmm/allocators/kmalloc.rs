@@ -223,11 +223,7 @@ pub fn init() -> Result<(), KmallocError> {
     // SAFETY:
     // We are accessing a static mutable allocator, which is only accessible through this crate. The API
     // of this crate ensures we are not touching it outside of its expected usage.s
-    let res = init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR });
-    serial_println!("init_buddy_allocator: {:?}", res);
-    if res.is_err() {
-        return Err(KmallocError::NotEnoughMemory);
-    }
+    init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR })?;
 
     init_slab_allocator(
         // SAFETY:

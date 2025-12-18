@@ -10,7 +10,7 @@ pub const USED_PAGES_SIZE: usize = (MEMORY_MAX / super::PAGE_SIZE as u64) as usi
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
-#[unsafe(link_section = ".bss")]
+#[unsafe(link_section = ".data")]
 pub static mut USED_PAGES: [Option<Access>; USED_PAGES_SIZE] = [None; USED_PAGES_SIZE];
 
 pub const PAGE_TABLE_SIZE: usize = 1024;
