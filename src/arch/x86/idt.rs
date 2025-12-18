@@ -243,15 +243,15 @@ unsafe extern "C" fn isr_handler(regs: *const InterruptRegisters) {
     // SAFETY:
     // The address of `regs` is pushed onto the stack by `isr_common_stub`.
     let regs = unsafe { &*regs };
-    serial_println!("isr_handler: {:?}", regs);
+    // serial_println!("isr_handler: {:?}", regs);
     if regs.intno < 32 {
-        printkln!("\nGot Interrupt {}: {}", regs.intno, INTERRUPT_MESSAGE[regs.intno as usize]);
-        printkln!("Exception: System Halted\n");
+        // printkln!("\nGot Interrupt {}: {}", regs.intno, INTERRUPT_MESSAGE[regs.intno as usize]);
+        // printkln!("Exception: System Halted\n");
         // SAFETY:
         // We are using inline assembly to halt the system.
         unsafe { core::arch::asm!("cli", "hlt") };
     } else {
-        panic!("Got unknown interrupt");
+        // panic!("Got unknown interrupt");
     }
 }
 
@@ -435,11 +435,11 @@ unsafe extern "C" fn irq_handler(regs: *const InterruptRegisters) {
     // SAFETY:
     // The address of `regs` is pushed onto the stack by `irq_common_stub`.
     let regs = unsafe { &*regs };
-    serial_println!("irq_handler: {:?}", regs);
+    // serial_println!("irq_handler: {:?}", regs);
 
     #[allow(clippy::cast_possible_wrap)]
     let irq_index = if regs.intno as isize - 32 < 0 {
-        printkln!("Got unhandled IRQ code {}", regs.intno);
+        // printkln!("Got unhandled IRQ code {}", regs.intno);
         return;
     } else {
         (regs.intno - 32) as usize
@@ -459,6 +459,7 @@ static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
     pic::remap(0x20, 0x28);
+    pic::disable();
 
     let isr_stubs = isr_stubs!();
     let irq_stubs = irq_stubs!();

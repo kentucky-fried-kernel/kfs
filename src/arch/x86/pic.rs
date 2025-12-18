@@ -19,7 +19,7 @@ const PIC_EOI: u8 = 0x20;
 pub fn send_eoi(irq: u8) {
     if irq >= 8 {
         // SAFETY:
-        // We are writing to the PIC1 port, which we assume to be safe.
+        // We are writing to the PIC2 port, which we assume to be safe.
         unsafe { Port::new(PIC2_COMMAND as u16).write(PIC_EOI) };
     }
     // SAFETY:
