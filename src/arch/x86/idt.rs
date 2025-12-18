@@ -239,10 +239,7 @@ const INTERRUPT_MESSAGE: &[&str] = &[
 ];
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn isr_handler(regs: *const InterruptRegisters) {
-    // SAFETY:
-    // The address of `regs` is pushed onto the stack by `isr_common_stub`.
-    let regs = unsafe { &*regs };
+unsafe extern "C" fn isr_handler(regs: &InterruptRegisters) {
     // serial_println!("isr_handler: {:?}", regs);
     if regs.intno < 32 {
         // printkln!("\nGot Interrupt {}: {}", regs.intno, INTERRUPT_MESSAGE[regs.intno as usize]);
@@ -409,11 +406,11 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
     )
 }
 
-static mut IRQ_ROUTINES: [Option<extern "C" fn(InterruptRegisters)>; 16] = [None; 16];
+static mut IRQ_ROUTINES: [Option<extern "C" fn(&InterruptRegisters)>; 16] = [None; 16];
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-unsafe extern "C" fn irq_install_handler(irq: u32, handler: extern "C" fn(InterruptRegisters)) {
+unsafe extern "C" fn irq_install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
     // will not be modified by any other part of the kernel.
@@ -431,24 +428,20 @@ unsafe extern "C" fn irq_uninstall_handler(irq: u32) {
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-unsafe extern "C" fn irq_handler(regs: *const InterruptRegisters) {
-    // SAFETY:
-    // The address of `regs` is pushed onto the stack by `irq_common_stub`.
-    let regs = unsafe { &*regs };
-
+unsafe extern "C" fn irq_handler(regs: &InterruptRegisters) {
     #[allow(clippy::cast_possible_wrap)]
     let irq_index = if regs.intno as isize - 32 < 0 {
         return;
     } else {
         (regs.intno - 32) as usize
     };
-    serial_println!("irq_handler: {:?}, irq_index: {}", regs, irq_index);
+    serial_println!("irq_index: {}, irq_handler: {:?}, ", irq_index, regs);
 
     let intno = regs.intno;
     // SAFETY:
     // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program.
     if let Some(handler) = unsafe { IRQ_ROUTINES[irq_index] } {
-        handler(*regs);
+        handler(regs);
     };
 
     pic::send_eoi(intno as u8);
