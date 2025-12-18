@@ -177,7 +177,6 @@ extern "C" fn isr_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
-        "sti",
         "iret"
     )
 }
@@ -406,7 +405,6 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
-        "sti",
         "iret"
     )
 }
@@ -447,19 +445,12 @@ unsafe extern "C" fn irq_handler(regs: *const InterruptRegisters) {
         (regs.intno - 32) as usize
     };
 
+    let intno = regs.intno;
     // SAFETY:
     // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program.
-    let handler = match unsafe { IRQ_ROUTINES[irq_index] } {
-        Some(handler) => handler,
-        None => {
-            serial_println!("Unhandled IRQ");
-            return;
-        }
+    if let Some(handler) = unsafe { IRQ_ROUTINES[irq_index] } {
+        handler(*regs);
     };
-
-    let intno = regs.intno;
-
-    handler(*regs);
 
     pic::send_eoi(intno as u8);
 }
