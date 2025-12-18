@@ -144,9 +144,7 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
         return Err(MmapError::NotEnoughMemory);
     }
 
-    serial_println!("After pages_physical_free_iter 1");
     let pages_virtual = pages_virtual_free_iter(pages_needed, access)?;
-    serial_println!("After pages_virtuall_free_iter 1");
     let pages_physical = pages_physical_free_iter(pages_needed, mode)?;
 
     let pages = pages_physical.zip(pages_virtual);
@@ -166,8 +164,6 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
         *virtual_page = e;
     }
-
-    serial_println!("first_page_addr: {:?}", first_page_addr);
 
     first_page_addr
 }

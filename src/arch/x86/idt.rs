@@ -435,15 +435,14 @@ unsafe extern "C" fn irq_handler(regs: *const InterruptRegisters) {
     // SAFETY:
     // The address of `regs` is pushed onto the stack by `irq_common_stub`.
     let regs = unsafe { &*regs };
-    // serial_println!("irq_handler: {:?}", regs);
 
     #[allow(clippy::cast_possible_wrap)]
     let irq_index = if regs.intno as isize - 32 < 0 {
-        // printkln!("Got unhandled IRQ code {}", regs.intno);
         return;
     } else {
         (regs.intno - 32) as usize
     };
+    serial_println!("irq_handler: {:?}, irq_index: {}", regs, irq_index);
 
     let intno = regs.intno;
     // SAFETY:

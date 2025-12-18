@@ -53,7 +53,6 @@ fn set_mmap_entries_in_used_pages(info: &MultibootInfo) {
         unsafe {
             let entry: MultibootMmapEntry = *((info.mmap_addr + i) as *const MultibootMmapEntry);
 
-            serial_println!("base: 0x{:x} - len: 0x{:x}", entry.addr, entry.len);
             if entry.ty != 1 {
                 for i in 0..(entry.len as usize / PAGE_SIZE) {
                     let index = (entry.addr as usize / PAGE_SIZE) + i;

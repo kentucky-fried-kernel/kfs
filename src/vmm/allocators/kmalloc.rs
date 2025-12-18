@@ -1,5 +1,5 @@
 use crate::{
-    buddy_allocator_levels, serial_println,
+    buddy_allocator_levels,
     vmm::{
         allocators::backend::{
             buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
@@ -188,16 +188,12 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
 
     let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
 
-    serial_println!("init_slab_allocator");
     let mut allocation = mmap(None, total_size, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)? as *mut u8;
-
-    serial_println!("init_slab_allocator");
 
     allocator.slabs_start = allocation as usize;
     allocator.slabs_end = allocation as usize + total_size;
 
     for conf in SLAB_CONFIGS {
-        serial_println!("in slab initialization loop");
         let slab_cache_addr = NonNull::new(allocation).ok_or(KmallocError::NotEnoughMemory)?;
         // SAFETY:
         // This function is assumed to only ever be called once the buddy allocator is initialized, which
