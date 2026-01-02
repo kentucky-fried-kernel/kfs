@@ -352,7 +352,24 @@ where
             // The slabs themselves are initialized by the `SlabAllocator`,
             // which ensures that each allocation is sucessful before
             // considering using it as a slab.
-            if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
+            let slab = unsafe { slab.as_mut() };
+            if let Ok(()) = slab.free(addr) {
+                let mut slab_address: NonNull<S> = expect_opt!(
+                    NonNull::new(slab.address().cast_mut()),
+                    "address() should always return Some if the free operation succeeded"
+                )
+                .cast();
+
+                if slab.allocated() == 0 {
+                    let _ = self.partial_slabs.pop_at(&slab_address);
+
+                    // SAFETY:
+                    // Slab address points to a list node that is allocated in `kmalloc::init_slab_allocator()` and
+                    // stays valid for the entire duration of the program. It is removed from the `partial_slabs` list
+                    // by the above call to `pop_at`, making `empty_slabs` the sole owner of this node.
+                    unsafe { self.empty_slabs.add_front(&mut slab_address) };
+                }
+
                 return Ok(());
             }
         }
