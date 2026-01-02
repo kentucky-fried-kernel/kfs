@@ -625,7 +625,7 @@ impl SlabAllocator {
 #[cfg(test)]
 mod tests {
 
-    use crate::{kassert, serial_println};
+    use crate::kassert;
 
     use super::*;
 
