@@ -75,6 +75,24 @@ where
 
         Some(head)
     }
+
+    pub fn pop_at(&mut self, node: &NonNull<T>) -> Option<NonNull<T>> {
+        let mut last = self.head()?;
+
+        if last == *node {
+            self.set_head(None);
+            return Some(last);
+        }
+
+        while let Some(curr) = unsafe { last.as_ref() }.next_ptr() {
+            if curr == *node {
+                *unsafe { last.as_mut() }.next_ptr_mut() = unsafe { curr.as_ref() }.next_ptr();
+                return Some(curr);
+            }
+            last = curr;
+        }
+        None
+    }
 }
 
 impl<T: IntrusiveLink> IntoIterator for List<T> {
