@@ -92,7 +92,7 @@ where
 
         if last == *node {
             // SAFETY:
-            // `last` ist the current head of the list and was previously added via `add_front`, whose safety
+            // `last` is the current head of the list and was previously added via `add_front`, whose safety
             // contract requires that the pointer remain valid while in the list.
             let new_head = unsafe { last.as_ref().next_ptr() };
             self.set_head(new_head);
