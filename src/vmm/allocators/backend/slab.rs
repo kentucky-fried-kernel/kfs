@@ -377,7 +377,7 @@ where
             // SAFETY:
             // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
             // The slabs themselves are initialized by the `SlabAllocator`,
-            // which ensures that each allocation is sucessful before
+            // which ensures that each allocation is successful before
             // considering using it as a slab.
             let slab = unsafe { slab.as_mut() };
             if let Ok(()) = slab.free(addr) {
