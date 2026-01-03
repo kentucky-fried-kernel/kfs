@@ -350,7 +350,7 @@ where
             // SAFETY:
             // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
             // The slabs themselves are initialized by the `SlabAllocator`,
-            // which ensures that each allocation is sucessful before
+            // which ensures that each allocation is successful before
             // considering using it as a slab.
             let slab = unsafe { slab.as_mut() };
             if let Ok(()) = slab.free(addr) {
@@ -625,7 +625,7 @@ impl SlabAllocator {
 #[cfg(test)]
 mod tests {
 
-    use crate::kassert;
+    use crate::{kassert, kassert_eq};
 
     use super::*;
 
@@ -673,11 +673,9 @@ mod tests {
         let mut cache = SlabCache::<Slab<1>>::new(OBJECT_SIZE);
         let mut page = MockPage::<1> { buf: [0; 0x1000] };
 
-        core::hint::black_box(&page);
-
         init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
 
-        let mut allocations = [core::ptr::null(); (PAGE_SIZE - 1) / OBJECT_SIZE];
+        let mut allocations = [core::ptr::null(); (PAGE_SIZE - slab_header_overhead::<1>()) / OBJECT_SIZE];
         let n = allocations.len();
 
         for (idx, alloc) in allocations.iter_mut().enumerate() {
@@ -711,7 +709,7 @@ mod tests {
         init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
         init_slab(&mut cache, NonNull::new(unsafe { page.buf.as_mut_ptr().add(0x1000) }).unwrap(), OBJECT_SIZE);
 
-        const N_ALLOCATIONS_PER_SLAB: usize = (PAGE_SIZE - core::mem::size_of::<Slab<1>>()) / OBJECT_SIZE;
+        const N_ALLOCATIONS_PER_SLAB: usize = (PAGE_SIZE - slab_header_overhead::<1>()) / OBJECT_SIZE;
         const N_ALLOCATIONS_TOTAL: usize = N_ALLOCATIONS_PER_SLAB * 2;
         let mut allocations = [core::ptr::null(); N_ALLOCATIONS_TOTAL];
 

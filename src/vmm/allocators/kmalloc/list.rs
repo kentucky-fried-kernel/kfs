@@ -48,14 +48,14 @@ where
     pub unsafe fn add_front(&mut self, node: &mut NonNull<T>) {
         if self.head.is_none() {
             // SAFETY:
-            // THe caller guarantees `node` points to valid, initialized memory.
+            // The caller guarantees `node` points to valid, initialized memory.
             unsafe { *node.as_mut().next_ptr_mut() = None };
             self.head = Some(*node);
             return;
         }
 
         // SAFETY:
-        // THe caller guarantees `node` points to valid, initialized memory.
+        // The caller guarantees `node` points to valid, initialized memory.
         unsafe { *node.as_mut().next_ptr_mut() = self.head };
 
         self.head = Some(*node);
@@ -70,7 +70,7 @@ where
         let head = self.head.take()?;
 
         // SAFETY:
-        //`head` was previously added via `add_front`, whose safety contract
+        // `head` was previously added via `add_front`, whose safety contract
         // requires that the pointer remain valid. We rely on the caller having
         // upheld that contract.
         let new_head = unsafe { head.as_ref() }.next_ptr();
@@ -100,7 +100,7 @@ where
         }
 
         // SAFETY:
-        // `last` is in the list, so it was added via `add_front` and the callers guarantees it remains
+        // `last` is in the list, so it was added via `add_front` and the caller guarantees it remains
         // valid while in the list.
         while let Some(curr) = unsafe { last.as_ref() }.next_ptr() {
             if curr == *node {
