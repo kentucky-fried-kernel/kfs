@@ -637,7 +637,7 @@ mod tests {
         buf: [u8; N * 0x1000],
     }
 
-    fn init_slab_cache<S: SlabOps + Copy + Debug>(cache: &mut SlabCache<S>, addr: NonNull<u8>, object_size: usize) {
+    fn init_slab<S: SlabOps + Copy + Debug>(cache: &mut SlabCache<S>, addr: NonNull<u8>, object_size: usize) {
         let slab_ptr = addr.cast().as_ptr();
         unsafe { S::init(slab_ptr, object_size) };
         unsafe { cache.add_slab(addr.cast()) };
@@ -675,7 +675,7 @@ mod tests {
 
         core::hint::black_box(&page);
 
-        init_slab_cache(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
+        init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
 
         let mut allocations = [core::ptr::null(); (PAGE_SIZE - 1) / OBJECT_SIZE];
         let n = allocations.len();
@@ -708,10 +708,8 @@ mod tests {
         let mut cache = SlabCache::<Slab<1>>::new(OBJECT_SIZE);
         let mut page = MockPage::<2> { buf: [0; 0x2000] };
 
-        core::hint::black_box(&page);
-
-        init_slab_cache(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
-        init_slab_cache(&mut cache, NonNull::new(unsafe { page.buf.as_mut_ptr().add(0x1000) }).unwrap(), OBJECT_SIZE);
+        init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
+        init_slab(&mut cache, NonNull::new(unsafe { page.buf.as_mut_ptr().add(0x1000) }).unwrap(), OBJECT_SIZE);
 
         const N_ALLOCATIONS_PER_SLAB: usize = (PAGE_SIZE - core::mem::size_of::<Slab<1>>()) / OBJECT_SIZE;
         const N_ALLOCATIONS_TOTAL: usize = N_ALLOCATIONS_PER_SLAB * 2;
@@ -743,6 +741,28 @@ mod tests {
                 assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Unused, SlabCacheState::Unused)?;
             }
         }
+
+        Ok(())
+    }
+
+    #[test_case]
+    fn pop_at_first_node() -> Result<(), &'static str> {
+        const OBJECT_SIZE: usize = 256;
+        let mut cache = SlabCache::<Slab<1>>::new(OBJECT_SIZE);
+        let mut page = MockPage::<2> { buf: [0; 0x2000] };
+
+        init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
+        init_slab(&mut cache, NonNull::new(unsafe { page.buf.as_mut_ptr().add(0x1000) }).unwrap(), OBJECT_SIZE);
+
+        // New slabs are added to the front of the free lists, so the first should be the last one that was
+        // added.
+        kassert_eq!(cache.empty_slabs.head().unwrap().as_ptr().cast::<u8>(), unsafe {
+            page.buf.as_mut_ptr().add(0x1000)
+        });
+
+        let _ = cache.alloc();
+
+        kassert_eq!(cache.empty_slabs.head().unwrap().as_ptr().cast::<u8>(), page.buf.as_mut_ptr());
 
         Ok(())
     }
