@@ -177,7 +177,7 @@ extern "C" fn isr_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
-        "iret"
+        "iretd"
     )
 }
 
@@ -246,7 +246,7 @@ unsafe extern "C" fn isr_handler(regs: &InterruptRegisters) {
         // printkln!("Exception: System Halted\n");
         // SAFETY:
         // We are using inline assembly to halt the system.
-        unsafe { core::arch::asm!("cli", "hlt") };
+        // unsafe { core::arch::asm!("cli", "hlt") };
     } else {
         // panic!("Got unknown interrupt");
     }
@@ -402,7 +402,7 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
-        "iret"
+        "iretd"
     )
 }
 
