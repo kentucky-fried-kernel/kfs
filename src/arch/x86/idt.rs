@@ -2,7 +2,7 @@
 #![allow(static_mut_refs)]
 #![allow(clippy::cast_possible_truncation)]
 
-use crate::{printk, printkln};
+use crate::{printk, printkln, serial_println};
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
 
@@ -109,12 +109,12 @@ macro_rules! isr_no_err_stub {
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
             core::arch::naked_asm!(
-            	"pusha",
+                "pusha",
                 "push {}",
                 "call handle_interrupt",
                 "add esp, 4",
                 "popa",
-                "iret",
+                "iretd",
                 const $nb
             )
         }
@@ -127,13 +127,13 @@ macro_rules! isr_err_stub {
         #[unsafe(no_mangle)]
         unsafe extern "C" fn $func() {
             core::arch::naked_asm!(
+                "add esp, 4",
                 "pusha",
                 "push {}",
                 "call handle_interrupt",
                 "add esp, 4",
                 "popa",
-                "add esp, 4",
-                "iret",
+                "iretd",
                 const $nb
             )
         }
@@ -142,10 +142,26 @@ macro_rules! isr_err_stub {
 
 #[unsafe(no_mangle)]
 extern "C" fn handle_interrupt(interrupt_number: usize) {
+    serial_println!("INT {} received", interrupt_number);
+
     match interrupt_number {
         13 => panic!("General Protection Fault"),
         14 => panic!("Page Fault"),
-        _ => panic!("Interrupt"),
+        _ => {
+            serial_println!("Handling interrupt {}, about to return", interrupt_number);
+
+            if interrupt_number >= 32 && interrupt_number < 48 {
+                remap_pic();
+                unsafe {
+                    use crate::port::Port;
+
+                    if interrupt_number >= 40 {
+                        Port::new(0xA0).write(0x20u8);
+                    }
+                    Port::new(0x20).write(0x20u8);
+                }
+            }
+        }
     }
 }
 
@@ -302,6 +318,7 @@ pub fn init() {
             InterruptDescriptor::new(*stub, 0x08, build_attributes(1, 0, GateType::InterruptGate32)),
         );
     }
+
     unsafe {
         IDT = Some(idt);
 
