@@ -93,7 +93,7 @@ static mut IRQ_ROUTINES: [Option<extern "C" fn(&InterruptRegisters)>; 16] = [Non
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-pub extern "C" fn install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
+pub fn install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
     // will not be modified by any other part of the kernel.
@@ -102,7 +102,7 @@ pub extern "C" fn install_handler(irq: u32, handler: extern "C" fn(&InterruptReg
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-unsafe extern "C" fn uninstall_handler(irq: u32) {
+unsafe fn uninstall_handler(irq: u32) {
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
     // will not be modified by any other part of the kernel.
