@@ -1,7 +1,10 @@
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
-        interrupts::pic::{self, PIC1_DATA, PIC2_DATA},
+        interrupts::{
+            lock::IRQLock,
+            pic::{self, PIC1_DATA, PIC2_DATA},
+        },
     },
     port::Port,
 };
@@ -91,9 +94,12 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
 
 static mut IRQ_ROUTINES: [Option<extern "C" fn(&InterruptRegisters)>; 16] = [None; 16];
 
+/// Installs a handler for `irq`. Note that this does not unmask `irq`, it should be done
+/// explicitly by the caller.
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
 pub fn install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
+    let _lock = IRQLock::lock(irq as u8);
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
     // will not be modified by any other part of the kernel.
@@ -103,6 +109,7 @@ pub fn install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
 unsafe fn uninstall_handler(irq: u32) {
+    let _lock = IRQLock::lock(irq as u8);
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
     // will not be modified by any other part of the kernel.

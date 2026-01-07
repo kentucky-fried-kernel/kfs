@@ -158,7 +158,6 @@ static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
     pic::remap(0x20, 0x28);
-    pic::disable();
 
     let exception_stubs = exception_stubs!();
     let irq_stubs = irq_stubs!();
