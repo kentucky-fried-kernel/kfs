@@ -10,6 +10,13 @@ macro_rules! retry_until_ok {
     };
 }
 
+#[macro_export]
+macro_rules! hlt {
+    () => {
+        unsafe { ::core::arch::asm!("hlt") }
+    };
+}
+
 /// Our panic handler currently cannot handle the messages from `.expect()`,
 /// resulting in a non-informative panic message.
 #[macro_export]
