@@ -5,9 +5,10 @@
 use crate::{
     arch::x86::{
         gdt::KERNEL_CODE_OFFSET,
+        irq, isr,
         pic::{self, send_eoi},
     },
-    printk, printkln, serial_println,
+    irq_stubs, isr_stubs, printk, printkln, serial_println,
 };
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
@@ -129,322 +130,26 @@ impl InterruptDescriptorTable {
     }
 }
 
-macro_rules! isr_no_err_stub {
-    ($func: ident, $nb: expr) => {
-        #[unsafe(naked)]
-        #[unsafe(no_mangle)]
-        unsafe extern "C" fn $func() {
-            core::arch::naked_asm!("cli", "push 0", "push {0}", "jmp isr_common_stub", const $nb);
-        }
-    };
-}
-
-macro_rules! isr_err_stub {
-    ($func: ident, $nb: expr) => {
-        #[unsafe(naked)]
-        #[unsafe(no_mangle)]
-        unsafe extern "C" fn $func() {
-            core::arch::naked_asm!("cli", "push {0}", "jmp isr_common_stub", const $nb);
-        }
-    };
-}
-
-#[unsafe(naked)]
-#[unsafe(no_mangle)]
-extern "C" fn isr_common_stub(intno: u32, stack_ptr: u32) {
-    core::arch::naked_asm!(
-        "pusha",
-        "mov eax, ds",
-        "push eax",
-        "mov eax, cr2",
-        "push eax",
-        //
-        "mov ax, 0x10",
-        "mov ds, ax",
-        "mov es, ax",
-        "mov fs, ax",
-        "mov gs, ax",
-        //
-        "push esp",
-        "call isr_handler",
-        //
-        "add esp, 8",
-        "pop ebx",
-        "mov ds, bx",
-        "mov es, bx",
-        "mov fs, bx",
-        "mov gs, bx",
-        //
-        "popa",
-        "add esp, 8",
-        "iretd"
-    )
-}
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct InterruptRegisters {
-    cr2: u32,
-    ds: u32,
-    edi: u32,
-    esi: u32,
-    ebp: u32,
-    esp: u32,
-    ebx: u32,
-    edx: u32,
-    ecx: u32,
-    eax: u32,
-    intno: u32,
-    err_code: u32,
-    eip: u32,
-    csm: u32,
-    eflags: u32,
-    useresp: u32,
-    ss: u32,
-}
-
-const INTERRUPT_MESSAGE: &[&str] = &[
-    "Division By Zero",
-    "Debug Interrupt",
-    "Non-Maskable Interrupt",
-    "Breakpoint",
-    "Into Detected Overflow",
-    "Out of Bounds",
-    "Invalid Opcode",
-    "No Coprocessor",
-    "Double Fault",
-    "Coprocessor Segment Overrun",
-    "Bad TSS",
-    "Segment not Present",
-    "Stack Fault",
-    "General Protection Fault",
-    "Page Fault",
-    "Unknown Interrupt",
-    "Coprocessor Fault",
-    "Aligment Fault",
-    "Machine Check",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-];
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn isr_handler(regs: &InterruptRegisters) {
-    // serial_println!("isr_handler: {:?}", regs);
-    if regs.intno < 32 {
-        // printkln!("\nGot Interrupt {}: {}", regs.intno, INTERRUPT_MESSAGE[regs.intno as usize]);
-        // printkln!("Exception: System Halted\n");
-        // SAFETY:
-        // We are using inline assembly to halt the system.
-        // unsafe { core::arch::asm!("cli", "hlt") };
-    } else {
-        // panic!("Got unknown interrupt");
-    }
-}
-
-isr_no_err_stub!(isr_stub_0, 0);
-isr_no_err_stub!(isr_stub_1, 1);
-isr_no_err_stub!(isr_stub_2, 2);
-isr_no_err_stub!(isr_stub_3, 3);
-isr_no_err_stub!(isr_stub_4, 4);
-isr_no_err_stub!(isr_stub_5, 5);
-isr_no_err_stub!(isr_stub_6, 6);
-isr_no_err_stub!(isr_stub_7, 7);
-isr_err_stub!(isr_stub_8, 8);
-isr_no_err_stub!(isr_stub_9, 9);
-isr_err_stub!(isr_stub_10, 10);
-isr_err_stub!(isr_stub_11, 11);
-isr_err_stub!(isr_stub_12, 12);
-isr_err_stub!(isr_stub_13, 13);
-isr_err_stub!(isr_stub_14, 14);
-isr_no_err_stub!(isr_stub_15, 15);
-isr_no_err_stub!(isr_stub_16, 16);
-isr_err_stub!(isr_stub_17, 17);
-isr_no_err_stub!(isr_stub_18, 18);
-isr_no_err_stub!(isr_stub_19, 19);
-isr_no_err_stub!(isr_stub_20, 20);
-isr_no_err_stub!(isr_stub_21, 21);
-isr_no_err_stub!(isr_stub_22, 22);
-isr_no_err_stub!(isr_stub_23, 23);
-isr_no_err_stub!(isr_stub_24, 24);
-isr_no_err_stub!(isr_stub_25, 25);
-isr_no_err_stub!(isr_stub_26, 26);
-isr_no_err_stub!(isr_stub_27, 27);
-isr_no_err_stub!(isr_stub_28, 28);
-isr_no_err_stub!(isr_stub_29, 29);
-isr_err_stub!(isr_stub_30, 30);
-isr_no_err_stub!(isr_stub_31, 31);
-
-macro_rules! isr_stubs {
-    () => {
-        &[
-            isr_stub_0 as *const () as usize,
-            isr_stub_1 as *const () as usize,
-            isr_stub_2 as *const () as usize,
-            isr_stub_3 as *const () as usize,
-            isr_stub_4 as *const () as usize,
-            isr_stub_5 as *const () as usize,
-            isr_stub_6 as *const () as usize,
-            isr_stub_7 as *const () as usize,
-            isr_stub_8 as *const () as usize,
-            isr_stub_9 as *const () as usize,
-            isr_stub_10 as *const () as usize,
-            isr_stub_11 as *const () as usize,
-            isr_stub_12 as *const () as usize,
-            isr_stub_13 as *const () as usize,
-            isr_stub_14 as *const () as usize,
-            isr_stub_15 as *const () as usize,
-            isr_stub_16 as *const () as usize,
-            isr_stub_17 as *const () as usize,
-            isr_stub_18 as *const () as usize,
-            isr_stub_19 as *const () as usize,
-            isr_stub_20 as *const () as usize,
-            isr_stub_21 as *const () as usize,
-            isr_stub_22 as *const () as usize,
-            isr_stub_23 as *const () as usize,
-            isr_stub_24 as *const () as usize,
-            isr_stub_25 as *const () as usize,
-            isr_stub_26 as *const () as usize,
-            isr_stub_27 as *const () as usize,
-            isr_stub_28 as *const () as usize,
-            isr_stub_29 as *const () as usize,
-            isr_stub_30 as *const () as usize,
-            isr_stub_31 as *const () as usize,
-        ]
-    };
-}
-
-macro_rules! irq_stub {
-    ($func: ident, $nb: expr, $val: expr) => {
-        #[unsafe(naked)]
-        #[unsafe(no_mangle)]
-        unsafe extern "C" fn $func() {
-            core::arch::naked_asm!("cli", "push 0", "push {}", "jmp irq_common_stub", const $val);
-        }
-    };
-}
-
-irq_stub!(irq_stub_0, 0, 32);
-irq_stub!(irq_stub_1, 1, 33);
-irq_stub!(irq_stub_2, 2, 34);
-irq_stub!(irq_stub_3, 3, 35);
-irq_stub!(irq_stub_4, 4, 36);
-irq_stub!(irq_stub_5, 5, 37);
-irq_stub!(irq_stub_6, 6, 38);
-irq_stub!(irq_stub_7, 7, 39);
-irq_stub!(irq_stub_8, 8, 40);
-irq_stub!(irq_stub_9, 9, 41);
-irq_stub!(irq_stub_10, 10, 42);
-irq_stub!(irq_stub_11, 11, 43);
-irq_stub!(irq_stub_12, 12, 44);
-irq_stub!(irq_stub_13, 13, 45);
-irq_stub!(irq_stub_14, 14, 46);
-irq_stub!(irq_stub_15, 15, 47);
-
-macro_rules! irq_stubs {
-    () => {
-        &[
-            irq_stub_0 as *const () as usize,
-            irq_stub_1 as *const () as usize,
-            irq_stub_2 as *const () as usize,
-            irq_stub_3 as *const () as usize,
-            irq_stub_4 as *const () as usize,
-            irq_stub_5 as *const () as usize,
-            irq_stub_6 as *const () as usize,
-            irq_stub_7 as *const () as usize,
-            irq_stub_8 as *const () as usize,
-            irq_stub_9 as *const () as usize,
-            irq_stub_10 as *const () as usize,
-            irq_stub_11 as *const () as usize,
-            irq_stub_12 as *const () as usize,
-            irq_stub_13 as *const () as usize,
-            irq_stub_14 as *const () as usize,
-            irq_stub_15 as *const () as usize,
-        ]
-    };
-}
-
-#[unsafe(naked)]
-#[unsafe(no_mangle)]
-extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
-    core::arch::naked_asm!(
-        "pusha",
-        "mov eax, ds",
-        "push eax",
-        "mov eax, cr2",
-        "push eax",
-        //
-        "mov ax, 0x10",
-        "mov ds, ax",
-        "mov es, ax",
-        "mov fs, ax",
-        "mov gs, ax",
-        //
-        "push esp",
-        "call irq_handler",
-        //
-        "add esp, 8",
-        "pop ebx",
-        "mov ds, bx",
-        "mov es, bx",
-        "mov fs, bx",
-        "mov gs, bx",
-        //
-        "popa",
-        "add esp, 8",
-        "iretd"
-    )
-}
-
-static mut IRQ_ROUTINES: [Option<extern "C" fn(&InterruptRegisters)>; 16] = [None; 16];
-
-#[unsafe(no_mangle)]
-#[allow(static_mut_refs)]
-unsafe extern "C" fn irq_install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
-    // SAFETY:
-    // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
-    // will not be modified by any other part of the kernel.
-    unsafe { IRQ_ROUTINES[irq as usize] = Some(handler) };
-}
-
-#[unsafe(no_mangle)]
-#[allow(static_mut_refs)]
-unsafe extern "C" fn irq_uninstall_handler(irq: u32) {
-    // SAFETY:
-    // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
-    // will not be modified by any other part of the kernel.
-    unsafe { IRQ_ROUTINES[irq as usize] = None };
-}
-
-#[unsafe(no_mangle)]
-#[allow(static_mut_refs)]
-unsafe extern "C" fn irq_handler(regs: &InterruptRegisters) {
-    #[allow(clippy::cast_possible_wrap)]
-    let irq_index = if regs.intno as isize - 32 < 0 {
-        return;
-    } else {
-        (regs.intno - 32) as usize
-    };
-    serial_println!("irq_index: {}, irq_handler: {:?}, ", irq_index, regs);
-
-    let intno = regs.intno;
-    // SAFETY:
-    // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program.
-    if let Some(handler) = unsafe { IRQ_ROUTINES[irq_index] } {
-        handler(regs);
-    };
-
-    pic::send_eoi(intno as u8);
+    pub cr2: u32,
+    pub ds: u32,
+    pub edi: u32,
+    pub esi: u32,
+    pub ebp: u32,
+    pub esp: u32,
+    pub ebx: u32,
+    pub edx: u32,
+    pub ecx: u32,
+    pub eax: u32,
+    pub intno: u32,
+    pub err_code: u32,
+    pub eip: u32,
+    pub csm: u32,
+    pub eflags: u32,
+    pub useresp: u32,
+    pub ss: u32,
 }
 
 static mut IDT: Option<InterruptDescriptorTable> = None;
