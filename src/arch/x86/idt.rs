@@ -4,10 +4,11 @@
 
 use crate::{
     arch::x86::{
-        exception,
         gdt::KERNEL_CODE_OFFSET,
-        irq,
-        pic::{self, send_eoi},
+        interrupts::{
+            exception, irq,
+            pic::{self, send_eoi},
+        },
     },
     exception_stubs, irq_stubs, printk, printkln, serial_println,
 };

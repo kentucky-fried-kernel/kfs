@@ -76,7 +76,7 @@ fn scancode_to_key(scancode: u8) -> Option<Key> {
 }
 
 pub fn init() {
-    use crate::arch::x86::irq;
+    use crate::arch::x86::interrupts::irq;
 
     irq::install_handler(1, keyboard_interrupt_handler);
 

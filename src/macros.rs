@@ -17,6 +17,20 @@ macro_rules! hlt {
     };
 }
 
+#[macro_export]
+macro_rules! cli {
+    () => {
+        unsafe { ::core::arch::asm!("cli") }
+    };
+}
+
+#[macro_export]
+macro_rules! sti {
+    () => {
+        unsafe { ::core::arch::asm!("sti") }
+    };
+}
+
 /// Our panic handler currently cannot handle the messages from `.expect()`,
 /// resulting in a non-informative panic message.
 #[macro_export]

@@ -6,9 +6,9 @@ use kfs::terminal::entry::Color;
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    use kfs::{printkln, serial_println};
+    use kfs::{cli, printkln, serial_println};
 
-    unsafe { core::arch::asm!("cli") };
+    cli!();
 
     printkln!("KERNEL PANIC: {:?}\n", info.message());
 

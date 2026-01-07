@@ -1,7 +1,7 @@
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
-        pic::{self, PIC1_DATA, PIC2_DATA},
+        interrupts::pic::{self, PIC1_DATA, PIC2_DATA},
     },
     port::Port,
 };
@@ -37,22 +37,22 @@ stub!(irq_stub_15, 15, 47);
 macro_rules! irq_stubs {
     () => {
         &[
-            $crate::arch::x86::irq::irq_stub_0 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_1 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_2 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_3 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_4 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_5 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_6 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_7 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_8 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_9 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_10 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_11 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_12 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_13 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_14 as *const () as usize,
-            $crate::arch::x86::irq::irq_stub_15 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_0 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_1 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_2 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_3 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_4 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_5 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_6 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_7 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_8 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_9 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_10 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_11 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_12 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_13 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_14 as *const () as usize,
+            $crate::arch::x86::interrupts::irq::irq_stub_15 as *const () as usize,
         ]
     };
 }
