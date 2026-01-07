@@ -37,7 +37,10 @@ impl<'a> Shell<'a> {
             self.flush();
 
             loop {
-                if let Some(key) = ps2::read_if_ready() {
+                // Halt CPU until next interrupt to prevent busy waiting.
+                hlt!();
+
+                if let Some(key) = keyboard::read_key() {
                     match key {
                         Key::ArrowUp | Key::ArrowDown => {}
                         _ => self.rows_scrolled_up = 0,
