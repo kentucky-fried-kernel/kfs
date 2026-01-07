@@ -3,19 +3,19 @@
 use crate::port::Port;
 
 /// I/O base address for master PIC
-const PIC1: u8 = 0x20;
-const PIC1_COMMAND: u8 = PIC1;
-const PIC1_DATA: u8 = PIC1 + 1;
+pub const PIC1: u8 = 0x20;
+pub const PIC1_COMMAND: u8 = PIC1;
+pub const PIC1_DATA: u8 = PIC1 + 1;
 
 /// I/O base address for slave PIC
-const PIC2: u8 = 0xA0;
-const PIC2_COMMAND: u8 = PIC2;
-const PIC2_DATA: u8 = PIC2 + 1;
+pub const PIC2: u8 = 0xA0;
+pub const PIC2_COMMAND: u8 = PIC2;
+pub const PIC2_DATA: u8 = PIC2 + 1;
 
 /// End-of-interrupt command code
 const PIC_EOI: u8 = 0x20;
 
-/// Sends an end-of-interrupt command code to the PIC responsible for `IRQ`.
+/// Sends an end-of-interrupt command code to the PIC responsible for `irq`.
 pub fn send_eoi(irq: u8) {
     if irq >= 8 {
         // SAFETY:
@@ -96,45 +96,4 @@ pub fn disable() {
         Port::new(PIC1_DATA as u16).write(0xff);
         Port::new(PIC2_DATA as u16).write(0xff);
     };
-}
-
-mod irq {
-    use crate::{
-        arch::x86::pic::{PIC1_DATA, PIC2_DATA},
-        port::Port,
-    };
-
-    pub fn set_mask(mut irq_line: u8) {
-        let mut port = Port::new(if let 0..8 = irq_line {
-            PIC1_DATA
-        } else {
-            irq_line -= 8;
-            PIC2_DATA
-        } as u16);
-
-        // SAFETY:
-        // We are writing to the PIC1/PIC2 ports, which we assume to be safe.
-        #[allow(clippy::multiple_unsafe_ops_per_block)]
-        unsafe {
-            let val = port.read() | (1 << irq_line);
-            port.write(val);
-        }
-    }
-
-    pub fn clear_mask(mut irq_line: u8) {
-        let mut port = Port::new(if let 0..8 = irq_line {
-            PIC1_DATA
-        } else {
-            irq_line -= 8;
-            PIC2_DATA
-        } as u16);
-
-        // SAFETY:
-        // We are writing to the PIC1/PIC2 ports, which we assume to be safe.
-        #[allow(clippy::multiple_unsafe_ops_per_block)]
-        unsafe {
-            let val = port.read() & !(1 << irq_line);
-            port.write(val);
-        }
-    }
 }

@@ -1,4 +1,10 @@
-use crate::arch::x86::{idt::InterruptRegisters, pic};
+use crate::{
+    arch::x86::{
+        idt::InterruptRegisters,
+        pic::{self, PIC1_DATA, PIC2_DATA},
+    },
+    port::Port,
+};
 
 macro_rules! stub {
     ($func: ident, $nb: expr, $val: expr) => {
@@ -121,4 +127,38 @@ unsafe extern "C" fn irq_handler(regs: &InterruptRegisters) {
     };
 
     pic::send_eoi(irq_index as u8);
+}
+
+pub fn set_mask(mut irq_line: u8) {
+    let mut port = Port::new(if let 0..8 = irq_line {
+        PIC1_DATA
+    } else {
+        irq_line -= 8;
+        PIC2_DATA
+    } as u16);
+
+    // SAFETY:
+    // We are writing to the PIC1/PIC2 ports, which we assume to be safe.
+    #[allow(clippy::multiple_unsafe_ops_per_block)]
+    unsafe {
+        let val = port.read() | (1 << irq_line);
+        port.write(val);
+    }
+}
+
+pub fn clear_mask(mut irq_line: u8) {
+    let mut port = Port::new(if let 0..8 = irq_line {
+        PIC1_DATA
+    } else {
+        irq_line -= 8;
+        PIC2_DATA
+    } as u16);
+
+    // SAFETY:
+    // We are writing to the PIC1/PIC2 ports, which we assume to be safe.
+    #[allow(clippy::multiple_unsafe_ops_per_block)]
+    unsafe {
+        let val = port.read() & !(1 << irq_line);
+        port.write(val);
+    }
 }
