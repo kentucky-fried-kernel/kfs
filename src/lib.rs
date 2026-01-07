@@ -21,6 +21,7 @@ pub mod arch;
 pub mod bitmap;
 pub mod boot;
 pub mod conv;
+pub mod keyboard;
 pub mod macros;
 pub mod port;
 pub mod printk;
