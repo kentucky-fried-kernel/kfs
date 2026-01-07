@@ -3,8 +3,8 @@
 
 use crate::{
     boot::{STACK, STACK_SIZE},
-    printk, printkln,
-    ps2::{self, Key},
+    hlt, keyboard, printk, printkln,
+    ps2::Key,
     qemu::{ExitCode, exit},
     serial_println,
     terminal::{
