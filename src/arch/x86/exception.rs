@@ -4,7 +4,7 @@ macro_rules! no_err_stub {
     ($func: ident, $nb: expr) => {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $func() {
+        pub extern "C" fn $func() {
             core::arch::naked_asm!("cli", "push 0", "push {0}", "jmp exception_common_stub", const $nb);
         }
     };
@@ -14,7 +14,7 @@ macro_rules! err_stub {
     ($func: ident, $nb: expr) => {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $func() {
+        pub extern "C" fn $func() {
             core::arch::naked_asm!("cli", "push {0}", "jmp exception_common_stub", const $nb);
         }
     };

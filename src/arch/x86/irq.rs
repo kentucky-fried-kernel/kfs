@@ -10,7 +10,7 @@ macro_rules! stub {
     ($func: ident, $nb: expr, $val: expr) => {
         #[unsafe(naked)]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn $func() {
+        pub extern "C" fn $func() {
             core::arch::naked_asm!("cli", "push 0", "push {}", "jmp irq_common_stub", const $val);
         }
     };
