@@ -4,11 +4,12 @@
 
 use crate::{
     arch::x86::{
+        exception,
         gdt::KERNEL_CODE_OFFSET,
-        irq, isr,
+        irq,
         pic::{self, send_eoi},
     },
-    irq_stubs, isr_stubs, printk, printkln, serial_println,
+    exception_stubs, irq_stubs, printk, printkln, serial_println,
 };
 
 const MAX_INTERRUPT_DESCRIPTORS: usize = 256;
@@ -158,12 +159,12 @@ pub fn init() {
     pic::remap(0x20, 0x28);
     pic::disable();
 
-    let isr_stubs = isr_stubs!();
+    let exception_stubs = exception_stubs!();
     let irq_stubs = irq_stubs!();
 
     let mut idt = InterruptDescriptorTable::new();
 
-    for (index, stub) in isr_stubs.iter().enumerate() {
+    for (index, stub) in exception_stubs.iter().enumerate() {
         idt.set_descriptor(
             index as u8,
             InterruptDescriptor::new(
