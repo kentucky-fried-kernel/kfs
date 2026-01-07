@@ -8,10 +8,6 @@ SECTIONS
         KEEP(*(.multiboot))
     }
 
-    .note.gnu.build-id ALIGN(4K): {
-        *(.note.gnu.build-id)
-    }
-
     .boot ALIGN(4K): {
         *(.boot)
     }
