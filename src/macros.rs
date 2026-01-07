@@ -13,21 +13,30 @@ macro_rules! retry_until_ok {
 #[macro_export]
 macro_rules! hlt {
     () => {
-        unsafe { ::core::arch::asm!("hlt") }
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            ::core::arch::asm!("hlt")
+        }
     };
 }
 
 #[macro_export]
 macro_rules! cli {
     () => {
-        unsafe { ::core::arch::asm!("cli") }
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            ::core::arch::asm!("cli")
+        }
     };
 }
 
 #[macro_export]
 macro_rules! sti {
     () => {
-        unsafe { ::core::arch::asm!("sti") }
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            ::core::arch::asm!("sti")
+        }
     };
 }
 

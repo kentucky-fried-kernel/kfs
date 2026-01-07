@@ -4,6 +4,7 @@ pub struct GlobalInterruptLock;
 
 /// Global interrupt lock, instantiating executes `cli`, dropping executes `sti`.
 impl GlobalInterruptLock {
+    #[must_use]
     pub fn lock() -> Self {
         cli!();
         Self {}
@@ -27,6 +28,7 @@ pub struct IRQLock {
 }
 
 impl IRQLock {
+    #[must_use]
     pub fn lock(irq: u8) -> Self {
         irq::set_mask(irq);
         Self { irq }
