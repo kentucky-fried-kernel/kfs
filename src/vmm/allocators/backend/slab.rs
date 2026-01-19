@@ -350,9 +350,26 @@ where
             // SAFETY:
             // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
             // The slabs themselves are initialized by the `SlabAllocator`,
-            // which ensures that each allocation is sucessful before
+            // which ensures that each allocation is successful before
             // considering using it as a slab.
-            if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
+            let slab = unsafe { slab.as_mut() };
+            if let Ok(()) = slab.free(addr) {
+                let mut slab_address: NonNull<S> = expect_opt!(
+                    NonNull::new(slab.address().cast_mut()),
+                    "address() should always return Some if the free operation succeeded"
+                )
+                .cast();
+
+                if slab.allocated() == 0 {
+                    let _ = self.partial_slabs.pop_at(&slab_address);
+
+                    // SAFETY:
+                    // Slab address points to a list node that is allocated in `kmalloc::init_slab_allocator()` and
+                    // stays valid for the entire duration of the program. It is removed from the `partial_slabs` list
+                    // by the above call to `pop_at`, making `empty_slabs` the sole owner of this node.
+                    unsafe { self.empty_slabs.add_front(&mut slab_address) };
+                }
+
                 return Ok(());
             }
         }
@@ -360,9 +377,24 @@ where
             // SAFETY:
             // We are calling `as_mut()` on `slab`, which cannot be null due to its type.
             // The slabs themselves are initialized by the `SlabAllocator`,
-            // which ensures that each allocation is sucessful before
+            // which ensures that each allocation is successful before
             // considering using it as a slab.
-            if let Ok(()) = unsafe { slab.as_mut() }.free(addr) {
+            let slab = unsafe { slab.as_mut() };
+            if let Ok(()) = slab.free(addr) {
+                let mut slab_address: NonNull<S> = expect_opt!(
+                    NonNull::new(slab.address().cast_mut()),
+                    "address() should always return Some if the free operation succeeded"
+                )
+                .cast();
+
+                let _ = self.full_slabs.pop_at(&slab_address);
+
+                // SAFETY:
+                // Slab address points to a list node that is allocated in `kmalloc::init_slab_allocator()` and
+                // stays valid for the entire duration of the program. It is removed from the `full_slabs` list
+                // by the above call to `pop_at`, making `partial_slabs` the sole owner of this node.
+                unsafe { self.partial_slabs.add_front(&mut slab_address) };
+
                 return Ok(());
             }
         }
@@ -585,5 +617,151 @@ impl SlabAllocator {
             }
         }
         Err(KfreeError::InvalidPointer)
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::undocumented_unsafe_blocks)]
+#[cfg(test)]
+mod tests {
+
+    use crate::{kassert, kassert_eq};
+
+    use super::*;
+
+    #[repr(C, align(0x1000))]
+    struct MockPage<const N: usize>
+    where
+        [(); N * 0x1000]:,
+    {
+        buf: [u8; N * 0x1000],
+    }
+
+    fn init_slab<S: SlabOps + Copy + Debug>(cache: &mut SlabCache<S>, addr: NonNull<u8>, object_size: usize) {
+        let slab_ptr = addr.cast().as_ptr();
+        unsafe { S::init(slab_ptr, object_size) };
+        unsafe { cache.add_slab(addr.cast()) };
+    }
+
+    enum SlabCacheState {
+        Used,
+        Unused,
+    }
+
+    fn assert_cache_state<S: SlabOps + Copy + Debug>(
+        cache: &SlabCache<S>,
+        empty_slabs_state: SlabCacheState,
+        partial_slabs_state: SlabCacheState,
+        full_slabs_state: SlabCacheState,
+    ) -> Result<(), &'static str> {
+        for (cache, expected_state) in
+            [cache.empty_slabs, cache.partial_slabs, cache.full_slabs]
+                .iter()
+                .zip([empty_slabs_state, partial_slabs_state, full_slabs_state])
+        {
+            match expected_state {
+                SlabCacheState::Used => kassert!(cache.head().is_some()),
+                SlabCacheState::Unused => kassert!(cache.head().is_none()),
+            }
+        }
+        Ok(())
+    }
+
+    #[test_case]
+    fn free_from_full_cache_goes_back_to_partial() -> Result<(), &'static str> {
+        const OBJECT_SIZE: usize = 256;
+        let mut cache = SlabCache::<Slab<1>>::new(OBJECT_SIZE);
+        let mut page = MockPage::<1> { buf: [0; 0x1000] };
+
+        init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
+
+        let mut allocations = [core::ptr::null(); (PAGE_SIZE - slab_header_overhead::<1>()) / OBJECT_SIZE];
+        let n = allocations.len();
+
+        for (idx, alloc) in allocations.iter_mut().enumerate() {
+            *alloc = cache.alloc().map_err(|_| "Allocation failed while testing slab cache")?;
+
+            if idx < n - 1 {
+                assert_cache_state(&cache, SlabCacheState::Unused, SlabCacheState::Used, SlabCacheState::Unused)?;
+            } else {
+                assert_cache_state(&cache, SlabCacheState::Unused, SlabCacheState::Unused, SlabCacheState::Used)?;
+            }
+        }
+
+        for (idx, alloc) in allocations.iter().enumerate() {
+            let _ = cache.free(*alloc);
+            if idx < n - 1 {
+                assert_cache_state(&cache, SlabCacheState::Unused, SlabCacheState::Used, SlabCacheState::Unused)?;
+            } else {
+                assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Unused, SlabCacheState::Unused)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test_case]
+    fn free_from_full_cache_goes_back_to_partial_multiple_slabs() -> Result<(), &'static str> {
+        const OBJECT_SIZE: usize = 256;
+        let mut cache = SlabCache::<Slab<1>>::new(OBJECT_SIZE);
+        let mut page = MockPage::<2> { buf: [0; 0x2000] };
+
+        init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
+        init_slab(&mut cache, NonNull::new(unsafe { page.buf.as_mut_ptr().add(0x1000) }).unwrap(), OBJECT_SIZE);
+
+        const N_ALLOCATIONS_PER_SLAB: usize = (PAGE_SIZE - slab_header_overhead::<1>()) / OBJECT_SIZE;
+        const N_ALLOCATIONS_TOTAL: usize = N_ALLOCATIONS_PER_SLAB * 2;
+        let mut allocations = [core::ptr::null(); N_ALLOCATIONS_TOTAL];
+
+        for (idx, alloc) in allocations.iter_mut().enumerate() {
+            *alloc = cache.alloc().map_err(|_| "Allocation failed while testing slab cache")?;
+
+            if idx < N_ALLOCATIONS_PER_SLAB - 1 {
+                assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Used, SlabCacheState::Unused)?;
+            } else if idx == N_ALLOCATIONS_PER_SLAB - 1 {
+                assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Unused, SlabCacheState::Used)?;
+            } else if idx < N_ALLOCATIONS_TOTAL - 1 {
+                assert_cache_state(&cache, SlabCacheState::Unused, SlabCacheState::Used, SlabCacheState::Used)?;
+            } else {
+                assert_cache_state(&cache, SlabCacheState::Unused, SlabCacheState::Unused, SlabCacheState::Used)?;
+            }
+        }
+
+        for (idx, alloc) in allocations.iter().enumerate() {
+            let _ = cache.free(*alloc);
+            if idx < N_ALLOCATIONS_PER_SLAB - 1 {
+                assert_cache_state(&cache, SlabCacheState::Unused, SlabCacheState::Used, SlabCacheState::Used)?;
+            } else if idx == N_ALLOCATIONS_PER_SLAB - 1 {
+                assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Unused, SlabCacheState::Used)?;
+            } else if idx < N_ALLOCATIONS_TOTAL - 1 {
+                assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Used, SlabCacheState::Unused)?;
+            } else {
+                assert_cache_state(&cache, SlabCacheState::Used, SlabCacheState::Unused, SlabCacheState::Unused)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test_case]
+    fn pop_at_first_node() -> Result<(), &'static str> {
+        const OBJECT_SIZE: usize = 256;
+        let mut cache = SlabCache::<Slab<1>>::new(OBJECT_SIZE);
+        let mut page = MockPage::<2> { buf: [0; 0x2000] };
+
+        init_slab(&mut cache, NonNull::new(page.buf.as_mut_ptr()).unwrap(), OBJECT_SIZE);
+        init_slab(&mut cache, NonNull::new(unsafe { page.buf.as_mut_ptr().add(0x1000) }).unwrap(), OBJECT_SIZE);
+
+        // New slabs are added to the front of the free lists, so the first should be the last one that was
+        // added.
+        kassert_eq!(cache.empty_slabs.head().unwrap().as_ptr().cast::<u8>(), unsafe {
+            page.buf.as_mut_ptr().add(0x1000)
+        });
+
+        let _ = cache.alloc();
+
+        kassert_eq!(cache.empty_slabs.head().unwrap().as_ptr().cast::<u8>(), page.buf.as_mut_ptr());
+
+        Ok(())
     }
 }
