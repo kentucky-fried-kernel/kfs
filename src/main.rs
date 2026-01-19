@@ -21,6 +21,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     };
 
     init_memory(info);
+
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
@@ -40,10 +41,10 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{arch, qemu, vmm};
 
+    vmm::paging::init::init_memory(info);
+
     arch::x86::gdt::init();
     arch::x86::idt::init();
-
-    vmm::paging::init::init_memory(info);
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
