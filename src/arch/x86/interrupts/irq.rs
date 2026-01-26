@@ -137,6 +137,7 @@ unsafe extern "C" fn irq_handler(regs: &InterruptRegisters) {
 }
 
 pub fn set_mask(mut irq_line: u8) {
+    assert!(irq_line < 16);
     let mut port = Port::new(if let 0..8 = irq_line {
         PIC1_DATA
     } else {
@@ -154,6 +155,7 @@ pub fn set_mask(mut irq_line: u8) {
 }
 
 pub fn clear_mask(mut irq_line: u8) {
+    assert!(irq_line < 16);
     let mut port = Port::new(if let 0..8 = irq_line {
         PIC1_DATA
     } else {
