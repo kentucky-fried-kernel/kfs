@@ -57,7 +57,10 @@ pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
     let data_port = Port::new(DATA_PORT);
     let scancode = unsafe { data_port.read() };
 
-    let key = if unsafe { EXTENDED_BYTE_SENT } == true {
+    // SAFETY
+    // This is a global variable which will be available throughout
+    // the whole runtime of the program
+    let key = if unsafe { EXTENDED_BYTE_SENT } {
         unsafe {
             EXTENDED_BYTE_SENT = false;
         }

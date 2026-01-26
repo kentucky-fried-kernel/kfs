@@ -136,6 +136,8 @@ unsafe extern "C" fn irq_handler(regs: &InterruptRegisters) {
     pic::send_eoi(irq_index as u8);
 }
 
+/// # Panics
+/// This panics if irq_line is bigger than 15
 pub fn set_mask(mut irq_line: u8) {
     assert!(irq_line < 16);
     let mut port = Port::new(if let 0..8 = irq_line {
@@ -154,6 +156,8 @@ pub fn set_mask(mut irq_line: u8) {
     }
 }
 
+/// # Panics
+/// This panics if irq_line is bigger than 15
 pub fn clear_mask(mut irq_line: u8) {
     assert!(irq_line < 16);
     let mut port = Port::new(if let 0..8 = irq_line {
