@@ -33,10 +33,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     }
 
     #[allow(static_mut_refs)]
-    let mut shell = Shell::default(unsafe {
-        use kfs::terminal::SCREEN;
-        &mut SCREEN
-    });
+    let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN });
     shell.launch();
 }
 
