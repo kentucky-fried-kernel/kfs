@@ -5,12 +5,16 @@
 use crate::{
     arch::x86::idt::InterruptRegisters,
     port::Port,
-    ps2::{DATA_PORT, Key},
+    ps2::{
+        DATA_PORT, Key,
+        scancodes::{SCANCODE_TO_KEY, SCANCODE_TO_KEY_SECOND},
+    },
 };
 
 const BUFFER_SIZE: usize = 256;
 
 static mut KEYBOARD_BUFFER: KeyboardBuffer = KeyboardBuffer::new();
+static mut EXTENDED_BYTE_SENT: bool = false;
 
 struct KeyboardBuffer {
     buffer: [Option<Key>; BUFFER_SIZE],
@@ -53,7 +57,26 @@ pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
     let data_port = Port::new(DATA_PORT);
     let scancode = unsafe { data_port.read() };
 
-    if let Some(key) = scancode_to_key(scancode) {
+    // SAFETY
+    // This is a global variable which will be available throughout
+    // the whole runtime of the program
+    let key = if unsafe { EXTENDED_BYTE_SENT } {
+        unsafe {
+            EXTENDED_BYTE_SENT = false;
+        }
+        SCANCODE_TO_KEY_SECOND[scancode as usize].1
+    } else {
+        if scancode == 0xE0 {
+            unsafe {
+                EXTENDED_BYTE_SENT = true;
+            }
+            None
+        } else {
+            SCANCODE_TO_KEY[scancode as usize].1
+        }
+    };
+
+    if let Some(key) = key {
         unsafe {
             KEYBOARD_BUFFER.push(key);
         }
@@ -63,16 +86,6 @@ pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
 #[must_use]
 pub fn read_key() -> Option<Key> {
     unsafe { KEYBOARD_BUFFER.pop() }
-}
-
-fn scancode_to_key(scancode: u8) -> Option<Key> {
-    use crate::ps2::scancodes::SCANCODE_TO_KEY;
-
-    if scancode == 0xE0 || scancode == 0xF0 {
-        return None;
-    }
-
-    SCANCODE_TO_KEY[scancode as usize].1
 }
 
 pub fn init() {
