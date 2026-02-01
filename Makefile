@@ -10,18 +10,18 @@ TARGET_CONFIG := ./src/arch/x86/i386-unknown-none.json
 QEMU_FLAGS := -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G
 DEBUG_QEMU_FLAGS := $(QEMU_FLAGS) -serial stdio
 
-LIB := target/i386-unknown-none/release/libkfs.a
+BIN := target/i386-unknown-none/release/kfs
 
 RUST_SRCS := $(shell find $(SRC_DIR) -type f -name "*.rs")
 CARGO_TOML := Cargo.toml
 
 all: $(BUILD_DIR)/$(BINARY) $(LD_SCRIPT) $(TARGET_CONFIG)
 
-$(BUILD_DIR)/$(BINARY): $(LIB)
+$(BUILD_DIR)/$(BINARY): $(BIN)
 
-$(LIB): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER) $(LD_SCRIPT) $(TARGET_CONFIG)
-	@cargo build --release
-	@touch $(LIB)
+$(BIN): $(RUST_SRCS) $(CARGO_TOML) $(MULTIBOOT_HEADER) $(LD_SCRIPT) $(TARGET_CONFIG)
+	@cargo build --release -Zjson-target-spec
+	@touch $(BIN)
 
 $(BUILD_DIR):
 	@mkdir -p $@
@@ -29,7 +29,7 @@ $(BUILD_DIR):
 iso: all
 	@mkdir -p $(BUILD_DIR)/iso/boot/grub
 	@cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
-	@cp target/i386-unknown-none/release/kfs $(BUILD_DIR)/iso/boot/kernel.bin
+	@cp $(BIN) $(BUILD_DIR)/iso/boot/kernel.bin
 	@grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
 
 run: iso
@@ -38,7 +38,7 @@ run: iso
 debug-iso: all
 	@mkdir -p $(BUILD_DIR)/iso/boot/grub
 	@cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
-	@cp target/i386-unknown-none/release/kfs $(BUILD_DIR)/iso/boot/kernel.bin
+	@cp $(BIN) $(BUILD_DIR)/iso/boot/kernel.bin
 	@grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
 
 debug: debug-iso
