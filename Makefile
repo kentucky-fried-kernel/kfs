@@ -59,6 +59,9 @@ fclean:
 	@$(RM) -rf $(BUILD_DIR)
 	@$(RM) -f $(GDT_OBJ)
 
+clippy:
+	cargo clippy -Zjson-target-spec -- --D warnings
+
 re: fclean all
 
 .PHONY: all run re fclean iso debug

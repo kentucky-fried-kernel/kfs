@@ -7,15 +7,13 @@ pub struct GlobalInterruptLock;
 static GLOBAL_INTERRUPT_LOCK: AtomicBool = AtomicBool::new(false);
 
 /// Global interrupt lock, instantiating executes `cli`, dropping executes `sti`.
-///
-/// Attempting to instantiate a new lock while holding another one will panic.
 impl GlobalInterruptLock {
+    /// # Panics
+    /// Attempting to instantiate a new lock while holding another one will panic.
     #[must_use]
     pub fn lock() -> Self {
         assert!(
-            !GLOBAL_INTERRUPT_LOCK
-                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-                .is_err(),
+            GLOBAL_INTERRUPT_LOCK.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_ok(),
             "called GlobalInterruptLock::lock() while already holding another lock"
         );
 
@@ -38,20 +36,20 @@ impl Drop for GlobalInterruptLock {
 static IRQ_LOCK: [AtomicBool; 16] = [const { AtomicBool::new(false) }; 16];
 
 /// IRQ lock, instantiating masks `irq`, dropping unmasks.
-///
-/// Attempting to instantiate a new lock while holding another one will panic.
 pub struct IRQLock {
     irq: u8,
 }
 
 impl IRQLock {
     #[must_use]
+    /// # Panics
+    /// Attempting to instantiate a new lock while holding another one will panic.
     pub fn lock(irq: u8) -> Self {
         assert!((0..16).contains(&irq), "irq must be in range 0..16");
         assert!(
-            !IRQ_LOCK[irq as usize]
+            IRQ_LOCK[irq as usize]
                 .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-                .is_err(),
+                .is_ok(),
             "called IRQLock::lock() while already holding another lock"
         );
 
