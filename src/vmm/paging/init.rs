@@ -50,15 +50,16 @@ fn set_mmap_entries_in_used_pages(info: &MultibootInfo) {
 
     loop {
         unsafe {
-            let entry: *const MultibootMmapEntry = (info.mmap_addr + i) as *const MultibootMmapEntry;
-            if (*entry).ty != 1 {
-                for i in 0..((*entry).len as usize / PAGE_SIZE) {
-                    let index = ((*entry).addr as usize / PAGE_SIZE) + i;
+            let entry: MultibootMmapEntry = *((info.mmap_addr + i) as *const MultibootMmapEntry);
+
+            if entry.ty != 1 {
+                for i in 0..(entry.len as usize / PAGE_SIZE) {
+                    let index = (entry.addr as usize / PAGE_SIZE) + i;
                     USED_PAGES[index] = Some(Access::Root);
                 }
             }
 
-            i += (*entry).size + 4;
+            i += entry.size + 4;
             if i >= info.mmap_length {
                 break;
             }

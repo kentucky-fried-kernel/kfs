@@ -108,6 +108,7 @@ impl Display for MultibootInfo {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 #[repr(C, align(1))]
 pub struct MultibootMmapEntry {
     pub size: u32,

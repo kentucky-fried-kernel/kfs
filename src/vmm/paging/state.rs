@@ -17,7 +17,7 @@ pub const PAGE_TABLE_SIZE: usize = 1024;
 #[used]
 #[unsafe(no_mangle)]
 #[allow(clippy::identity_op)]
-#[unsafe(link_section = ".data")]
+#[unsafe(link_section = ".bss")]
 pub static mut KERNEL_PAGE_TABLES: [PageTable; PAGE_TABLE_SIZE] = [PageTable([PageTableEntry::empty(); PAGE_TABLE_SIZE]); PAGE_TABLE_SIZE];
 
 pub const KERNEL_PAGE_DIRECTORY_TABLE_SIZE: usize = 1024;

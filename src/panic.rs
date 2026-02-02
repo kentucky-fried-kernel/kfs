@@ -5,14 +5,15 @@ use kfs::terminal::entry::Color;
 
 #[cfg(not(test))]
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    use kfs::terminal::{Screen, vga::Buffer};
+fn panic(info: &PanicInfo) -> ! {
+    use kfs::{cli, printkln, serial_println};
 
-    let mut s = Screen::default();
-    s.write_color("KERNEL PANIC\n", Color::Error);
-    s.write_color(_info.message().as_str().unwrap_or("???"), Color::Error);
-    let b = Buffer::from_screen(&mut s, 0);
-    b.flush();
+    cli!();
+
+    printkln!("KERNEL PANIC: {:?}\n", info.message());
+
+    serial_println!("KERNEL PANIC: {:?}", info.message());
+
     loop {}
 }
 

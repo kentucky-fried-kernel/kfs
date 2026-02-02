@@ -1,6 +1,6 @@
 mod controller;
 mod io;
-mod scancodes;
+pub mod scancodes;
 
 pub const DATA_PORT: u16 = 0x60;
 pub const STATUS_PORT: u16 = 0x64;

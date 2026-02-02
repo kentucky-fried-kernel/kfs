@@ -32,4 +32,4 @@ jobs:
                   submodules: recursive
             - run: rustup component add rust-src
             - run: rustup component add clippy
-            - run: cargo clippy -- -D warnings
+            - run: make clippy

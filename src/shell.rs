@@ -3,8 +3,8 @@
 
 use crate::{
     boot::{STACK, STACK_SIZE},
-    printk, printkln,
-    ps2::{self, Key},
+    hlt, keyboard, printk, printkln,
+    ps2::Key,
     qemu::{ExitCode, exit},
     serial_println,
     terminal::{
@@ -37,7 +37,10 @@ impl<'a> Shell<'a> {
             self.flush();
 
             loop {
-                if let Some(key) = ps2::read_if_ready() {
+                // Halt CPU until next interrupt to prevent busy waiting.
+                hlt!();
+
+                if let Some(key) = keyboard::read_key() {
                     match key {
                         Key::ArrowUp | Key::ArrowDown => {}
                         _ => self.rows_scrolled_up = 0,

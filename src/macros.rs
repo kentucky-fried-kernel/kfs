@@ -10,6 +10,36 @@ macro_rules! retry_until_ok {
     };
 }
 
+#[macro_export]
+macro_rules! hlt {
+    () => {
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            ::core::arch::asm!("hlt")
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! cli {
+    () => {
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            ::core::arch::asm!("cli")
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! sti {
+    () => {
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            ::core::arch::asm!("sti")
+        }
+    };
+}
+
 /// Our panic handler currently cannot handle the messages from `.expect()`,
 /// resulting in a non-informative panic message.
 #[macro_export]
