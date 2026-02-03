@@ -7,8 +7,9 @@ use crate::{
     port::Port,
     ps2::{
         DATA_PORT, Key,
-        scancodes::{SCANCODE_TO_KEY, SCANCODE_TO_KEY_SECOND},
+        scancodes::{SCANCODE_SET_1_TO_KEY, SCANCODE_SET_1_TO_KEY_EXTENDED},
     },
+    serial_println,
 };
 
 const BUFFER_SIZE: usize = 256;
@@ -57,6 +58,8 @@ pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
     let data_port = Port::new(DATA_PORT);
     let scancode = unsafe { data_port.read() };
 
+    serial_println!("scan_code: {:x}", scancode);
+
     // SAFETY
     // This is a global variable which will be available throughout
     // the whole runtime of the program
@@ -64,7 +67,7 @@ pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
         unsafe {
             EXTENDED_BYTE_SENT = false;
         }
-        SCANCODE_TO_KEY_SECOND[scancode as usize].1
+        SCANCODE_SET_1_TO_KEY_EXTENDED[scancode as usize]
     } else {
         if scancode == 0xE0 {
             unsafe {
@@ -72,13 +75,14 @@ pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
             }
             None
         } else {
-            SCANCODE_TO_KEY[scancode as usize].1
+            SCANCODE_SET_1_TO_KEY[scancode as usize]
         }
     };
 
     if let Some(key) = key {
         unsafe {
-            KEYBOARD_BUFFER.push(key);
+            serial_println!("{:?}", key);
+            // KEYBOARD_BUFFER.push(key);
         }
     }
 }
