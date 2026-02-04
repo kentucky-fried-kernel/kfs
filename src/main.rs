@@ -4,7 +4,12 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::{boot::MultibootInfo, hlt};
+use kfs::{
+    boot::MultibootInfo,
+    hlt,
+    keyboard::{Keyboard, Qwerty},
+    serial_println,
+};
 
 mod panic;
 
@@ -27,6 +32,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     init_memory(info);
 
     kfs::ps2::init();
+    let mut keyboard = Keyboard::new(Qwerty {});
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
@@ -38,6 +44,9 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     loop {
         hlt!();
+        while let Some(x) = keyboard.next() {
+            serial_println!("{:?}", x);
+        }
     }
 }
 

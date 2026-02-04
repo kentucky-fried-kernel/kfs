@@ -9,4 +9,5 @@ pub const OUTPUT_BUFFER_STATUS_BIT: u8 = 1;
 pub use interrupt::init;
 pub use interrupt::read_key_event;
 
+pub use scancodes::Event;
 pub use scancodes::Key;

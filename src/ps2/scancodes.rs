@@ -105,9 +105,9 @@ pub enum Event {
 
 #[derive(Debug, Copy, Clone)]
 pub struct KeyEvent {
-    key: Key,
-    event: Event,
-    scancode: u8,
+    pub key: Key,
+    pub event: Event,
+    pub scancode: u8,
 }
 
 impl KeyEvent {
