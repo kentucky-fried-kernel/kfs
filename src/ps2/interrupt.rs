@@ -75,7 +75,6 @@ extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
 
     if let Some(key) = key {
         unsafe {
-            serial_println!("{:?}", key);
             #[allow(static_mut_refs)]
             BUFFER.push(key);
         }

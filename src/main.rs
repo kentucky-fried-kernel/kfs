@@ -7,8 +7,13 @@
 use kfs::{
     boot::MultibootInfo,
     hlt,
-    keyboard::{Keyboard, Qwerty},
+    keyboard::{
+        Keyboard,
+        layout::{Layout, map_qwerty},
+    },
+    ps2::Key,
     serial_println,
+    shell::Shell,
 };
 
 mod panic;
@@ -32,22 +37,14 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     init_memory(info);
 
     kfs::ps2::init();
-    let mut keyboard = Keyboard::new(Qwerty {});
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
     }
 
-    // #[allow(static_mut_refs)]
-    // let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN });
-    // shell.launch();
-
-    loop {
-        hlt!();
-        while let Some(x) = keyboard.next() {
-            serial_println!("{:?}", x);
-        }
-    }
+    #[allow(static_mut_refs)]
+    let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN }, Keyboard::new(Layout::new(map_qwerty)));
+    shell.launch();
 }
 
 // /// # Panics

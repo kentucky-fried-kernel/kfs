@@ -1,12 +1,12 @@
 use crate::{
-    keyboard::layout::{Character, Layout},
+    keyboard::layout::{Character, CharacterFull, Layout},
     ps2::{self, Key},
 };
 
-mod layout;
+pub mod layout;
 
 #[derive(Clone, Copy, Debug)]
-struct ModifierState {
+pub struct ModifierState {
     shift_pressed: bool,
     ctrl_pressed: bool,
     alt_pressed: bool,
@@ -33,13 +33,18 @@ impl Keyboard {
     }
 
     pub fn next(&mut self) -> Option<Character> {
+        let c = self.next_full()?;
+        Some(c.character)
+    }
+
+    pub fn next_full(&mut self) -> Option<CharacterFull> {
         while let Some(key_event) = ps2::read_key_event() {
             use Key::*;
             use ps2::Event::*;
             match key_event.key {
                 LeftShift | RightShift => match key_event.event {
-                    Pressed => self.modifier.ctrl_pressed = true,
-                    Released => self.modifier.ctrl_pressed = false,
+                    Pressed => self.modifier.shift_pressed = true,
+                    Released => self.modifier.shift_pressed = false,
                 },
                 LeftCtrl | RightCtrl => match key_event.event {
                     Pressed => self.modifier.ctrl_pressed = true,
@@ -55,7 +60,7 @@ impl Keyboard {
                 },
                 _ => match key_event.event {
                     Pressed => {
-                        return Some(self.layout.map(key_event.key, self.modifier));
+                        return self.layout.map(key_event.key, self.modifier);
                     }
                     Released => {}
                 },
