@@ -71,6 +71,144 @@ impl Layout {
     }
 }
 
+pub fn map_colemak(key: Key, modifiers: ModifierState) -> Option<CharacterFull> {
+    use Key::*;
+
+    let c = match key {
+        // Unaffected (same as QWERTY)
+        Escape => Some(Character::Escape),
+        Tab => Some(Character::Tab),
+        Enter => Some(Character::Enter),
+        ArrowUp => Some(Character::ArrowUp),
+        Backspace => Some(Character::Backspace),
+        ArrowDown => Some(Character::ArrowDown),
+        ArrowLeft => Some(Character::ArrowLeft),
+        ArrowRight => Some(Character::ArrowRight),
+
+        LeftAlt | RightAlt | LeftShift | RightShift | LeftCtrl | RightCtrl | LeftGui | RightGui => None,
+
+        // Alphabetic keys (Colemak)
+        Q => Some(Character::Char(if modifiers.shift_pressed { 'Q' } else { 'q' })),
+        W => Some(Character::Char(if modifiers.shift_pressed { 'W' } else { 'w' })),
+        E => Some(Character::Char(if modifiers.shift_pressed { 'S' } else { 's' })), // QWERTY E -> Colemak S
+        R => Some(Character::Char(if modifiers.shift_pressed { 'T' } else { 't' })), // QWERTY R -> Colemak T
+        T => Some(Character::Char(if modifiers.shift_pressed { 'D' } else { 'd' })), // QWERTY T -> Colemak D
+
+        Y => Some(Character::Char(if modifiers.shift_pressed { 'Y' } else { 'y' })),
+        U => Some(Character::Char(if modifiers.shift_pressed { 'U' } else { 'u' })),
+        I => Some(Character::Char(if modifiers.shift_pressed { 'I' } else { 'i' })),
+        O => Some(Character::Char(if modifiers.shift_pressed { 'O' } else { 'o' })),
+        P => Some(Character::Char(if modifiers.shift_pressed { 'P' } else { 'p' })),
+
+        A => Some(Character::Char(if modifiers.shift_pressed { 'A' } else { 'a' })),
+        S => Some(Character::Char(if modifiers.shift_pressed { 'R' } else { 'r' })), // QWERTY S -> Colemak R
+        D => Some(Character::Char(if modifiers.shift_pressed { 'S' } else { 's' })), // QWERTY D -> Colemak S
+        F => Some(Character::Char(if modifiers.shift_pressed { 'F' } else { 'f' })),
+        G => Some(Character::Char(if modifiers.shift_pressed { 'G' } else { 'g' })),
+
+        H => Some(Character::Char(if modifiers.shift_pressed { 'H' } else { 'h' })),
+        J => Some(Character::Char(if modifiers.shift_pressed { 'N' } else { 'n' })), // QWERTY J -> Colemak N
+        K => Some(Character::Char(if modifiers.shift_pressed { 'E' } else { 'e' })), // QWERTY K -> Colemak E
+        L => Some(Character::Char(if modifiers.shift_pressed { 'I' } else { 'i' })), // QWERTY L -> Colemak I
+
+        Z => Some(Character::Char(if modifiers.shift_pressed { 'Z' } else { 'z' })),
+        X => Some(Character::Char(if modifiers.shift_pressed { 'X' } else { 'x' })),
+        C => Some(Character::Char(if modifiers.shift_pressed { 'C' } else { 'c' })),
+        V => Some(Character::Char(if modifiers.shift_pressed { 'V' } else { 'v' })),
+        B => Some(Character::Char(if modifiers.shift_pressed { 'B' } else { 'b' })),
+        N => Some(Character::Char(if modifiers.shift_pressed { 'K' } else { 'k' })), // QWERTY N -> Colemak K
+        M => Some(Character::Char(if modifiers.shift_pressed { 'M' } else { 'm' })),
+
+        // Numbers and punctuation (remain same as QWERTY)
+        N0 => match modifiers.shift_pressed {
+            true => Some(Character::Char(')')),
+            false => Some(Character::Char('0')),
+        },
+        N1 => match modifiers.shift_pressed {
+            true => Some(Character::Char('!')),
+            false => Some(Character::Char('1')),
+        },
+        N2 => match modifiers.shift_pressed {
+            true => Some(Character::Char('@')),
+            false => Some(Character::Char('2')),
+        },
+        N3 => match modifiers.shift_pressed {
+            true => Some(Character::Char('#')),
+            false => Some(Character::Char('3')),
+        },
+        N4 => match modifiers.shift_pressed {
+            true => Some(Character::Char('$')),
+            false => Some(Character::Char('4')),
+        },
+        N5 => match modifiers.shift_pressed {
+            true => Some(Character::Char('%')),
+            false => Some(Character::Char('5')),
+        },
+        N6 => match modifiers.shift_pressed {
+            true => Some(Character::Char('^')),
+            false => Some(Character::Char('6')),
+        },
+        N7 => match modifiers.shift_pressed {
+            true => Some(Character::Char('&')),
+            false => Some(Character::Char('7')),
+        },
+        N8 => match modifiers.shift_pressed {
+            true => Some(Character::Char('*')),
+            false => Some(Character::Char('8')),
+        },
+        N9 => match modifiers.shift_pressed {
+            true => Some(Character::Char('(')),
+            false => Some(Character::Char('9')),
+        },
+
+        Point => match modifiers.shift_pressed {
+            true => Some(Character::Char('>')),
+            false => Some(Character::Char('.')),
+        },
+        Space => Some(Character::Char(' ')),
+        Equal => match modifiers.shift_pressed {
+            true => Some(Character::Char('+')),
+            false => Some(Character::Char('=')),
+        },
+        Minus => match modifiers.shift_pressed {
+            true => Some(Character::Char('_')),
+            false => Some(Character::Char('-')),
+        },
+        Comma => match modifiers.shift_pressed {
+            true => Some(Character::Char('<')),
+            false => Some(Character::Char(',')),
+        },
+        Semicolon => match modifiers.shift_pressed {
+            true => Some(Character::Char(':')),
+            false => Some(Character::Char(';')),
+        },
+        Slash => match modifiers.shift_pressed {
+            true => Some(Character::Char('?')),
+            false => Some(Character::Char('/')),
+        },
+        Backslash => match modifiers.shift_pressed {
+            true => Some(Character::Char('|')),
+            false => Some(Character::Char('\\')),
+        },
+        SingleQuote => match modifiers.shift_pressed {
+            true => Some(Character::Char('\"')),
+            false => Some(Character::Char('\'')),
+        },
+        SquareBracketsOpen => match modifiers.shift_pressed {
+            true => Some(Character::Char('{')),
+            false => Some(Character::Char('[')),
+        },
+        SquareBracketsClosed => match modifiers.shift_pressed {
+            true => Some(Character::Char('}')),
+            false => Some(Character::Char(']')),
+        },
+
+        _ => None,
+    }?;
+
+    Some(CharacterFull::new(c, modifiers))
+}
+
 pub fn map_qwerty(key: Key, modifiers: ModifierState) -> Option<CharacterFull> {
     use Key::*;
     let c = match key {
@@ -127,195 +265,54 @@ pub fn map_qwerty(key: Key, modifiers: ModifierState) -> Option<CharacterFull> {
         NumLock => None,
         ScrollLock => None,
 
-        A => match modifiers.shift_pressed {
-            true => Some(Character::Char('A')),
-            false => Some(Character::Char('a')),
-        },
-        B => match modifiers.shift_pressed {
-            true => Some(Character::Char('B')),
-            false => Some(Character::Char('b')),
-        },
-        C => match modifiers.shift_pressed {
-            true => Some(Character::Char('C')),
-            false => Some(Character::Char('c')),
-        },
-        D => match modifiers.shift_pressed {
-            true => Some(Character::Char('D')),
-            false => Some(Character::Char('d')),
-        },
-        E => match modifiers.shift_pressed {
-            true => Some(Character::Char('E')),
-            false => Some(Character::Char('e')),
-        },
-        F => match modifiers.shift_pressed {
-            true => Some(Character::Char('F')),
-            false => Some(Character::Char('f')),
-        },
-        G => match modifiers.shift_pressed {
-            true => Some(Character::Char('G')),
-            false => Some(Character::Char('g')),
-        },
-        H => match modifiers.shift_pressed {
-            true => Some(Character::Char('H')),
-            false => Some(Character::Char('h')),
-        },
-        I => match modifiers.shift_pressed {
-            true => Some(Character::Char('I')),
-            false => Some(Character::Char('i')),
-        },
-        J => match modifiers.shift_pressed {
-            true => Some(Character::Char('J')),
-            false => Some(Character::Char('j')),
-        },
-        K => match modifiers.shift_pressed {
-            true => Some(Character::Char('K')),
-            false => Some(Character::Char('k')),
-        },
-        L => match modifiers.shift_pressed {
-            true => Some(Character::Char('L')),
-            false => Some(Character::Char('l')),
-        },
-        M => match modifiers.shift_pressed {
-            true => Some(Character::Char('M')),
-            false => Some(Character::Char('m')),
-        },
-        N => match modifiers.shift_pressed {
-            true => Some(Character::Char('N')),
-            false => Some(Character::Char('n')),
-        },
-        O => match modifiers.shift_pressed {
-            true => Some(Character::Char('O')),
-            false => Some(Character::Char('o')),
-        },
-        P => match modifiers.shift_pressed {
-            true => Some(Character::Char('P')),
-            false => Some(Character::Char('p')),
-        },
-        Q => match modifiers.shift_pressed {
-            true => Some(Character::Char('Q')),
-            false => Some(Character::Char('q')),
-        },
-        R => match modifiers.shift_pressed {
-            true => Some(Character::Char('R')),
-            false => Some(Character::Char('r')),
-        },
-        S => match modifiers.shift_pressed {
-            true => Some(Character::Char('S')),
-            false => Some(Character::Char('s')),
-        },
-        T => match modifiers.shift_pressed {
-            true => Some(Character::Char('T')),
-            false => Some(Character::Char('t')),
-        },
-        U => match modifiers.shift_pressed {
-            true => Some(Character::Char('U')),
-            false => Some(Character::Char('u')),
-        },
-        V => match modifiers.shift_pressed {
-            true => Some(Character::Char('V')),
-            false => Some(Character::Char('v')),
-        },
-        W => match modifiers.shift_pressed {
-            true => Some(Character::Char('W')),
-            false => Some(Character::Char('w')),
-        },
-        X => match modifiers.shift_pressed {
-            true => Some(Character::Char('X')),
-            false => Some(Character::Char('x')),
-        },
-        Y => match modifiers.shift_pressed {
-            true => Some(Character::Char('Y')),
-            false => Some(Character::Char('y')),
-        },
-        Z => match modifiers.shift_pressed {
-            true => Some(Character::Char('Z')),
-            false => Some(Character::Char('z')),
-        },
-        N0 => match modifiers.shift_pressed {
-            true => Some(Character::Char(')')),
-            false => Some(Character::Char('0')),
-        },
-        N1 => match modifiers.shift_pressed {
-            true => Some(Character::Char('!')),
-            false => Some(Character::Char('1')),
-        },
-        N2 => match modifiers.shift_pressed {
-            true => Some(Character::Char('@')),
-            false => Some(Character::Char('2')),
-        },
-        N3 => match modifiers.shift_pressed {
-            true => Some(Character::Char('#')),
-            false => Some(Character::Char('3')),
-        },
-        N4 => match modifiers.shift_pressed {
-            true => Some(Character::Char('$')),
-            false => Some(Character::Char('4')),
-        },
-        N5 => match modifiers.shift_pressed {
-            true => Some(Character::Char('%')),
-            false => Some(Character::Char('5')),
-        },
-        N6 => match modifiers.shift_pressed {
-            true => Some(Character::Char('^')),
-            false => Some(Character::Char('6')),
-        },
-        N7 => match modifiers.shift_pressed {
-            true => Some(Character::Char('&')),
-            false => Some(Character::Char('7')),
-        },
-        N8 => match modifiers.shift_pressed {
-            true => Some(Character::Char('*')),
-            false => Some(Character::Char('8')),
-        },
-        N9 => match modifiers.shift_pressed {
-            true => Some(Character::Char('(')),
-            false => Some(Character::Char('9')),
-        },
-        Point => match modifiers.shift_pressed {
-            true => Some(Character::Char('>')),
-            false => Some(Character::Char('.')),
-        },
+        A => Some(Character::Char(if modifiers.shift_pressed { 'A' } else { 'a' })),
+        B => Some(Character::Char(if modifiers.shift_pressed { 'B' } else { 'b' })),
+        C => Some(Character::Char(if modifiers.shift_pressed { 'C' } else { 'c' })),
+        D => Some(Character::Char(if modifiers.shift_pressed { 'D' } else { 'd' })),
+        E => Some(Character::Char(if modifiers.shift_pressed { 'E' } else { 'e' })),
+        F => Some(Character::Char(if modifiers.shift_pressed { 'F' } else { 'f' })),
+        G => Some(Character::Char(if modifiers.shift_pressed { 'G' } else { 'g' })),
+        H => Some(Character::Char(if modifiers.shift_pressed { 'H' } else { 'h' })),
+        I => Some(Character::Char(if modifiers.shift_pressed { 'I' } else { 'i' })),
+        J => Some(Character::Char(if modifiers.shift_pressed { 'J' } else { 'j' })),
+        K => Some(Character::Char(if modifiers.shift_pressed { 'K' } else { 'k' })),
+        L => Some(Character::Char(if modifiers.shift_pressed { 'L' } else { 'l' })),
+        M => Some(Character::Char(if modifiers.shift_pressed { 'M' } else { 'm' })),
+        N => Some(Character::Char(if modifiers.shift_pressed { 'N' } else { 'n' })),
+        O => Some(Character::Char(if modifiers.shift_pressed { 'O' } else { 'o' })),
+        P => Some(Character::Char(if modifiers.shift_pressed { 'P' } else { 'p' })),
+        Q => Some(Character::Char(if modifiers.shift_pressed { 'Q' } else { 'q' })),
+        R => Some(Character::Char(if modifiers.shift_pressed { 'R' } else { 'r' })),
+        S => Some(Character::Char(if modifiers.shift_pressed { 'S' } else { 's' })),
+        T => Some(Character::Char(if modifiers.shift_pressed { 'T' } else { 't' })),
+        U => Some(Character::Char(if modifiers.shift_pressed { 'U' } else { 'u' })),
+        V => Some(Character::Char(if modifiers.shift_pressed { 'V' } else { 'v' })),
+        W => Some(Character::Char(if modifiers.shift_pressed { 'W' } else { 'w' })),
+        X => Some(Character::Char(if modifiers.shift_pressed { 'X' } else { 'x' })),
+        Y => Some(Character::Char(if modifiers.shift_pressed { 'Y' } else { 'y' })),
+        Z => Some(Character::Char(if modifiers.shift_pressed { 'Z' } else { 'z' })),
+        N0 => Some(Character::Char(if modifiers.shift_pressed { ')' } else { '0' })),
+        N1 => Some(Character::Char(if modifiers.shift_pressed { '!' } else { '1' })),
+        N2 => Some(Character::Char(if modifiers.shift_pressed { '@' } else { '2' })),
+        N3 => Some(Character::Char(if modifiers.shift_pressed { '#' } else { '3' })),
+        N4 => Some(Character::Char(if modifiers.shift_pressed { '$' } else { '4' })),
+        N5 => Some(Character::Char(if modifiers.shift_pressed { '%' } else { '5' })),
+        N6 => Some(Character::Char(if modifiers.shift_pressed { '^' } else { '6' })),
+        N7 => Some(Character::Char(if modifiers.shift_pressed { '&' } else { '7' })),
+        N8 => Some(Character::Char(if modifiers.shift_pressed { '*' } else { '8' })),
+        N9 => Some(Character::Char(if modifiers.shift_pressed { '(' } else { '9' })),
+        Point => Some(Character::Char(if modifiers.shift_pressed { '>' } else { '.' })),
+        Equal => Some(Character::Char(if modifiers.shift_pressed { '+' } else { '=' })),
+        Minus => Some(Character::Char(if modifiers.shift_pressed { '_' } else { '-' })),
+        Comma => Some(Character::Char(if modifiers.shift_pressed { '<' } else { ',' })),
+        Backtick => Some(Character::Char(if modifiers.shift_pressed { '~' } else { '`' })),
+        Semicolon => Some(Character::Char(if modifiers.shift_pressed { ':' } else { ';' })),
+        Slash => Some(Character::Char(if modifiers.shift_pressed { '?' } else { '/' })),
+        Backslash => Some(Character::Char(if modifiers.shift_pressed { '|' } else { '\\' })),
+        SingleQuote => Some(Character::Char(if modifiers.shift_pressed { '\"' } else { '\'' })),
+        SquareBracketsOpen => Some(Character::Char(if modifiers.shift_pressed { '{' } else { '}' })),
+        SquareBracketsClosed => Some(Character::Char(if modifiers.shift_pressed { '}' } else { ']' })),
         Space => Some(Character::Char(' ')),
-        Equal => match modifiers.shift_pressed {
-            true => Some(Character::Char('+')),
-            false => Some(Character::Char('=')),
-        },
-        Minus => match modifiers.shift_pressed {
-            true => Some(Character::Char('_')),
-            false => Some(Character::Char('-')),
-        },
-        Comma => match modifiers.shift_pressed {
-            true => Some(Character::Char('<')),
-            false => Some(Character::Char(',')),
-        },
-        Backtick => match modifiers.shift_pressed {
-            true => Some(Character::Char('~')),
-            false => Some(Character::Char('`')),
-        },
-        Semicolon => match modifiers.shift_pressed {
-            true => Some(Character::Char(':')),
-            false => Some(Character::Char(';')),
-        },
-        Slash => match modifiers.shift_pressed {
-            true => Some(Character::Char('?')),
-            false => Some(Character::Char('/')),
-        },
-        Backslash => match modifiers.shift_pressed {
-            true => Some(Character::Char('|')),
-            false => Some(Character::Char('\\')),
-        },
-        SingleQuote => match modifiers.shift_pressed {
-            true => Some(Character::Char('\"')),
-            false => Some(Character::Char('\'')),
-        },
-        SquareBracketsOpen => match modifiers.shift_pressed {
-            true => Some(Character::Char('{')),
-            false => Some(Character::Char('[')),
-        },
-        SquareBracketsClosed => match modifiers.shift_pressed {
-            true => Some(Character::Char('}')),
-            false => Some(Character::Char(']')),
-        },
     }?;
 
     Some(CharacterFull::new(c, modifiers))

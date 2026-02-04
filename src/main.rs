@@ -9,7 +9,7 @@ use kfs::{
     hlt,
     keyboard::{
         Keyboard,
-        layout::{Layout, map_qwerty},
+        layout::{Layout, map_colemak, map_qwerty},
     },
     ps2::Key,
     serial_println,
