@@ -50,6 +50,12 @@ pub struct CharacterFull {
     modifiers: ModifierState,
 }
 
+impl CharacterFull {
+    pub fn new(character: Character, modifiers: ModifierState) -> Self {
+        Self { character, modifiers }
+    }
+}
+
 pub struct Layout {
     layer_base: [Option<Character>; 256],
     layer_shift: [Character<Character>; 256],
@@ -113,8 +119,8 @@ impl Layout {
             ScrollLock => None,
 
             A => match modifiers.shift_pressed {
-                true => Some(Character::Char('a')),
-                false => Some(Character::Char('A')),
+                true => Some(Character::Char('A')),
+                false => Some(Character::Char('a')),
             },
             B => match modifiers.shift_pressed {
                 true => Some(Character::Char('B')),
@@ -301,7 +307,8 @@ impl Layout {
                 true => Some(Character::Char('}')),
                 false => Some(Character::Char(']')),
             },
-        };
-        None
+        }?;
+
+        Some(CharacterFull::new(c, modifiers))
     }
 }
