@@ -56,7 +56,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     vmm::paging::init::init_memory(info);
 
-    kfs::keyboard::init();
+    kfs::ps2::init();
 
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
