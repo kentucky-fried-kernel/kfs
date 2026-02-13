@@ -188,7 +188,15 @@ const COMMANDS: &[Command] = &[
         func: printsb_cmd,
     },
     Command { name: "exit", func: exit_cmd },
+    Command {
+        name: "panic",
+        func: panic_cmd,
+    },
 ];
+
+fn panic_cmd(_args: &[u8], _s: &mut Screen) {
+    panic!();
+}
 
 fn echo_cmd(args: &[u8], s: &mut Screen) {
     for c in args.iter() {
@@ -217,6 +225,8 @@ fn help_cmd(args: &[u8], s: &mut Screen) {
     printk!("    prints               display the kernel stack from %esp to the top\n");
     printk!("    printsb              display the kernel stack boundaries\n");
     printk!("    help                 display this help message\n\n");
+    printk!("    exit                 exits the kernel\n\n");
+    printk!("    panic                panics\n\n");
 }
 
 fn get_stack_pointer() -> u32 {

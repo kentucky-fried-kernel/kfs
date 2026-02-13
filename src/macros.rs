@@ -21,6 +21,22 @@ macro_rules! hlt {
 }
 
 #[macro_export]
+macro_rules! clear_regs {
+    () => {
+        ::core::arch::asm!(
+            "xor eax, eax",
+            "xor ebx, ebx",
+            "xor ecx, ecx",
+            "xor edx, edx",
+            "xor esi, esi",
+            "xor edi, edi",
+            "xor ebp, ebp",
+            "xor esp, esp",
+        );
+    };
+}
+
+#[macro_export]
 macro_rules! cli {
     () => {
         #[allow(clippy::undocumented_unsafe_blocks)]
