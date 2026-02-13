@@ -21,8 +21,6 @@ pub fn print_stack_to_serial() {
     let st = unsafe { (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32 };
     let mut row: [u8; 16];
 
-    assert!(sp_addr <= st);
-
     for row_idx in (sp_addr..st).step_by(16) {
         let ptr = row_idx as *const u8;
         row = unsafe { *(ptr.cast::<[u8; 16]>()) };
