@@ -58,6 +58,7 @@ impl<'a> Shell<'a> {
                         Key::Backspace => {
                             if self.prompt.len != 0 {
                                 self.screen.remove_last();
+                                self.prompt.entries[self.prompt.len - 1] = b' ';
                                 self.prompt.len -= 1;
                             }
                         }
