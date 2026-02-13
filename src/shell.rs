@@ -4,9 +4,8 @@
 use crate::{
     boot::{STACK, STACK_SIZE},
     hlt,
-    keyboard::{self, Keyboard},
+    keyboard::Keyboard,
     printk, printkln,
-    ps2::Key,
     qemu::{ExitCode, exit},
     serial_println,
     terminal::{

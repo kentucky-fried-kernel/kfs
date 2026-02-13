@@ -2,10 +2,9 @@ use crate::{
     arch::x86::idt::InterruptRegisters,
     port::Port,
     ps2::{
-        DATA_PORT, Key,
+        DATA_PORT,
         scancodes::{KeyEvent, SCANCODE_SET_1_TO_KEY, SCANCODE_SET_1_TO_KEY_EXTENDED},
     },
-    serial_println,
 };
 
 const BUFFER_SIZE: usize = 256;

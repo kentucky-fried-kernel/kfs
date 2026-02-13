@@ -6,13 +6,10 @@
 
 use kfs::{
     boot::MultibootInfo,
-    hlt,
     keyboard::{
         Keyboard,
         layout::{Layout, map_qwerty},
     },
-    ps2::Key,
-    serial_println,
     shell::Shell,
 };
 

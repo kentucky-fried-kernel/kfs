@@ -51,6 +51,7 @@ pub struct CharacterFull {
 }
 
 impl CharacterFull {
+    #[must_use]
     pub fn new(character: Character, modifiers: ModifierState) -> Self {
         Self { character, modifiers }
     }
@@ -62,15 +63,18 @@ pub struct Layout {
 }
 
 impl Layout {
+    #[must_use]
     pub fn new(map: fn(key: Key, modifiers: ModifierState) -> Option<CharacterFull>) -> Self {
         Self { map }
     }
 
+    #[must_use]
     pub fn map(&self, key: Key, modifiers: ModifierState) -> Option<CharacterFull> {
         (self.map)(key, modifiers)
     }
 }
 
+#[must_use]
 pub fn map_qwerty(key: Key, modifiers: ModifierState) -> Option<CharacterFull> {
     use Key::*;
     let c = match key {
@@ -123,9 +127,6 @@ pub fn map_qwerty(key: Key, modifiers: ModifierState) -> Option<CharacterFull> {
         RightCtrl => None,
         LeftGui => None,
         RightGui => None,
-        CapsLock => None,
-        NumLock => None,
-        ScrollLock => None,
 
         A => Some(Character::Char(if modifiers.shift_pressed { 'A' } else { 'a' })),
         B => Some(Character::Char(if modifiers.shift_pressed { 'B' } else { 'b' })),

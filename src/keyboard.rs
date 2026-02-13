@@ -20,6 +20,7 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
+    #[must_use]
     pub fn new(layout: Layout) -> Self {
         Self {
             modifier: ModifierState {
@@ -32,6 +33,7 @@ impl Keyboard {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<Character> {
         let c = self.next_full()?;
         Some(c.character)
