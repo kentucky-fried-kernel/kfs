@@ -24,7 +24,6 @@ extern crate alloc;
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
         arch,
-        // shell::Shell,
         vmm::{self, paging::init::init_memory},
     };
 
