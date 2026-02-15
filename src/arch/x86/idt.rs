@@ -175,6 +175,15 @@ pub fn init() {
         );
     }
 
+    idt.set_descriptor(
+        0x80,
+        InterruptDescriptor::new(
+            crate::arch::x86::interrupts::exception::_stubs::syscall_stub as *const () as usize,
+            KERNEL_CODE_OFFSET as u16,
+            Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
+        ),
+    );
+
     for (index, stub) in irq_stubs.iter().enumerate() {
         idt.set_descriptor(
             index as u8 + 32,
