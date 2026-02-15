@@ -53,6 +53,7 @@ pub mod _stubs {
     no_err_stub!(exception_stub_29, 29);
     err_stub!(exception_stub_30, 30);
     no_err_stub!(exception_stub_31, 31);
+    no_err_stub!(syscall_stub, 128);
 }
 
 #[macro_export]
@@ -164,7 +165,9 @@ const EXCEPTION_MESSAGE: &[&str] = &[
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn exception_handler(regs: &InterruptRegisters) {
-    if regs.intno < 32 {
-        serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]);
+    match regs.intno {
+        0x80 => serial_println!("SYSCALL\n"),
+        0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
+        _ => panic!("{regs:?}"),
     }
 }

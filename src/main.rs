@@ -38,6 +38,8 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
         panic!("Failed to initialize kmalloc");
     }
 
+    unsafe { core::arch::asm!("int 0x80") };
+
     #[allow(static_mut_refs)]
     let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN }, Keyboard::new(Layout::new(map_qwerty)));
     shell.launch();
