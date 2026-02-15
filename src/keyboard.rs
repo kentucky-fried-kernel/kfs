@@ -41,22 +41,21 @@ impl Keyboard {
 
     pub fn next_full(&mut self) -> Option<CharacterFull> {
         while let Some(key_event) = ps2::read_key_event() {
-            use Key::*;
             use ps2::Event::*;
             match key_event.key {
-                LeftShift | RightShift => match key_event.event {
+                Key::LeftShift | Key::RightShift => match key_event.event {
                     Pressed => self.modifier.shift_pressed = true,
                     Released => self.modifier.shift_pressed = false,
                 },
-                LeftCtrl | RightCtrl => match key_event.event {
+                Key::LeftCtrl | Key::RightCtrl => match key_event.event {
                     Pressed => self.modifier.ctrl_pressed = true,
                     Released => self.modifier.ctrl_pressed = false,
                 },
-                LeftAlt | RightAlt => match key_event.event {
+                Key::LeftAlt | Key::RightAlt => match key_event.event {
                     Pressed => self.modifier.alt_pressed = true,
                     Released => self.modifier.alt_pressed = false,
                 },
-                LeftGui | RightGui => match key_event.event {
+                Key::LeftGui | Key::RightGui => match key_event.event {
                     Pressed => self.modifier.gui_pressed = true,
                     Released => self.modifier.gui_pressed = false,
                 },

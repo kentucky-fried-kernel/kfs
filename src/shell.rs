@@ -4,7 +4,7 @@
 use crate::{
     boot::{STACK, STACK_SIZE},
     hlt,
-    keyboard::Keyboard,
+    keyboard::{Keyboard, layout::Character as Char},
     printk, printkln,
     qemu::{ExitCode, exit},
     serial_println,
@@ -44,13 +44,12 @@ impl<'a> Shell<'a> {
                 hlt!();
 
                 if let Some(key) = self.keyboard.next() {
-                    use crate::keyboard::layout::Character::*;
                     match key {
-                        ArrowUp | ArrowDown => {}
+                        Char::ArrowUp | Char::ArrowDown => {}
                         _ => self.rows_scrolled_up = 0,
                     }
                     match key {
-                        Enter => {
+                        Char::Enter => {
                             self.screen.push(Entry::new(b'\n'));
                             Cursor::hide();
                             if let Err(e) = self.prompt.execute(self.screen) {
@@ -59,23 +58,23 @@ impl<'a> Shell<'a> {
                             self.prompt.clear();
                             break;
                         }
-                        Backspace => {
+                        Char::Backspace => {
                             if self.prompt.len != 0 {
                                 self.screen.remove_last();
                                 self.prompt.len -= 1;
                             }
                         }
-                        ArrowUp => {
+                        Char::ArrowUp => {
                             if self.screen.lines().rev().take(self.rows_scrolled_up + BUFFER_HEIGHT + 1).count() > self.rows_scrolled_up + vga::BUFFER_HEIGHT {
                                 self.rows_scrolled_up += 1;
                             }
                         }
-                        ArrowDown => {
+                        Char::ArrowDown => {
                             if self.rows_scrolled_up > 0 {
                                 self.rows_scrolled_up -= 1;
                             }
                         }
-                        Char(c) => {
+                        Char::Char(c) => {
                             let _ = Self::push(self, c as u8);
                         }
                         _ => {}
