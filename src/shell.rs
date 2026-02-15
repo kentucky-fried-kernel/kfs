@@ -3,8 +3,9 @@
 
 use crate::{
     boot::{STACK, STACK_SIZE},
-    hlt, keyboard, printk, printkln,
-    ps2::Key,
+    hlt,
+    keyboard::{Keyboard, layout::Character as Char},
+    printk, printkln,
     qemu::{ExitCode, exit},
     serial_println,
     terminal::{
@@ -21,14 +22,16 @@ pub struct Shell<'a> {
     screen: &'a mut Screen,
     prompt: Prompt,
     rows_scrolled_up: usize,
+    keyboard: Keyboard,
 }
 
 impl<'a> Shell<'a> {
-    pub fn default(screen: &'a mut Screen) -> Self {
+    pub fn default(screen: &'a mut Screen, keyboard: Keyboard) -> Self {
         Self {
             screen,
             prompt: Prompt::default(),
             rows_scrolled_up: 0,
+            keyboard,
         }
     }
     pub fn launch(&mut self) {
@@ -40,13 +43,13 @@ impl<'a> Shell<'a> {
                 // Halt CPU until next interrupt to prevent busy waiting.
                 hlt!();
 
-                if let Some(key) = keyboard::read_key() {
+                if let Some(key) = self.keyboard.next() {
                     match key {
-                        Key::ArrowUp | Key::ArrowDown => {}
+                        Char::ArrowUp | Char::ArrowDown => {}
                         _ => self.rows_scrolled_up = 0,
                     }
                     match key {
-                        Key::Enter => {
+                        Char::Enter => {
                             self.screen.push(Entry::new(b'\n'));
                             Cursor::hide();
                             if let Err(e) = self.prompt.execute(self.screen) {
@@ -55,26 +58,27 @@ impl<'a> Shell<'a> {
                             self.prompt.clear();
                             break;
                         }
-                        Key::Backspace => {
+                        Char::Backspace => {
                             if self.prompt.len != 0 {
                                 self.screen.remove_last();
                                 self.prompt.entries[self.prompt.len - 1] = b' ';
                                 self.prompt.len -= 1;
                             }
                         }
-                        Key::ArrowUp => {
+                        Char::ArrowUp => {
                             if self.screen.lines().rev().take(self.rows_scrolled_up + BUFFER_HEIGHT + 1).count() > self.rows_scrolled_up + vga::BUFFER_HEIGHT {
                                 self.rows_scrolled_up += 1;
                             }
                         }
-                        Key::ArrowDown => {
+                        Char::ArrowDown => {
                             if self.rows_scrolled_up > 0 {
                                 self.rows_scrolled_up -= 1;
                             }
                         }
-                        _ => {
-                            let _ = Self::push(self, key as u8);
+                        Char::Char(c) => {
+                            let _ = Self::push(self, c as u8);
                         }
+                        _ => {}
                     };
                     self.flush();
                 }

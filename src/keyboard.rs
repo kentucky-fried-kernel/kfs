@@ -1,97 +1,72 @@
-//! Keyboard driver with interrupt-based input
-
-#![allow(static_mut_refs)]
-
 use crate::{
-    arch::x86::idt::InterruptRegisters,
-    port::Port,
-    ps2::{
-        DATA_PORT, Key,
-        scancodes::{SCANCODE_TO_KEY, SCANCODE_TO_KEY_SECOND},
-    },
+    keyboard::layout::{Character, CharacterFull, Layout},
+    ps2::{self, Key},
 };
 
-const BUFFER_SIZE: usize = 256;
+pub mod layout;
 
-static mut KEYBOARD_BUFFER: KeyboardBuffer = KeyboardBuffer::new();
-static mut EXTENDED_BYTE_SENT: bool = false;
-
-struct KeyboardBuffer {
-    buffer: [Option<Key>; BUFFER_SIZE],
-    read_pos: usize,
-    write_pos: usize,
+#[derive(Clone, Copy, Debug)]
+pub struct ModifierState {
+    shift_pressed: bool,
+    ctrl_pressed: bool,
+    alt_pressed: bool,
+    gui_pressed: bool,
 }
 
-impl KeyboardBuffer {
-    const fn new() -> Self {
+#[derive(Clone, Copy, Debug)]
+pub struct Keyboard {
+    modifier: ModifierState,
+    layout: Layout,
+}
+
+impl Keyboard {
+    #[must_use]
+    pub fn new(layout: Layout) -> Self {
         Self {
-            buffer: [None; BUFFER_SIZE],
-            read_pos: 0,
-            write_pos: 0,
+            modifier: ModifierState {
+                shift_pressed: false,
+                ctrl_pressed: false,
+                alt_pressed: false,
+                gui_pressed: false,
+            },
+            layout,
         }
     }
 
-    fn push(&mut self, key: Key) {
-        let next_write = (self.write_pos + 1) % BUFFER_SIZE;
-
-        if next_write == self.read_pos {
-            self.read_pos = (self.read_pos + 1) % BUFFER_SIZE;
-        }
-        self.buffer[self.write_pos] = Some(key);
-        self.write_pos = next_write;
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<Character> {
+        let c = self.next_full()?;
+        Some(c.character)
     }
 
-    fn pop(&mut self) -> Option<Key> {
-        if self.read_pos == self.write_pos {
-            return None;
-        }
-        let key = self.buffer[self.read_pos];
-        self.read_pos = (self.read_pos + 1) % BUFFER_SIZE;
-
-        key
-    }
-}
-
-/// IRQ1
-pub extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
-    let data_port = Port::new(DATA_PORT);
-    let scancode = unsafe { data_port.read() };
-
-    // SAFETY
-    // This is a global variable which will be available throughout
-    // the whole runtime of the program
-    let key = if unsafe { EXTENDED_BYTE_SENT } {
-        unsafe {
-            EXTENDED_BYTE_SENT = false;
-        }
-        SCANCODE_TO_KEY_SECOND[scancode as usize].1
-    } else {
-        if scancode == 0xE0 {
-            unsafe {
-                EXTENDED_BYTE_SENT = true;
+    pub fn next_full(&mut self) -> Option<CharacterFull> {
+        while let Some(key_event) = ps2::read_key_event() {
+            use ps2::Event::*;
+            match key_event.key {
+                Key::LeftShift | Key::RightShift => match key_event.event {
+                    Pressed => self.modifier.shift_pressed = true,
+                    Released => self.modifier.shift_pressed = false,
+                },
+                Key::LeftCtrl | Key::RightCtrl => match key_event.event {
+                    Pressed => self.modifier.ctrl_pressed = true,
+                    Released => self.modifier.ctrl_pressed = false,
+                },
+                Key::LeftAlt | Key::RightAlt => match key_event.event {
+                    Pressed => self.modifier.alt_pressed = true,
+                    Released => self.modifier.alt_pressed = false,
+                },
+                Key::LeftGui | Key::RightGui => match key_event.event {
+                    Pressed => self.modifier.gui_pressed = true,
+                    Released => self.modifier.gui_pressed = false,
+                },
+                _ => match key_event.event {
+                    Pressed => {
+                        return self.layout.map(key_event.key, self.modifier);
+                    }
+                    Released => {}
+                },
             }
-            None
-        } else {
-            SCANCODE_TO_KEY[scancode as usize].1
         }
-    };
-
-    if let Some(key) = key {
-        unsafe {
-            KEYBOARD_BUFFER.push(key);
-        }
+        None
     }
-}
-
-#[must_use]
-pub fn read_key() -> Option<Key> {
-    unsafe { KEYBOARD_BUFFER.pop() }
-}
-
-pub fn init() {
-    use crate::arch::x86::interrupts::irq;
-
-    irq::install_handler(1, keyboard_interrupt_handler);
-
-    irq::clear_mask(1);
 }
