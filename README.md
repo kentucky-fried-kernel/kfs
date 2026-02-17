@@ -92,15 +92,15 @@ This project is separated into 10 subprojects.
     - [x] Physical and Virtual memory
     - [x] Allocators
     - [x] Kernel Panic handling
-- [ ] kfs-4
-    - [ ] Hardware Interrupts
-    - [ ] Software Interrupts
-    - [ ] Interrup Descriptor Table (IDT)
+- [x] kfs-4
+    - [x] Hardware Interrupts
+    - [x] Software Interrupts
+    - [x] Interrupt Descriptor Table (IDT)
     - [ ] Signal Handling and Scheduling
-    - [ ] Global Panic Fault handling
-    - [ ] Panic & System Exit commands
-        - [ ] Registers cleaning
-        - [ ] Stack saving
+    - [x] Global Panic Fault handling
+    - [x] Panic & System Exit commands
+        - [x] Registers cleaning
+        - [x] Stack saving
     - [ ] Base functions for syscalls
     - [ ] Different keyboard layouts
 - [ ] kfs-5
