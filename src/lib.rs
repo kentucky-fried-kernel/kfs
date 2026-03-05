@@ -27,6 +27,7 @@ pub mod port;
 pub mod printk;
 pub mod ps2;
 pub mod qemu;
+pub mod scheduler;
 pub mod serial;
 pub mod shell;
 pub mod stack_print_serial;

@@ -1,6 +1,8 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
+use core::arch::asm;
+
 use crate::{
     boot::{STACK, STACK_SIZE},
     hlt,
