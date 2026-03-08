@@ -39,16 +39,19 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     kfs::ps2::init();
 
-    kfs::scheduler::init();
-
     if vmm::allocators::kmalloc::init().is_err() {
         panic!("Failed to initialize kmalloc");
     }
 
-    let mut k = Keyboard::new(Layout::new(map_qwerty));
-    while let None = k.next() {}
-    serial_println!("hello");
-    scheduler::sys_execve(scheduler::forked_function, PAGE_SIZE * 100);
+    // let mut k = Keyboard::new(Layout::new(map_qwerty));
+    // while let None = k.next() {}
+    // serial_println!("hello");
+
+    // scheduler::sys_execve(scheduler::forked_function, PAGE_SIZE * 100);
+    scheduler::sys_execve(scheduler::print_green, PAGE_SIZE * 100);
+    scheduler::sys_execve(scheduler::print_red, PAGE_SIZE * 100);
+    kfs::scheduler::init();
+    loop {}
 }
 
 //
