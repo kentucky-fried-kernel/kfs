@@ -23,6 +23,7 @@ pkgs.callPackage (
       pkgs.xorriso
       pkgs.mtools
       pkgs.xz
+      pkgs.gdb
       pkgs.coreboot-toolchain.i386
     ];
     # libraries here

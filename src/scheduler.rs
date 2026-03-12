@@ -1,4 +1,4 @@
-use core::{arch::asm, hint::select_unpredictable};
+use core::{arch::asm, ffi::c_uint, hint::select_unpredictable};
 
 use crate::{
     arch::x86::{idt::InterruptRegisters, interrupts::irq},
@@ -28,7 +28,8 @@ static mut QUEUE: [Option<PCB>; 20] = [None; 20];
 static mut PID_NEXT: u16 = 1;
 static mut PID_RUNNING: Option<u16> = None;
 
-extern "C" fn timer(_regs: &mut InterruptRegisters) {
+#[unsafe(no_mangle)]
+extern "C" fn timer(mut _regs: &mut InterruptRegisters) {
     serial_println!("timer {:x}", _regs.esp);
 
     if unsafe { PID_RUNNING == None } {
@@ -38,8 +39,7 @@ extern "C" fn timer(_regs: &mut InterruptRegisters) {
     } else {
         unsafe {
             let pcb = &mut QUEUE[PID_RUNNING.unwrap() as usize].as_mut().unwrap();
-            pcb.regs = Some(*_regs);
-            serial_println!("{:?}", pcb.regs);
+            pcb.esp = _regs as *mut InterruptRegisters as u32;
         }
     }
 
@@ -49,36 +49,21 @@ extern "C" fn timer(_regs: &mut InterruptRegisters) {
     unsafe {
         PID_RUNNING = Some(pid_running_next as u16);
         let pcb = QUEUE[pid_running_next].unwrap();
-        // asm!("sti");
-        //
-        match pcb.regs {
-            Some(regs) => {
-                serial_println!("hello");
-                *_regs = regs;
-            }
-            None => {
-                (*_regs).eip = pcb.start;
-                (*_regs).esp = pcb.esp;
-            }
-        }
-        serial_println!("esp {:x}", pcb.esp);
-        serial_println!("esp {:x}", _regs.esp);
+        let ptr = pcb.esp as *mut InterruptRegisters;
+        _regs = &mut *ptr;
     }
-    return;
 }
 
 type PCB = ProcessControlBlock;
 #[derive(Clone, Copy)]
 pub struct ProcessControlBlock {
     id: u16,
-    start: u32,
     esp: u32,
-    regs: Option<InterruptRegisters>,
 }
 
 impl ProcessControlBlock {
-    pub fn new(id: u16, esp: u32, start: u32) -> Self {
-        Self { id, start, esp, regs: None }
+    pub fn new(id: u16, esp: u32) -> Self {
+        Self { id, esp }
     }
 }
 
@@ -144,10 +129,12 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
     serial_println!("memor {:x}", stack);
     serial_println!("memor {:x}", stack + stack_size);
 
+    let stack = stack + stack_size;
+
     serial_println!("after");
 
     unsafe {
-        let pcb = PCB::new(PID_NEXT, (stack + stack_size) as u32, f as u32);
+        let pcb = PCB::new(PID_NEXT, stack as u32);
         QUEUE[PID_NEXT as usize] = Some(pcb);
         PID_NEXT += 1;
     }

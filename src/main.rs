@@ -37,11 +37,11 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     init_memory(info);
 
-    kfs::ps2::init();
+    // kfs::ps2::init();
 
-    if vmm::allocators::kmalloc::init().is_err() {
-        panic!("Failed to initialize kmalloc");
-    }
+    // if vmm::allocators::kmalloc::init().is_err() {
+    //     panic!("Failed to initialize kmalloc");
+    // }
 
     // let mut k = Keyboard::new(Layout::new(map_qwerty));
     // while let None = k.next() {}

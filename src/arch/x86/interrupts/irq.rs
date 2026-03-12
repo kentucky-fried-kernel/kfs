@@ -78,8 +78,10 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         //
         "push esp",
         "call irq_handler",
-        //
-        "add esp, 8",
+        "pop rax",
+        "mov esp, rax",
+        // mov
+        "add esp, 4",
         "pop ebx",
         "mov ds, bx",
         "mov es, bx",
