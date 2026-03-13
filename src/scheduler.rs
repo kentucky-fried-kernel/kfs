@@ -29,8 +29,10 @@ static mut PID_NEXT: u16 = 1;
 static mut PID_RUNNING: Option<u16> = None;
 
 #[unsafe(no_mangle)]
-extern "C" fn timer(mut _regs: &mut InterruptRegisters) {
-    serial_println!("timer {:x}", _regs.esp);
+extern "C" fn timer(mut _regs: *mut InterruptRegisters) -> u32 {
+    unsafe {
+        serial_println!("timer {:x}", (*_regs).esp);
+    }
 
     if unsafe { PID_RUNNING == None } {
         unsafe {
@@ -49,8 +51,10 @@ extern "C" fn timer(mut _regs: &mut InterruptRegisters) {
     unsafe {
         PID_RUNNING = Some(pid_running_next as u16);
         let pcb = QUEUE[pid_running_next].unwrap();
-        let ptr = pcb.esp as *mut InterruptRegisters;
-        _regs = &mut *ptr;
+        // let addr = &_regs as *const &mut InterruptRegisters;
+        // let addr = addr as *mut u32;
+        // *addr = pcb.esp;
+        return pcb.esp;
     }
 }
 
@@ -131,7 +135,21 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
 
     let stack = stack + stack_size;
 
+    let stack = stack - size_of::<InterruptRegisters>();
+
+    let regs: &mut InterruptRegisters = unsafe {
+        let ptr = stack as *mut InterruptRegisters;
+        &mut *ptr
+    };
+
+    regs.esp = stack as u32;
+    regs.eip = f as u32 - 1;
+    regs.cr2 = 0x10;
+    // regs.csm = 0x10;
+    regs.csm = 0x8;
     serial_println!("after");
+
+    let stack = stack - 4;
 
     unsafe {
         let pcb = PCB::new(PID_NEXT, stack as u32);

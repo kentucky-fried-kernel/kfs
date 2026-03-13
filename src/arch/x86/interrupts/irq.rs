@@ -1,3 +1,5 @@
+use core::ffi::c_int;
+
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
@@ -78,11 +80,14 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         //
         "push esp",
         "call irq_handler",
-        "pop rax",
-        "mov esp, rax",
+        "test eax, eax",
+        "jz after",
+        "mov esp, eax",
+        "after:",
         // mov
-        "add esp, 4",
+        "add esp, 8",
         "pop ebx",
+        "mov ebx, 0x10",
         "mov ds, bx",
         "mov es, bx",
         "mov fs, bx",
@@ -90,17 +95,21 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
-        "iretd"
+        // "iretd"
+        "pop eax",
+        "add esp, 8",
+        "sti",
+        "jmp eax",
     )
 }
 
-static mut IRQ_ROUTINES: [Option<extern "C" fn(&mut InterruptRegisters)>; 16] = [None; 16];
+static mut IRQ_ROUTINES: [Option<extern "C" fn(*mut InterruptRegisters) -> u32>; 16] = [None; 16];
 
 /// Installs a handler for `irq`. Note that this does not unmask `irq`, it should be done
 /// explicitly by the caller.
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-pub fn install_handler(irq: u32, handler: extern "C" fn(&mut InterruptRegisters)) {
+pub fn install_handler(irq: u32, handler: extern "C" fn(*mut InterruptRegisters) -> u32) {
     let _lock = IRQLock::lock(irq as u8);
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
@@ -120,22 +129,26 @@ unsafe fn uninstall_handler(irq: u32) {
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-unsafe extern "C" fn irq_handler(regs: &mut InterruptRegisters) {
+unsafe extern "C" fn irq_handler(regs: &mut InterruptRegisters) -> u32 {
     #[allow(clippy::cast_possible_wrap)]
     let irq_index = if regs.intno as isize - 32 < 0 {
-        return;
+        return 0;
     } else {
         (regs.intno - 32) as usize
     };
 
+    let mut res = 0;
     // SAFETY:
     // We are accessing IRQ_ROUTINES, which we know is valid for the entire lifetime of the program and
     // will not be accessed concurrently by any other part of the kernel.
     if let Some(handler) = unsafe { IRQ_ROUTINES[irq_index] } {
-        handler(regs);
+        res = handler(regs);
+        crate::serial_println!("{:x}", res);
     };
 
     pic::send_eoi(irq_index as u8);
+    crate::serial_println!("{:x}", res);
+    return res;
 }
 
 /// # Panics
