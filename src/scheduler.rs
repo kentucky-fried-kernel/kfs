@@ -149,8 +149,6 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
     regs.csm = 0x8;
     serial_println!("after");
 
-    let stack = stack - 4;
-
     unsafe {
         let pcb = PCB::new(PID_NEXT, stack as u32);
         QUEUE[PID_NEXT as usize] = Some(pcb);

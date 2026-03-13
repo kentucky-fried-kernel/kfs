@@ -85,7 +85,7 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         "mov esp, eax",
         "after:",
         // mov
-        "add esp, 8",
+        "add esp, 4",
         "pop ebx",
         "mov ebx, 0x10",
         "mov ds, bx",
