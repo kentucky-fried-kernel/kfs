@@ -36,6 +36,8 @@ pkgs.callPackage (
       export PS1="\[\e[0;32m\]\W>\[\e[0m\] "
       export PATH="''${CARGO_HOME:-~/.cargo}/bin":"$PATH"
       export PATH="''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-${stdenv.hostPlatform.rust.rustcTarget}/bin":"$PATH"
+      rustup toolchain add nightly --profile minimal
+      rustup component add rust-analyzer
     '';
   }
 ) { }
