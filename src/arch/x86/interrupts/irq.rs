@@ -138,9 +138,10 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         "after:",
         // Skip cr2 (not restored)
         "add esp, 4",
-        // Restore data segment selector
-        "pop ebx",
-        "mov ebx, 0x10",
+        // Skip saved data segment selector - we always use kernel data segment (0x10)
+        // since we're returning to kernel mode code
+        "add esp, 4",
+        "mov bx, 0x10",
         "mov ds, bx",
         "mov es, bx",
         "mov fs, bx",
@@ -170,6 +171,13 @@ static mut IRQ_ROUTINES: [Option<extern "C" fn(*mut InterruptRegisters) -> u32>;
 
 /// Installs a handler for `irq`. Note that this does not unmask `irq`, it should be done
 /// explicitly by the caller.
+///
+/// # Handler Signature
+///
+/// The handler receives a mutable pointer to the interrupt registers and returns a `u32`:
+/// - Return `0` to continue execution normally (no context switch)
+/// - Return a non-zero value to perform a context switch; the return value is the new ESP pointing
+///   to the saved context of the task to switch to
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
 pub fn install_handler(irq: u32, handler: extern "C" fn(*mut InterruptRegisters) -> u32) {
