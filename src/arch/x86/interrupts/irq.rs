@@ -95,11 +95,7 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
         //
         "popa",
         "add esp, 8",
-        // "iretd"
-        "pop eax",
-        "add esp, 8",
-        "sti",
-        "jmp eax",
+        "iretd"
     )
 }
 

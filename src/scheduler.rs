@@ -147,6 +147,7 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
     regs.cr2 = 0x10;
     // regs.csm = 0x10;
     regs.csm = 0x8;
+    regs.eflags = 0x200;
     serial_println!("after");
 
     unsafe {
