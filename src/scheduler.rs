@@ -28,32 +28,49 @@ static mut QUEUE: [Option<PCB>; 20] = [None; 20];
 static mut PID_NEXT: u16 = 1;
 static mut PID_RUNNING: Option<u16> = None;
 
+fn find_next_pid() -> u16 {
+    unsafe {
+        #[allow(static_mut_refs)]
+        for (pid, e) in QUEUE.iter().enumerate().skip(PID_RUNNING.unwrap() as usize + 1) {
+            if let Some(_) = e {
+                return pid as u16;
+            }
+        }
+        #[allow(static_mut_refs)]
+        for (pid, e) in QUEUE.iter().enumerate() {
+            if let Some(_) = e {
+                return pid as u16;
+            }
+        }
+    }
+
+    1
+}
+
 #[unsafe(no_mangle)]
 extern "C" fn timer(mut _regs: *mut InterruptRegisters) -> u32 {
     unsafe {
         serial_println!("timer {:x}", (*_regs).esp);
     }
 
-    if unsafe { PID_RUNNING == None } {
-        unsafe {
-            PID_RUNNING = Some(2);
-        }
-    } else {
-        unsafe {
+    unsafe {
+        if let None = PID_RUNNING {
+            PID_RUNNING = Some(1);
+        } else {
             let pcb = &mut QUEUE[PID_RUNNING.unwrap() as usize].as_mut().unwrap();
             pcb.esp = _regs as *mut InterruptRegisters as u32;
         }
     }
 
-    let pid_running_next = unsafe { if PID_RUNNING.unwrap() == 1 { 2 } else { 1 } };
-    serial_println!("{}", pid_running_next);
+    unsafe {
+        serial_println!("pid running next {}", PID_RUNNING.unwrap());
+    }
+    let pid_running_next = find_next_pid();
+    serial_println!("pid running next {}", pid_running_next);
 
     unsafe {
         PID_RUNNING = Some(pid_running_next as u16);
-        let pcb = QUEUE[pid_running_next].unwrap();
-        // let addr = &_regs as *const &mut InterruptRegisters;
-        // let addr = addr as *mut u32;
-        // *addr = pcb.esp;
+        let pcb = QUEUE[pid_running_next as usize].unwrap();
         return pcb.esp;
     }
 }
