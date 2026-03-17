@@ -15,7 +15,10 @@ use kfs::{
     },
     ps2, scheduler, serial_println,
     shell::Shell,
-    vmm::paging::PAGE_SIZE,
+    vmm::paging::{
+        PAGE_SIZE,
+        mmap::{self, Mode, mmap},
+    },
 };
 
 mod panic;
@@ -46,6 +49,8 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     // while let None = k.next() {}
     // serial_println!("hello");
 
+    let mode = Mode::Continous;
+    mmap(None, PAGE_SIZE * 10000, vmm::paging::Permissions::ReadWrite, vmm::paging::Access::User, &mode);
     serial_println!("\n\n\n");
     // scheduler::sys_execve(scheduler::forked_function, PAGE_SIZE * 100);
     scheduler::sys_execve(scheduler::to_be_forked, PAGE_SIZE * 100);

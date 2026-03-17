@@ -139,11 +139,11 @@ unsafe extern "C" fn irq_handler(regs: &mut InterruptRegisters) -> u32 {
     // will not be accessed concurrently by any other part of the kernel.
     if let Some(handler) = unsafe { IRQ_ROUTINES[irq_index] } {
         res = handler(regs);
-        crate::serial_println!("{:x}", res);
+        crate::serial_println!("irq {:x}", res);
     };
 
     pic::send_eoi(irq_index as u8);
-    crate::serial_println!("{:x}", res);
+    crate::serial_println!("irq {:x}", res);
     return res;
 }
 

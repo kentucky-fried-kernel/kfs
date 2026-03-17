@@ -229,7 +229,12 @@ pub fn sys_fork_internal(return_eip: u32) -> usize {
     let diff = esp_before_fork - pcb_current.stack_start;
     let new_esp = stack_new_start + diff as usize;
 
-    let pcb_new = PCB::new(pid_next, new_esp as u32, stack_new_start as u32, pcb_current.stack_size);
+    let pcb_new = PCB::new(
+        pid_next,
+        new_esp as u32 - size_of::<InterruptRegisters>() as u32,
+        stack_new_start as u32,
+        pcb_current.stack_size,
+    );
 
     let ir = new_esp - size_of::<InterruptRegisters>();
 
