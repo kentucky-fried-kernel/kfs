@@ -141,7 +141,7 @@ pub fn print_green() -> ! {
 pub fn to_be_forked() -> ! {
     let pid = sys_fork();
 
-    print_green();
+    if pid == 0 { print_green() } else { print_red() }
 }
 
 pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
@@ -243,6 +243,7 @@ pub fn sys_fork_internal(return_eip: u32) -> usize {
         &mut *ptr
     };
 
+    regs.eax = 0;
     regs.esp = new_esp as u32;
     regs.eip = eip_to_return_fo as u32;
     regs.cr2 = 0x10;
@@ -258,5 +259,5 @@ pub fn sys_fork_internal(return_eip: u32) -> usize {
     // duplicate memory
     //
     serial_println!("forked!!!!!");
-    0
+    return pid_next as usize;
 }
