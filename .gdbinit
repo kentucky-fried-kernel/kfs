@@ -2,7 +2,7 @@ target remote localhost:1234
 
 set disassembly-flavor intel
 
-layout asm
+# layout asm
 # b src/main.rs:53
 # c
 #

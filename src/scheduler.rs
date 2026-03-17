@@ -1,4 +1,4 @@
-use core::{arch::asm, ffi::c_uint, hint::select_unpredictable};
+use core::{arch::asm, ffi::c_uint, hint::select_unpredictable, ptr};
 
 use crate::{
     arch::x86::{idt::InterruptRegisters, interrupts::irq},
@@ -80,11 +80,18 @@ type PCB = ProcessControlBlock;
 pub struct ProcessControlBlock {
     id: u16,
     esp: u32,
+    stack_start: u32,
+    stack_size: u32,
 }
 
 impl ProcessControlBlock {
-    pub fn new(id: u16, esp: u32) -> Self {
-        Self { id, esp }
+    pub fn new(id: u16, esp: u32, stack_start: u32, stack_size: u32) -> Self {
+        Self {
+            id,
+            esp,
+            stack_start,
+            stack_size,
+        }
     }
 }
 
@@ -116,6 +123,7 @@ pub fn print_red() -> ! {
     }
     sys_exit();
 }
+// 0xc01050a4
 pub fn print_green() -> ! {
     loop {
         serial_println!("green");
@@ -127,6 +135,13 @@ pub fn print_green() -> ! {
         }
     }
     sys_exit();
+}
+
+#[unsafe(no_mangle)]
+pub fn to_be_forked() -> ! {
+    let pid = sys_fork();
+
+    print_green();
 }
 
 pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
@@ -147,6 +162,7 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
         }
     };
 
+    let stack_start = stack;
     serial_println!("memor {:x}", stack);
     serial_println!("memor {:x}", stack + stack_size);
 
@@ -168,7 +184,7 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
     serial_println!("after");
 
     unsafe {
-        let pcb = PCB::new(PID_NEXT, stack as u32);
+        let pcb = PCB::new(PID_NEXT, stack as u32, stack_start as u32, stack_size as u32);
         QUEUE[PID_NEXT as usize] = Some(pcb);
         PID_NEXT += 1;
     }
@@ -176,9 +192,66 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
     Ok(())
 }
 
-pub fn sys_fork() {
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+extern "C" fn sys_fork() -> u32 {
+    core::arch::naked_asm!("push esp", "call sys_fork_internal", "add esp, 4", "ret")
+}
+
+#[unsafe(no_mangle)]
+pub fn sys_fork_internal(return_eip: u32) -> usize {
+    let esp_before_fork = return_eip + 4;
+    let eip_to_return_fo = unsafe { *(return_eip as *mut u32) };
+
+    serial_println!(" esp {:x}", return_eip);
+    serial_println!("return ip {:x}", eip_to_return_fo);
+
+    let pcb_current = unsafe { QUEUE[PID_RUNNING.unwrap() as usize].unwrap() };
+
+    let stack_new_start = mmap(
+        None,
+        pcb_current.stack_size as usize,
+        crate::vmm::paging::Permissions::ReadWrite,
+        crate::vmm::paging::Access::User,
+        &Mode::Scattered,
+    )
+    .unwrap();
+
+    unsafe {
+        ptr::copy_nonoverlapping(pcb_current.stack_start as *mut u8, stack_new_start as *mut u8, pcb_current.stack_size as usize);
+    }
+
+    let pid_next = unsafe { PID_NEXT };
+    unsafe {
+        PID_NEXT += 1;
+    }
+
+    let diff = esp_before_fork - pcb_current.stack_start;
+    let new_esp = stack_new_start + diff as usize;
+
+    let pcb_new = PCB::new(pid_next, new_esp as u32, stack_new_start as u32, pcb_current.stack_size);
+
+    let ir = new_esp - size_of::<InterruptRegisters>();
+
+    let regs: &mut InterruptRegisters = unsafe {
+        let ptr = ir as *mut InterruptRegisters;
+        &mut *ptr
+    };
+
+    regs.esp = new_esp as u32;
+    regs.eip = eip_to_return_fo as u32;
+    regs.cr2 = 0x10;
+    // regs.csm = 0x10;
+    regs.csm = 0x8;
+    regs.eflags = 0x200;
+
+    unsafe {
+        QUEUE[pid_next as usize] = Some(pcb_new);
+    }
     // getpid
     // get information about the own process
     // duplicate memory
     //
+    serial_println!("forked!!!!!");
+    0
 }

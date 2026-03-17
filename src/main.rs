@@ -46,10 +46,9 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     // while let None = k.next() {}
     // serial_println!("hello");
 
+    serial_println!("\n\n\n");
     // scheduler::sys_execve(scheduler::forked_function, PAGE_SIZE * 100);
-    scheduler::sys_execve(scheduler::print_green, PAGE_SIZE * 100);
-    scheduler::sys_execve(scheduler::print_red, PAGE_SIZE * 100);
-    scheduler::sys_execve(scheduler::print_red, PAGE_SIZE * 100);
+    scheduler::sys_execve(scheduler::to_be_forked, PAGE_SIZE * 100);
     arch::x86::idt::init();
     kfs::scheduler::init();
     loop {}
