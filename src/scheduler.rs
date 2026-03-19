@@ -62,19 +62,46 @@ extern "C" fn timer(mut _regs: *mut InterruptRegisters) -> u32 {
         }
     }
 
-    unsafe {
-        serial_println!("pid running next {}", PID_RUNNING.unwrap());
-    }
     let pid_running_next = find_next_pid();
     serial_println!("pid running next {}", pid_running_next);
 
     unsafe {
         PID_RUNNING = Some(pid_running_next as u16);
-        let pcb = QUEUE[pid_running_next as usize].unwrap();
-        return pcb.esp;
+        let pcb = &mut QUEUE[pid_running_next as usize].unwrap();
+
+        let queued_signal = 'found: {
+            for x in pcb.queue_signals {
+                if let Some(v) = x {
+                    break 'found Some(v);
+                }
+            }
+            None
+        };
+
+        match queued_signal {
+            Some(s) => {
+                if let Some(f) = pcb.signal_handlers[s] {
+                } else {
+                    return pcb.esp;
+                }
+                0
+            }
+            None => {
+                return pcb.esp;
+            }
+        }
     }
 }
 
+#[repr(u8)]
+pub enum SignalDefaultBehaviour {
+    Terminate,
+}
+
+#[repr(u8)]
+pub enum Signal {
+    Kill = 0,
+}
 type PCB = ProcessControlBlock;
 #[derive(Clone, Copy)]
 pub struct ProcessControlBlock {
@@ -82,6 +109,8 @@ pub struct ProcessControlBlock {
     esp: u32,
     stack_start: u32,
     stack_size: u32,
+    queue_signals: [Option<Signal>; 20],
+    signal_handlers: [Option<&fn(signal: Signal)>; 32],
 }
 
 impl ProcessControlBlock {
@@ -91,6 +120,8 @@ impl ProcessControlBlock {
             esp,
             stack_start,
             stack_size,
+            queue_signals: [None; 20],
+            signal_handlers: [None; 32],
         }
     }
 }
@@ -196,6 +227,31 @@ pub fn sys_execve(f: fn() -> !, stack_size: usize) -> Result<(), ()> {
 #[unsafe(no_mangle)]
 extern "C" fn sys_fork() -> u32 {
     core::arch::naked_asm!("push esp", "call sys_fork_internal", "add esp, 4", "ret")
+}
+
+type SignalHandler = fn(signal: Signal);
+
+pub fn signal(signal: Signal, f: &SignalHandler) -> Option<&SignalHandler> {
+    let pid = unsafe { PID_RUNNING.unwrap() };
+
+    let pcb = unsafe { &mut QUEUE[pid as usize].unwrap() };
+
+    let signal_handler_prev = pcb.signal_handlers[signal as usize];
+    pcb.signal_handlers[signal as usize] = Some(f);
+    signal_handler_prev
+}
+
+pub fn kill(pid: usize, signal: Signal) -> Result<(), ()> {
+    let mut pcb_current = unsafe { &mut QUEUE[pid].unwrap() };
+
+    for s in pcb_current.queue_signals.iter_mut() {
+        if let None = s {
+            *s = Some(signal);
+            return Ok(());
+        }
+    }
+
+    Err(())
 }
 
 #[unsafe(no_mangle)]
