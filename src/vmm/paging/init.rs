@@ -120,6 +120,8 @@ fn page_directory_fill_empty() {
 
             let mut e = PageDirectoryEntry::empty();
             e.set_address((kernel_page_entries_physical_address / PAGE_SIZE) as u32 + i as u32);
+
+            e.set_user_supervisor(1); // allow ring 3 access
             e.set_read_write(1);
             e.set_present(1);
 

@@ -66,10 +66,11 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
 }
 
 fn pages_physical_free_iter(pages_needed: usize, _mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
-    let _lets_see = pages_physical_iter();
     let mut i = 0;
+    #[allow(static_mut_refs)]
+    let count = unsafe { USED_PAGES.len() };
     loop {
-        if i >= pages_physical_iter().count() {
+        if i >= count {
             break;
         }
         let pages_physical = pages_physical_iter().skip(i).take(pages_needed).filter(|(_, p)| (**p).is_none());
@@ -158,6 +159,7 @@ pub fn mmap(vaddr: Option<usize>, size: usize, permissions: Permissions, access:
 
         let mut e = PageTableEntry::empty();
         e.set_address(physical_i as u32);
+        e.set_user_supervisor(1);
         e.set_read_write(permissions as u8);
         e.set_present(1);
 
