@@ -44,6 +44,14 @@ debug-iso: all
 debug: debug-iso
 	./scripts/run.sh $(BUILD_DIR)/$(NAME).iso $(DEBUG_QEMU_FLAGS)
 
+
+gdb:
+	cargo build -Zjson-target-spec && qemu-system-i386 -kernel ./target/i386-unknown-none/debug/kfs  -S -display none -no-reboot -m 4G -serial stdio -gdb tcp::1235
+
+gdb-client:
+	rust-gdb ./target/i386-unknown-none/debug/kfs
+
+
 test:
 	@LOGLEVEL=INFO ./x.py --end-to-end-tests
 	@echo

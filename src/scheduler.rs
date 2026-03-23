@@ -80,10 +80,10 @@ extern "C" fn timer(mut _regs: *mut InterruptRegisters) -> u32 {
 
         match queued_signal {
             Some(s) => {
-                if let Some(f) = pcb.signal_handlers[s] {
-                } else {
-                    return pcb.esp;
-                }
+                // if let Some(f) = pcb.signal_handlers[s] {
+                // } else {
+                //     return pcb.esp;
+                // }
                 0
             }
             None => {
@@ -99,6 +99,7 @@ pub enum SignalDefaultBehaviour {
 }
 
 #[repr(u8)]
+#[derive(Clone, Copy)]
 pub enum Signal {
     Kill = 0,
 }
@@ -110,7 +111,7 @@ pub struct ProcessControlBlock {
     stack_start: u32,
     stack_size: u32,
     queue_signals: [Option<Signal>; 20],
-    signal_handlers: [Option<&fn(signal: Signal)>; 32],
+    signal_handlers: [Option<fn(signal: Signal)>; 32],
 }
 
 impl ProcessControlBlock {
@@ -120,8 +121,8 @@ impl ProcessControlBlock {
             esp,
             stack_start,
             stack_size,
-            queue_signals: [None; 20],
-            signal_handlers: [None; 32],
+            queue_signals: [const { None }; 20],
+            signal_handlers: [const { None }; 32],
         }
     }
 }
@@ -231,13 +232,13 @@ extern "C" fn sys_fork() -> u32 {
 
 type SignalHandler = fn(signal: Signal);
 
-pub fn signal(signal: Signal, f: &SignalHandler) -> Option<&SignalHandler> {
+pub fn signal(signal: Signal, f: &SignalHandler) -> Option<SignalHandler> {
     let pid = unsafe { PID_RUNNING.unwrap() };
 
     let pcb = unsafe { &mut QUEUE[pid as usize].unwrap() };
 
     let signal_handler_prev = pcb.signal_handlers[signal as usize];
-    pcb.signal_handlers[signal as usize] = Some(f);
+    pcb.signal_handlers[signal as usize] = Some(*f);
     signal_handler_prev
 }
 

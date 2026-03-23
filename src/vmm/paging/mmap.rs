@@ -66,7 +66,6 @@ fn pages_physical_iter() -> impl Iterator<Item = (usize, &'static mut Option<Acc
 }
 
 fn pages_physical_free_iter(pages_needed: usize, _mode: &Mode) -> Result<impl Iterator<Item = (usize, &'static mut Option<Access>)>, MmapError> {
-    let _lets_see = pages_physical_iter();
     let mut i = 0;
     loop {
         if i >= pages_physical_iter().count() {

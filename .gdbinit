@@ -1,7 +1,10 @@
-target remote localhost:1234
+target remote localhost:1235
 
 set disassembly-flavor intel
 
+b kmain
+
+c
 # layout asm
 # b src/main.rs:53
 # c

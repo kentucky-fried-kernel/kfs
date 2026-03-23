@@ -50,8 +50,8 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     // serial_println!("hello");
 
     let mode = Mode::Continous;
-    mmap(None, PAGE_SIZE * 10000, vmm::paging::Permissions::ReadWrite, vmm::paging::Access::User, &mode);
-    serial_println!("\n\n\n");
+    let user_space = mmap(None, PAGE_SIZE * 10000, vmm::paging::Permissions::ReadWrite, vmm::paging::Access::User, &mode).unwrap();
+    //
     // scheduler::sys_execve(scheduler::forked_function, PAGE_SIZE * 100);
     scheduler::sys_execve(scheduler::to_be_forked, PAGE_SIZE * 100);
     arch::x86::idt::init();
