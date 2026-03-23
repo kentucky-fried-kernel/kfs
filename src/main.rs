@@ -11,6 +11,10 @@ use kfs::{
         layout::{Layout, map_qwerty},
     },
     shell::Shell,
+    vmm::paging::{
+        PAGE_SIZE,
+        mmap::{Mode, mmap},
+    },
 };
 
 mod panic;
@@ -19,7 +23,7 @@ extern crate alloc;
 
 /// # Panics
 /// This function will panic if initialization of dynamic memory allocation fails.
-#[cfg(not(test))]
+// #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::{
@@ -38,32 +42,44 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
         panic!("Failed to initialize kmalloc");
     }
 
-    unsafe { core::arch::asm!("int 0x80") };
+    let mode = Mode::Continous;
+    let space = mmap(None, PAGE_SIZE, vmm::paging::Permissions::ReadWrite, vmm::paging::Access::User, &mode).unwrap();
+    let space = mmap(None, PAGE_SIZE, vmm::paging::Permissions::ReadWrite, vmm::paging::Access::User, &mode).unwrap();
 
-    #[allow(static_mut_refs)]
-    let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN }, Keyboard::new(Layout::new(map_qwerty)));
-    shell.launch();
+    kfs::serial_println!("space {:?}", space);
+
+    loop {}
+    // #[allow(static_mut_refs)]
+    // let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN },
+    // Keyboard::new(Layout::new(map_qwerty))); shell.launch();
 }
 
-/// # Panics
-/// This function will panic if initialization of dynamic memory allocation fails.
-#[cfg(test)]
+#[unsafe(naked)]
 #[unsafe(no_mangle)]
-pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, qemu, vmm};
-
-    arch::x86::gdt::init();
-    arch::x86::idt::init();
-
-    vmm::paging::init::init_memory(info);
-
-    kfs::ps2::init();
-
-    if vmm::allocators::kmalloc::init().is_err() {
-        panic!("Failed to initialize kmalloc");
-    }
-
-    test_main();
-
-    unsafe { qemu::exit(qemu::ExitCode::Success) };
+extern "C" fn user_program(intno: u32, stack_ptr: u32) {
+    core::arch::naked_asm!("a:", "jmp a")
 }
+
+//
+// /// # Panics
+// /// This function will panic if initialization of dynamic memory allocation fails.
+// #[cfg(test)]
+// #[unsafe(no_mangle)]
+// pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
+//     use kfs::{arch, qemu, vmm};
+//
+//     arch::x86::gdt::init();
+//     arch::x86::idt::init();
+//
+//     vmm::paging::init::init_memory(info);
+//
+//     kfs::ps2::init();
+//
+//     if vmm::allocators::kmalloc::init().is_err() {
+//         panic!("Failed to initialize kmalloc");
+//     }
+//
+//     test_main();
+//
+//     unsafe { qemu::exit(qemu::ExitCode::Success) };
+// }
