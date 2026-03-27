@@ -1,5 +1,6 @@
 pub mod address_space;
 pub mod boot;
+pub mod mmap;
 pub mod page;
 pub mod page_allocator;
 

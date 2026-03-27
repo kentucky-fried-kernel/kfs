@@ -10,9 +10,9 @@ use kfs::{
         Keyboard,
         layout::{Layout, map_qwerty},
     },
-    serial_println,
+    printkln, serial_println,
     shell::Shell,
-    vmm::{page::PAGE_SIZE, page_allocator::PAGE_ALLOCATOR},
+    vmm::{mmap::init_kmmap, page::PAGE_SIZE, page_allocator::PAGE_ALLOCATOR},
 };
 
 mod panic;
@@ -32,12 +32,18 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
 
+    init_kmmap();
+    printkln!("hello");
+    loop {}
     unsafe {
+        // #[allow(static_mut_refs)]
+        // let a = PAGE_ALLOCATOR.alloc_at(0x1000000, 1).unwrap();
+        // kfs::printkln!("hello {:x}", a as usize);
+        // #[allow(static_mut_refs)]
+        // let a = PAGE_ALLOCATOR.alloc_at(0x2FFFFFF, 1).unwrap();
+        // kfs::printkln!("hello {:x}", a as usize);
         #[allow(static_mut_refs)]
-        let a = PAGE_ALLOCATOR.alloc_at(0x1000000, 1).unwrap();
-        kfs::printkln!("hello {:x}", a as usize);
-        #[allow(static_mut_refs)]
-        let a = PAGE_ALLOCATOR.alloc_at(0x2FFFFFF, 1).unwrap();
+        let a = PAGE_ALLOCATOR.alloc(0x2FFFFFF).unwrap();
         kfs::printkln!("hello {:x}", a as usize);
     }
 
