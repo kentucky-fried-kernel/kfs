@@ -34,7 +34,10 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     unsafe {
         #[allow(static_mut_refs)]
-        let a = PAGE_ALLOCATOR.alloc_at(0x1000, 1).unwrap();
+        let a = PAGE_ALLOCATOR.alloc_at(0x1000000, 1).unwrap();
+        kfs::printkln!("hello {:x}", a as usize);
+        #[allow(static_mut_refs)]
+        let a = PAGE_ALLOCATOR.alloc_at(0x2FFFFFF, 1).unwrap();
         kfs::printkln!("hello {:x}", a as usize);
     }
 
