@@ -9,6 +9,8 @@
 #![feature(generic_const_exprs)]
 #![feature(pointer_is_aligned_to)]
 #![feature(custom_test_frameworks)]
+#![feature(const_try)]
+#![feature(const_option_ops)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
