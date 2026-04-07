@@ -156,7 +156,7 @@ pub unsafe extern "C" fn higher_half() {
 #[unsafe(link_section = ".boot")]
 pub unsafe extern "C" fn _start() {
     core::arch::naked_asm!(
-        "mov ecx, offset PAGE_DIRECTORY_BOOT - {KERNEL_BASE}",
+        "mov ecx, offset PAGE_DIRECTORY_KERNEL - {KERNEL_BASE}",
         "mov cr3, ecx",
         "mov ecx, cr4",
         "or ecx, 0x10",

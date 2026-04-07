@@ -34,7 +34,6 @@ pub mod shell;
 pub mod stack_print_serial;
 pub mod terminal;
 pub mod tester;
-pub mod vmm;
 
 #[cfg(test)]
 #[unsafe(no_mangle)]

@@ -1,55 +1,52 @@
-pub const KERNEL_CODE_OFFSET: usize = 0x08;
+use crate::serial_println;
 
-fn create_gdt_descriptor(flags: u16, limit: u32, base: u32) -> u64 {
-    let mut descriptor: u64;
+#[derive(Copy, Clone)]
+struct GdtEntry(u64);
 
-    descriptor = u64::from(limit) & 0x000F_0000;
-    descriptor |= (u64::from(flags) << 8) & 0x00F0_FF00;
-    descriptor |= (u64::from(base) >> 16) & 0x0000_00FF;
-    descriptor |= u64::from(base) & 0xFF00_0000;
-    descriptor <<= 32;
-    descriptor |= u64::from(base) << 16;
-    descriptor |= u64::from(limit) & 0x0000_FFFF;
+impl GdtEntry {
+    pub const fn disabled() -> Self {
+        Self(0)
+    }
 
-    descriptor
+    pub fn new(flags: u16, limit: u32, base: u32) -> Self {
+        let mut entry: u64;
+
+        entry = u64::from(limit) & 0x000F_0000;
+        entry |= (u64::from(flags) << 8) & 0x00F0_FF00;
+        entry |= (u64::from(base) >> 16) & 0x0000_00FF;
+        entry |= u64::from(base) & 0xFF00_0000;
+        entry <<= 32;
+        entry |= u64::from(base) << 16;
+        entry |= u64::from(limit) & 0x0000_FFFF;
+
+        Self(entry)
+    }
 }
 
-struct GdtTable {
-    entries: [u64; GDT_SIZE],
+type Gdt = GlobalDescriptorTable;
+#[derive(Copy, Clone)]
+struct GlobalDescriptorTable {
+    entries: [GdtEntry; GDT_SIZE],
 }
 
-const GDT_SIZE: usize = 7;
-static mut GDT: GdtTable = GdtTable { entries: [0u64; GDT_SIZE] };
-
+type Gdtr = GlobalDescriptorTableRegister;
 #[repr(C, packed)]
-struct Gdtr {
+struct GlobalDescriptorTableRegister {
     limit: u16,
     base: u32,
 }
 
-#[unsafe(no_mangle)]
-static mut GDTR: Gdtr = Gdtr { limit: 0x37, base: 0 };
+const GDT_SIZE: usize = 7;
+static mut GDT: Gdt = Gdt {
+    entries: [GdtEntry::disabled(); GDT_SIZE],
+};
 
 #[unsafe(no_mangle)]
-#[unsafe(naked)]
-unsafe extern "C" fn flush_gdt_registers() {
-    core::arch::naked_asm!(
-        "mov eax, offset GDTR",
-        "lgdt [eax]",
-        "mov eax, cr0",
-        "or eax, 1",
-        "mov cr0, eax",
-        "jmp 0x08, offset flush",
-        "flush:",
-        "mov ax, 0x10",
-        "mov ds, ax",
-        "mov es, ax",
-        "mov fs, ax",
-        "mov gs, ax",
-        "mov ss, ax",
-        "ret",
-    );
-}
+static mut GDTR: Gdtr = Gdtr { limit: 0x37, base: 0 };
+pub const SEGMENT_SELECTOR_KERNEL_CODE: usize = 1;
+pub const SEGMENT_SELECTOR_KERNEL_DATA: usize = 2;
+pub const SEGMENT_SELECTOR_USER_CODE: usize = 3;
+pub const SEGMENT_SELECTOR_USER_DATA: usize = 4;
 
 pub fn init() {
     // SAFETY:
@@ -57,12 +54,10 @@ pub fn init() {
     #[allow(static_mut_refs)]
     let gdt = unsafe { &mut GDT };
 
-    gdt.entries[1] = create_gdt_descriptor(0xC09A, 0xFFFFF, 0x0);
-    gdt.entries[2] = create_gdt_descriptor(0xC092, 0xFFFFF, 0x0);
-    gdt.entries[3] = gdt.entries[2];
-    gdt.entries[4] = create_gdt_descriptor(0xC0FA, 0xFFFFF, 0x0);
-    gdt.entries[5] = create_gdt_descriptor(0xC0F2, 0xFFFFF, 0x0);
-    gdt.entries[6] = gdt.entries[5];
+    gdt.entries[SEGMENT_SELECTOR_KERNEL_CODE] = GdtEntry::new(0xC09A, 0xFFFFF, 0x0);
+    gdt.entries[SEGMENT_SELECTOR_KERNEL_DATA] = GdtEntry::new(0xC092, 0xFFFFF, 0x0);
+    gdt.entries[SEGMENT_SELECTOR_USER_CODE] = GdtEntry::new(0xC0FA, 0xFFFFF, 0x0);
+    gdt.entries[SEGMENT_SELECTOR_USER_DATA] = GdtEntry::new(0xC0F2, 0xFFFFF, 0x0);
 
     // SAFETY:
     // We know this is safe since this module is the only one that can access GDTR.
@@ -73,5 +68,35 @@ pub fn init() {
 
     // SAFETY:
     // We make sure that GDTR is properly initialized before loading it.
-    unsafe { flush_gdt_registers() };
+    unsafe { gdt_set() };
+
+    // SAFETY:
+    // We make sure that the values passed are valid segment selectors.
+    unsafe {
+        // Reload segment registers "invisible" parts by setting them again.
+        segment_registers_reload();
+    }
+}
+
+#[unsafe(naked)]
+unsafe extern "C" fn segment_registers_reload() {
+    core::arch::naked_asm!(
+        "jmp {SELECTOR_CODE}, offset flush",
+        "flush:",
+        "mov ax, {SELECTOR_DATA}",
+        "mov ds, ax",
+        "mov es, ax",
+        "mov fs, ax",
+        "mov gs, ax",
+        "mov ss, ax",
+        "ret",
+        SELECTOR_CODE = const SEGMENT_SELECTOR_KERNEL_CODE << 3,
+        SELECTOR_DATA = const SEGMENT_SELECTOR_KERNEL_DATA << 3,
+
+    );
+}
+
+#[unsafe(naked)]
+unsafe extern "C" fn gdt_set() {
+    core::arch::naked_asm!("mov eax, offset GDTR", "lgdt [eax]", "mov eax, cr0", "or eax, 1", "mov cr0, eax", "ret",);
 }
