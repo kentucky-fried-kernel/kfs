@@ -22,8 +22,9 @@ fn panic(info: &PanicInfo) -> ! {
     unsafe {
         clear_regs!();
     }
-    hlt!();
-    loop {}
+    loop {
+        hlt!();
+    }
 }
 
 #[cfg(test)]
