@@ -71,7 +71,8 @@ pub fn init() {
     unsafe { gdt_set() };
 
     // SAFETY:
-    // We make sure that the values passed are valid segment selectors.
+    // This is safe because we are still in the kernel context to which
+    // the segment selectors get realoaded to.
     unsafe {
         // Reload segment registers "invisible" parts by setting them again.
         segment_registers_reload();
