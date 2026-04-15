@@ -28,5 +28,5 @@ pub(super) static mut PAGE_DIRECTORY_KERNEL: PageAligned<PageDirectory> = {
     PageAligned(dir)
 };
 
-pub(super) const PAGE_TABLES_KERNEL_SIZE: usize = PAGE_DIRECTORY_SIZE / 4;
+pub(super) const PAGE_TABLES_KERNEL_SIZE: usize = PAGE_DIRECTORY_SIZE / 4; // Because the 4th GB in vm is used for kernel space only a 4th of the page tables are needed to represent kernel space
 pub(super) static mut PAGE_TABLES_KERNEL: [PageTable; PAGE_TABLES_KERNEL_SIZE] = [[PageTableEntry::empty(); PAGE_TABLE_SIZE]; PAGE_TABLES_KERNEL_SIZE];

@@ -42,7 +42,7 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
-    // arch::x86::vmm::init();
+    arch::x86::vmm::init();
 
     printkln!("hello");
 

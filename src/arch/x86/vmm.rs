@@ -1,6 +1,6 @@
 mod init;
 mod page;
+mod page_allocator;
 mod state;
-mod trampolin;
 
 pub use init::init;
