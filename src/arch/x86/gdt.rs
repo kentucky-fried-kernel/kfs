@@ -91,7 +91,10 @@ unsafe extern "C" fn segment_registers_reload() {
         "mov gs, ax",
         "mov ss, ax",
         "ret",
-        SELECTOR_CODE = const SEGMENT_SELECTOR_KERNEL_CODE << 3,
+        SELECTOR_CODE = const SEGMENT_SELECTOR_KERNEL_CODE << 3, // the index gets shifted by 3
+                                                                 // because the bits 15..3 in the
+                                                                 // segment selector are used for
+                                                                 // the index of the gdt.
         SELECTOR_DATA = const SEGMENT_SELECTOR_KERNEL_DATA << 3,
 
     );
