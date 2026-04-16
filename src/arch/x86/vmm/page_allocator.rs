@@ -3,12 +3,12 @@ use core::num::NonZeroU64;
 use core::panic;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Node(NonZeroU64);
+pub(super) struct Node(NonZeroU64);
 
 impl Node {
     const U20_MAX: u32 = (1 << 20) - 1;
 
-    fn new(prev: Option<usize>, next: Option<usize>) -> Option<Self> {
+    pub fn new(prev: Option<usize>, next: Option<usize>) -> Option<Self> {
         let p = Self::encode(prev)?;
         let n = Self::encode(next)?;
 
@@ -37,10 +37,10 @@ impl Node {
     }
 }
 
-const ORDERS: usize = 21;
+pub(super) const ORDERS: usize = 21;
 
 #[derive(Debug)]
-struct PageAllocator<'a> {
+pub(super) struct PageAllocator<'a> {
     pub orders: [&'a mut [Option<Node>]; ORDERS],
     pub orders_head: [Option<usize>; ORDERS],
 }
