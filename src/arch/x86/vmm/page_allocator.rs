@@ -237,7 +237,7 @@ impl<'a> PageAllocator<'a> {
         match node.next() {
             Some(index) => {
                 let next = self.orders[index_order][index].unwrap();
-                self.orders[index_order][index] = Node::new(node.prev(), node.prev());
+                self.orders[index_order][index] = Node::new(node.prev(), next.next());
             }
             None => {}
         }
