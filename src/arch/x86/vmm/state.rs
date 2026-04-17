@@ -86,7 +86,7 @@ pub(super) static mut PAGE_ALLOCATOR_ORDER_19: [Option<Node>; 1 << 1] = [None; 1
 /// full 4 GiB block. It is pre-seeded with a `Node { prev: None, next: None }`
 /// so that the allocator starts with one free block covering everything and
 /// can immediately service requests by splitting downward.
-pub(super) static mut PAGE_ALLOCATOR_ORDER_20: [Option<Node>; 1] = [Node::new(None, None)];
+pub(super) static mut PAGE_ALLOCATOR_ORDER_20: [Option<Node>; 1] = [const { Node::new(None, None) }];
 
 /// The global page allocator, fully initialized at compile time.
 ///
@@ -96,8 +96,8 @@ pub(super) static mut PAGE_ALLOCATOR_ORDER_20: [Option<Node>; 1] = [Node::new(No
 ///   mut [Option<Node>]`.
 /// - `orders_head[20] = Some(0)` points at the single pre-seeded order-20 free block; every other
 ///   order starts empty.
-pub(super) static mut PAGE_ALLOCATOR: PageAllocator<'static> = PageAllocator {
-    orders: unsafe {
+pub(super) static mut PAGE_ALLOCATOR: PageAllocator<'static> = PageAllocator::new(
+    unsafe {
         [
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_00),
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_01),
@@ -122,9 +122,9 @@ pub(super) static mut PAGE_ALLOCATOR: PageAllocator<'static> = PageAllocator {
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_20),
         ]
     },
-    orders_head: {
+    {
         let mut h = [None; ORDERS];
         h[20] = Some(0);
         h
     },
-};
+);
