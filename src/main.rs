@@ -5,6 +5,7 @@
 #![reexport_test_harness_main = "test_main"]
 
 use kfs::{
+    arch::x86::kernel_mutex::KernelMutex,
     boot::MultibootInfo,
     keyboard::{
         Keyboard,
@@ -44,7 +45,13 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::idt::init();
     arch::x86::vmm::init();
 
-    printkln!("hello");
+    let test: KernelMutex<usize> = KernelMutex::new(4);
+    let mut a = test.lock().unwrap();
+    printkln!("{:?}", a);
+    *a = 3;
+    drop(a);
+    let mut a = test.lock().unwrap();
+    printkln!("hello {}", *a);
 
     loop {}
 

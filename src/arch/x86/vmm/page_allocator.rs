@@ -123,6 +123,7 @@ impl<'a> PageAllocator<'a> {
     }
 
     pub fn alloc_at(&mut self, ptr: *mut u8, size: usize) -> Option<*mut u8> {
+        self.coalesce();
         if size == 0 {
             return None;
         }
