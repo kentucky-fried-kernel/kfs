@@ -36,7 +36,9 @@ unsafe impl core::alloc::GlobalAlloc for NullAllocator {
 #[global_allocator]
 static GLOBAL: NullAllocator = NullAllocator;
 
-static HEHE: KernelMutex<usize> = KernelMutex::new(0);
+unsafe extern "C" {
+    static _kernel_end: u8;
+}
 /// # Panics
 /// This function will panic if initialization of dynamic memory allocation fails.
 // #[cfg(not(test))]
@@ -47,9 +49,6 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::gdt::init();
     arch::x86::idt::init();
     arch::x86::vmm::init();
-
-    let kernel_end: usize = &raw const _kernel_end as usize;
-    printkln!("hello from late");
 
     loop {
         spin_loop();
