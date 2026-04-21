@@ -7,7 +7,7 @@ ISO := $(NAME).iso
 LD_SCRIPT := ./src/arch/x86/linker.ld
 TARGET_CONFIG := ./src/arch/x86/i386-unknown-none.json
 
-QEMU_FLAGS := -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 200M
+QEMU_FLAGS := -boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -m 4G 
 DEBUG_QEMU_FLAGS := $(QEMU_FLAGS) -serial stdio -no-reboot
 
 BIN := target/i386-unknown-none/release/kfs
@@ -31,6 +31,7 @@ iso: all
 	@cp grub/grub.cfg $(BUILD_DIR)/iso/boot/grub
 	@cp $(BIN) $(BUILD_DIR)/iso/boot/kernel.bin
 	@grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso --compress=xz --locale-directory=/dev/null --fonts=ascii
+
 
 run: iso
 	@./scripts/run.sh $(BUILD_DIR)/$(NAME).iso $(QEMU_FLAGS)

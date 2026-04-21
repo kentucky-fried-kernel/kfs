@@ -20,6 +20,7 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     mark_above_available(info);
     map_kernel()?;
     enable_read_write_enforcement();
+    PAGE_ALLOCATOR.lock().unwrap().coalesce();
     PAGE_ALLOCATOR.lock().unwrap().print();
     Ok(())
 }
@@ -30,6 +31,11 @@ fn mark_reserved_regions(info: &MultibootInfo) {
     let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to aquire lock on PAGE_ALLOCATOR");
     while offset < info.mmap_length {
         let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
+
+        let high_memory_used = entry.addr >= 0x1_0000_0000;
+        if high_memory_used {
+            panic!("This kernel doesn't support high memory that is mapped over 4GB - please install less than 3.5GB of ram");
+        }
         if entry.ty != 1 {
             let base = (entry.addr as usize) & !(PAGE_SIZE - 1);
             let end = (entry.addr as usize + entry.len as usize + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
@@ -71,14 +77,16 @@ fn mark_above_available(info: &MultibootInfo) {
         offset += entry.size + 4;
     }
 
+    serial_println!();
+    serial_println!("highest end {:x}", highest_available_end);
     let mut addr = highest_available_end & !(PAGE_SIZE - 1);
     let end = usize::MAX;
     while addr < end {
         // Find the largest power-of-2 block that:
         // 1. is naturally aligned at addr
         // 2. doesn't go past end
-        let mut smallest_order = ORDERS - 1;
-        while addr % pow2(smallest_order) * PAGE_SIZE != 0 {
+        let mut smallest_order = ORDERS - 2;
+        while addr % (pow2(smallest_order) * PAGE_SIZE) != 0 {
             smallest_order -= 1;
         }
         serial_println!("addr {:x}", addr);
