@@ -1,6 +1,7 @@
 use core::{
+    arch::asm,
     iter::{self},
-    u32,
+    u32, usize,
 };
 
 use crate::{
@@ -10,11 +11,107 @@ use crate::{
         page_allocator::{ORDERS, PageAllocator},
         state::{PAGE_ALLOCATOR, PAGE_DIRECTORY_KERNEL, PAGE_TABLES_KERNEL},
     },
-    boot::KERNEL_BASE,
+    boot::{KERNEL_BASE, MultibootInfo, MultibootMmapEntry},
     serial, serial_println,
 };
 
-pub fn init() -> Result<(), ()> {
+pub fn init(info: &MultibootInfo) -> Result<(), ()> {
+    mark_reserved_regions(info);
+    mark_above_available(info);
+    map_kernel()?;
+    enable_read_write_enforcement();
+    PAGE_ALLOCATOR.lock().unwrap().print();
+    Ok(())
+}
+
+fn mark_reserved_regions(info: &MultibootInfo) {
+    let mut offset: u32 = 0;
+
+    let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to aquire lock on PAGE_ALLOCATOR");
+    while offset < info.mmap_length {
+        let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
+        if entry.ty != 1 {
+            let base = (entry.addr as usize) & !(PAGE_SIZE - 1);
+            let end = (entry.addr as usize + entry.len as usize + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+            let mut addr = base;
+            if addr < 0x100000 {
+                // The lower memory will be allocated in
+                // [map_kernel] where the alloc is not allowed to fail.
+                offset += entry.size + 4;
+                continue;
+            }
+            while addr < end {
+                allocator.alloc_at(addr as *mut u8, PAGE_SIZE);
+                addr += PAGE_SIZE;
+            }
+        }
+        offset += entry.size + 4;
+    }
+}
+
+fn pow2(power: usize) -> usize {
+    2u32.pow(power as u32) as usize
+}
+
+fn mark_above_available(info: &MultibootInfo) {
+    let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to acquire lock");
+    let mut offset: u32 = 0;
+    let mut highest_available_end: usize = 0;
+
+    while offset < info.mmap_length {
+        let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
+
+        if entry.ty == 1 {
+            let end = (entry.addr + entry.len) as usize;
+            if end > highest_available_end {
+                highest_available_end = end;
+            }
+        }
+
+        offset += entry.size + 4;
+    }
+
+    let mut addr = highest_available_end & !(PAGE_SIZE - 1);
+    let end = usize::MAX;
+    while addr < end {
+        // Find the largest power-of-2 block that:
+        // 1. is naturally aligned at addr
+        // 2. doesn't go past end
+        let mut smallest_order = ORDERS - 1;
+        while addr % pow2(smallest_order) * PAGE_SIZE != 0 {
+            smallest_order -= 1;
+        }
+        serial_println!("addr {:x}", addr);
+        serial_println!("smallest oder {:x}", smallest_order);
+        let size = pow2(smallest_order) * PAGE_SIZE;
+        serial_println!("smallest size {:x}", size);
+        allocator.alloc_at(addr as *mut u8, size);
+        let would_overflow = size > (usize::MAX - addr);
+        if would_overflow {
+            break;
+        }
+        addr += size;
+    }
+}
+fn enable_read_write_enforcement() {
+    let mut cr0: u32;
+    // Safety:
+    // We just read so nothing bad can happen yet
+    unsafe {
+        asm!("mov {}, cr0", out(reg) cr0);
+    }
+
+    cr0 |= 1 << 16;
+
+    // Safety:
+    // here we make sure that we set the read
+    // write protection bit and write it back
+    unsafe {
+        asm!("mov cr0, {}", in(reg) cr0);
+    }
+}
+
+fn map_kernel() -> Result<(), ()> {
     let kernel_end: usize = &raw const _kernel_end as usize;
     let size = kernel_end - KERNEL_BASE;
     mmap_init(KERNEL_BASE as *mut u8, 0 as *mut u8, size);
@@ -47,7 +144,7 @@ fn mmap_init(vaddr: *mut u8, paddr: *mut u8, size: usize) -> Result<(), ()> {
 
     let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to aquire mutex on PAGE_ALLOCATOR");
 
-    let paddr = allocator.alloc_at(paddr, size).ok_or(())?;
+    let paddr = allocator.alloc_at(paddr, size).expect("couldn't find enough memory for kernel on boot");
     drop(allocator);
 
     map_to(vaddr, paddr, bytes_to_pages(size));

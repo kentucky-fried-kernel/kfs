@@ -132,6 +132,10 @@ impl<'a> PageAllocator<'a> {
         for o in 0..ORDERS {
             let order_size = pow2(o);
 
+            if o == ORDERS - 1 {
+                smallest_order = Some(o);
+                break;
+            }
             let mut pages = (size + ptr as usize % (order_size * PAGE_SIZE)) / PAGE_SIZE;
             if size % PAGE_SIZE != 0 {
                 pages += 1;
@@ -152,14 +156,17 @@ impl<'a> PageAllocator<'a> {
 
         for o in (smallest_order + 1..(ORDERS - 1)).rev() {
             let entry_size = pow2(o) * PAGE_SIZE;
-            let index_node = ptr as usize / entry_size;
+
+            let index_node = if o == ORDERS - 1 { 0 } else { ptr as usize / entry_size };
 
             self.split_node(index_node, o);
         }
 
         let entry_size = pow2(smallest_order) * PAGE_SIZE;
-        if let Some(_) = self.orders[smallest_order][ptr as usize / entry_size] {
-            self.node_remove(ptr as usize / entry_size, smallest_order);
+
+        let index_oders = if smallest_order == ORDERS - 1 { 0 } else { ptr as usize / entry_size };
+        if let Some(_) = self.orders[smallest_order][index_oders] {
+            self.node_remove(index_oders, smallest_order);
             return Some(ptr);
         }
 
