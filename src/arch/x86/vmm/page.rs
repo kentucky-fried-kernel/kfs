@@ -1,13 +1,56 @@
 pub const PAGE_SIZE: usize = 0x1000;
 
-#[repr(align(0x1000))]
-pub(super) struct PageAligned<T>(pub T);
-
+// #[repr(align(0x1000))]
+// pub(super) struct PageAligned<T>(pub T);
+//
+// impl<T> core::ops::Deref for PageAligned<T> {
+//     type Target = T;
+//     fn deref(&self) -> &T {
+//         &self.0
+//     }
+// }
+//
+// impl<T> core::ops::DerefMut for PageAligned<T> {
+//     fn deref_mut(&mut self) -> &mut T {
+//         &mut self.0
+//     }
+// }
+//
 pub const PAGE_DIRECTORY_SIZE: usize = 1024;
-pub(super) type PageDirectory = [PageDirectoryEntry; PAGE_DIRECTORY_SIZE];
+#[repr(align(0x1000))]
+#[derive(Copy, Clone)]
+pub(super) struct PageDirectory(pub [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]);
+
+impl core::ops::Deref for PageDirectory {
+    type Target = [PageDirectoryEntry; PAGE_DIRECTORY_SIZE];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for PageDirectory {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 pub const PAGE_TABLE_SIZE: usize = 1024;
-pub(super) type PageTable = [PageTableEntry; PAGE_TABLE_SIZE];
+#[repr(align(0x1000))]
+#[derive(Copy, Clone)]
+pub(super) struct PageTable(pub [PageTableEntry; PAGE_TABLE_SIZE]);
+
+impl core::ops::Deref for PageTable {
+    type Target = [PageTableEntry; PAGE_TABLE_SIZE];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for PageTable {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[bitstruct::bitstruct]
 pub(super) struct PageDirectoryEntry {

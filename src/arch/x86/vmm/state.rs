@@ -1,7 +1,9 @@
 use crate::arch::x86::vmm::{
-    page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageAligned, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
+    page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
     page_allocator::{Node, ORDERS, PageAllocator},
 };
+
+use crate::arch::x86::kernel_mutex::KernelMutex;
 
 #[used]
 #[unsafe(no_mangle)]
@@ -13,7 +15,7 @@ use crate::arch::x86::vmm::{
 /// through the page directory
 /// This is also used to bootstrap the page_allocators until the first process
 /// has its own {PageDirectory}
-pub(super) static mut PAGE_DIRECTORY_KERNEL: PageAligned<PageDirectory> = {
+pub(super) static PAGE_DIRECTORY_KERNEL_BOOT: KernelMutex<PageDirectory> = {
     let mut dir: [PageDirectoryEntry; PAGE_DIRECTORY_SIZE] = [PageDirectoryEntry::from(0); PAGE_DIRECTORY_SIZE];
 
     dir[0] = PageDirectoryEntry::from((0 << 22) | 0b1000_0011);
@@ -28,11 +30,14 @@ pub(super) static mut PAGE_DIRECTORY_KERNEL: PageAligned<PageDirectory> = {
     dir[775] = PageDirectoryEntry::from((7 << 22) | 0b1000_0011);
     dir[776] = PageDirectoryEntry::from((8 << 22) | 0b1000_0011);
 
-    PageAligned(dir)
+    KernelMutex::new(PageDirectory(dir))
 };
 
+pub(super) static PAGE_DIRECTORY_KERNEL: KernelMutex<PageDirectory> = { KernelMutex::new(PageDirectory([PageDirectoryEntry::empty(); PAGE_DIRECTORY_SIZE])) };
+
 pub(super) const PAGE_TABLES_KERNEL_SIZE: usize = PAGE_DIRECTORY_SIZE / 4; // Because the 4th GB in vm is used for kernel space only a 4th of the page tables are needed to represent kernel space
-pub(super) static mut PAGE_TABLES_KERNEL: [PageTable; PAGE_TABLES_KERNEL_SIZE] = [[PageTableEntry::empty(); PAGE_TABLE_SIZE]; PAGE_TABLES_KERNEL_SIZE];
+pub(super) static PAGE_TABLES_KERNEL: KernelMutex<[PageTable; PAGE_TABLES_KERNEL_SIZE]> =
+    KernelMutex::new([PageTable([PageTableEntry::empty(); PAGE_TABLE_SIZE]); PAGE_TABLES_KERNEL_SIZE]);
 
 // ---------------------------------------------------------------------------
 // Page Allocator state
@@ -96,7 +101,11 @@ pub(super) static mut PAGE_ALLOCATOR_ORDER_20: [Option<Node>; 1] = [const { Node
 ///   mut [Option<Node>]`.
 /// - `orders_head[20] = Some(0)` points at the single pre-seeded order-20 free block; every other
 ///   order starts empty.
-pub(super) static mut PAGE_ALLOCATOR: PageAllocator<'static> = PageAllocator::new(
+pub(super) static PAGE_ALLOCATOR: KernelMutex<PageAllocator<'static>> = KernelMutex::new(PageAllocator::new(
+    // Safety:
+    // We make sure that this is the only time we take a
+    // reference to these arrays so that we only have
+    // exlusive access to them in the [PageAllocator]
     unsafe {
         [
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_00),
@@ -127,4 +136,4 @@ pub(super) static mut PAGE_ALLOCATOR: PageAllocator<'static> = PageAllocator::ne
         h[20] = Some(0);
         h
     },
-);
+));

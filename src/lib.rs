@@ -35,6 +35,10 @@ pub mod stack_print_serial;
 pub mod terminal;
 pub mod tester;
 
+unsafe extern "C" {
+    static _kernel_end: u8;
+}
+
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() {

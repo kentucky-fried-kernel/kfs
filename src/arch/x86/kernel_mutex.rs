@@ -9,8 +9,14 @@ pub struct KernelMutex<T> {
     locked: AtomicBool,
 }
 
+// Safety:
+// Because we use an [AtomicBool] to check if the [KernelMutex] is already
+// locked we can garantee that only one thread at a time can access
+// the value inside of [UnsafeCell]
+unsafe impl<T> Sync for KernelMutex<T> {}
+
 impl<T> KernelMutex<T> {
-    pub fn new(v: T) -> Self {
+    pub const fn new(v: T) -> Self {
         Self {
             value: UnsafeCell::new(v),
             locked: AtomicBool::from(false),
@@ -18,7 +24,7 @@ impl<T> KernelMutex<T> {
     }
 
     pub fn lock<'a>(&'a self) -> Option<Lock<'a, T>> {
-        match self.locked.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst) {
+        match self.locked.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed) {
             Ok(_) => Some(Lock {
                 mutex: self,
                 _marker: PhantomData,
@@ -36,7 +42,7 @@ pub struct Lock<'mutex, T> {
 
 impl<T> Drop for Lock<'_, T> {
     fn drop(&mut self) {
-        self.mutex.locked.store(false, Ordering::SeqCst);
+        self.mutex.locked.store(false, Ordering::Release);
     }
 }
 

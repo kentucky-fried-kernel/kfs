@@ -4,6 +4,8 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+use core::hint::spin_loop;
+
 use kfs::{
     arch::x86::kernel_mutex::KernelMutex,
     boot::MultibootInfo,
@@ -34,6 +36,7 @@ unsafe impl core::alloc::GlobalAlloc for NullAllocator {
 #[global_allocator]
 static GLOBAL: NullAllocator = NullAllocator;
 
+static HEHE: KernelMutex<usize> = KernelMutex::new(0);
 /// # Panics
 /// This function will panic if initialization of dynamic memory allocation fails.
 // #[cfg(not(test))]
@@ -45,16 +48,12 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     arch::x86::idt::init();
     arch::x86::vmm::init();
 
-    let test: KernelMutex<usize> = KernelMutex::new(4);
-    let mut a = test.lock().unwrap();
-    printkln!("{:?}", a);
-    *a = 3;
-    drop(a);
-    let mut a = test.lock().unwrap();
-    printkln!("hello {}", *a);
+    let kernel_end: usize = &raw const _kernel_end as usize;
+    printkln!("hello from late");
 
-    loop {}
-
+    loop {
+        spin_loop();
+    }
     // kfs::ps2::init();
 }
 //
