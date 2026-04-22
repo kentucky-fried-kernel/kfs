@@ -287,6 +287,7 @@ impl<'a> PageAllocator<'a> {
         let kb = (total_bytes % (1024 * 1024)) / 1024;
 
         printkln!("Memory available after boot: {} MB {} KB free", mb, kb);
+        serial_println!("Memory available after boot: {} MB {} KB free", mb, kb);
     }
     fn count_free_at(&self, order: usize) -> usize {
         let mut count = 0;

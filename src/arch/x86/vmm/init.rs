@@ -7,6 +7,7 @@ use core::{
 use crate::{
     _kernel_end,
     arch::x86::vmm::{
+        allocators::kmalloc,
         page::{PAGE_SIZE, PageDirectory, PageDirectoryEntry, PageTableEntry},
         page_allocator::{ORDERS, PageAllocator},
         state::{PAGE_ALLOCATOR, PAGE_DIRECTORY_KERNEL, PAGE_TABLES_KERNEL},
@@ -20,6 +21,7 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     mark_above_available(info);
     map_kernel()?;
     enable_read_write_enforcement();
+    kmalloc::init();
     PAGE_ALLOCATOR.lock().unwrap().print_free();
     Ok(())
 }
