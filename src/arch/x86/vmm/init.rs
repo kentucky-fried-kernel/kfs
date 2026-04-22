@@ -22,7 +22,6 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     map_kernel()?;
     enable_read_write_enforcement();
     kmalloc::init();
-    PAGE_ALLOCATOR.lock().unwrap().print();
     Ok(())
 }
 

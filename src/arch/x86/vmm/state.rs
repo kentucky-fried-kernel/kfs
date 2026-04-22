@@ -1,4 +1,5 @@
 use crate::arch::x86::vmm::{
+    PAGE_SIZE,
     page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
     page_allocator::{Node, ORDERS, PageAllocator},
 };
@@ -15,7 +16,7 @@ use crate::arch::x86::kernel_mutex::KernelMutex;
 /// through the page directory
 /// This is also used to bootstrap the page_allocators until the first process
 /// has its own {PageDirectory}
-pub(super) static PAGE_DIRECTORY_KERNEL_BOOT: KernelMutex<PageDirectory> = {
+pub(super) static PAGE_DIRECTORY_KERNEL_BOOT: PageDirectory = {
     let mut dir: [PageDirectoryEntry; PAGE_DIRECTORY_SIZE] = [PageDirectoryEntry::from(0); PAGE_DIRECTORY_SIZE];
 
     dir[0] = PageDirectoryEntry::from((0 << 22) | 0b1000_0011);
@@ -30,10 +31,10 @@ pub(super) static PAGE_DIRECTORY_KERNEL_BOOT: KernelMutex<PageDirectory> = {
     dir[775] = PageDirectoryEntry::from((7 << 22) | 0b1000_0011);
     dir[776] = PageDirectoryEntry::from((8 << 22) | 0b1000_0011);
 
-    KernelMutex::new(PageDirectory(dir))
+    PageDirectory(dir)
 };
 
-pub(super) static PAGE_DIRECTORY_KERNEL: KernelMutex<PageDirectory> = { KernelMutex::new(PageDirectory([PageDirectoryEntry::empty(); PAGE_DIRECTORY_SIZE])) };
+pub(super) static PAGE_DIRECTORY_KERNEL: KernelMutex<PageDirectory> = KernelMutex::new(PageDirectory([PageDirectoryEntry::empty(); PAGE_DIRECTORY_SIZE]));
 
 pub(super) const PAGE_TABLES_KERNEL_SIZE: usize = PAGE_DIRECTORY_SIZE / 4; // Because the 4th GB in vm is used for kernel space only a 4th of the page tables are needed to represent kernel space
 pub(super) static PAGE_TABLES_KERNEL: KernelMutex<[PageTable; PAGE_TABLES_KERNEL_SIZE]> =
