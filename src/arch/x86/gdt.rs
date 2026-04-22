@@ -1,4 +1,3 @@
-use crate::serial_println;
 
 #[derive(Copy, Clone)]
 struct GdtEntry(u64);

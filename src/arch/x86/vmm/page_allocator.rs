@@ -79,7 +79,6 @@ use crate::{printkln, serial_println};
 
 use super::page::PAGE_SIZE;
 use core::num::NonZeroU64;
-use core::panic;
 
 /// A packed free-list link.
 ///

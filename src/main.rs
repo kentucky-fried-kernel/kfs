@@ -7,15 +7,8 @@
 use core::hint::spin_loop;
 
 use kfs::{
-    alloc::vec::Vec,
-    arch::x86::kernel_mutex::KernelMutex,
     boot::MultibootInfo,
-    keyboard::{
-        Keyboard,
-        layout::{Layout, map_qwerty},
-    },
-    printkln, serial_println,
-    shell::Shell,
+    printkln,
 };
 
 mod panic;

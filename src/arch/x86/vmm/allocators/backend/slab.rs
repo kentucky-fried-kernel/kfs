@@ -5,7 +5,7 @@ use crate::{
         allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
         page::PAGE_SIZE,
     },
-    expect_opt, serial_println,
+    expect_opt,
 };
 
 #[derive(Debug)]

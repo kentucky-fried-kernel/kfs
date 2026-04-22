@@ -2,7 +2,7 @@ use core::ptr::NonNull;
 
 use crate::{
     arch::x86::vmm::{
-        allocators::kmalloc::{KfreeError, KmallocError},
+        allocators::kmalloc::KfreeError,
         page::PAGE_SIZE,
     },
     bitmap::StaticBitmap,

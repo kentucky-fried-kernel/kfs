@@ -1,6 +1,5 @@
 use core::{
     arch::asm,
-    iter::{self},
     u32, usize,
 };
 
@@ -9,11 +8,10 @@ use crate::{
     arch::x86::vmm::{
         allocators::kmalloc,
         page::{PAGE_SIZE, PageDirectory, PageDirectoryEntry, PageTableEntry},
-        page_allocator::{ORDERS, PageAllocator},
+        page_allocator::ORDERS,
         state::{PAGE_ALLOCATOR, PAGE_DIRECTORY_KERNEL, PAGE_TABLES_KERNEL},
     },
     boot::{KERNEL_BASE, MultibootInfo, MultibootMmapEntry},
-    serial, serial_println,
 };
 
 pub fn init(info: &MultibootInfo) -> Result<(), ()> {

@@ -14,9 +14,8 @@ use crate::{
         },
         init::mmap_init,
         page::PAGE_SIZE,
-        state::PAGE_ALLOCATOR,
     },
-    buddy_allocator_levels, serial_println,
+    buddy_allocator_levels,
 };
 
 #[derive(Debug)]
