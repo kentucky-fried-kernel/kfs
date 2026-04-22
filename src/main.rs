@@ -6,10 +6,7 @@
 
 use core::hint::spin_loop;
 
-use kfs::{
-    boot::MultibootInfo,
-    printkln,
-};
+use kfs::{boot::MultibootInfo, printkln};
 
 mod panic;
 
