@@ -22,6 +22,7 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     map_kernel()?;
     enable_read_write_enforcement();
     kmalloc::init();
+    PAGE_ALLOCATOR.lock().unwrap().print();
     Ok(())
 }
 
@@ -66,46 +67,54 @@ fn pow2(power: usize) -> usize {
 fn mark_above_available(info: &MultibootInfo) {
     let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to acquire lock");
     let mut offset: u32 = 0;
-    let mut highest_available_end: usize = 0;
+    let mut highest_available_end: u64 = 0;
 
     while offset < info.mmap_length {
         let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
 
         if entry.ty == 1 {
-            let end = (entry.addr + entry.len);
+            let end = entry.addr.saturating_add(entry.len);
 
-            let high_memory_used = end > 0x1_0000_0000;
-            if high_memory_used {
+            if end > 0x1_0000_0000 {
                 panic!("This kernel doesn't support high memory that is mapped over 4GB - please install less than 3.5GB of ram");
             }
 
-            if end as usize > highest_available_end {
-                highest_available_end = end as usize;
+            if end > highest_available_end {
+                highest_available_end = end;
             }
         }
 
         offset += entry.size + 4;
     }
 
-    let mut addr = highest_available_end & !(PAGE_SIZE - 1);
-    let end = usize::MAX;
-    while addr < end {
+    const ADDR_SPACE_END: u64 = 1u64 << 32;
+
+    let mut addr: u64 = highest_available_end & !((PAGE_SIZE as u64) - 1);
+
+    while addr < ADDR_SPACE_END {
         // Find the largest power-of-2 block that:
         // 1. is naturally aligned at addr
-        // 2. doesn't go past end
-        let mut smallest_order = ORDERS - 2;
-        while addr % (pow2(smallest_order) * PAGE_SIZE) != 0 {
-            smallest_order -= 1;
+        // 2. doesn't go past ADDR_SPACE_END
+        let mut order = ORDERS - 2;
+        loop {
+            let block_size = (pow2(order) as u64) * (PAGE_SIZE as u64);
+            let aligned = addr % block_size == 0;
+            let fits = block_size <= ADDR_SPACE_END - addr;
+            if aligned && fits {
+                break;
+            }
+            if order == 0 {
+                break;
+            }
+            order -= 1;
         }
-        let size = pow2(smallest_order) * PAGE_SIZE;
-        allocator.alloc_at(addr as *mut u8, size);
-        let would_overflow = size > (usize::MAX - addr);
-        if would_overflow {
-            break;
-        }
-        addr += size;
+
+        let block_size = (pow2(order) as u64) * (PAGE_SIZE as u64);
+        let _ = allocator.alloc_at(addr as *mut u8, block_size as usize);
+        addr += block_size;
     }
 }
+
 fn enable_read_write_enforcement() {
     let mut cr0: u32;
     // Safety:
