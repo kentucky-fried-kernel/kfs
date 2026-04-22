@@ -1,4 +1,4 @@
-use crate::serial_println;
+use crate::{printkln, serial_println};
 
 use super::page::PAGE_SIZE;
 use core::num::NonZeroU64;
@@ -58,7 +58,7 @@ impl<'a> PageAllocator<'a> {
 
             let alignment_offset = addr % (order_size_pages * PAGE_SIZE);
             let size_with_alignment = size + alignment_offset;
-            let mut pages = (size_with_alignment + PAGE_SIZE - 1) / PAGE_SIZE;
+            let pages = (size_with_alignment + PAGE_SIZE - 1) / PAGE_SIZE;
 
             if pages <= order_size_pages {
                 return Some(o);
@@ -272,6 +272,32 @@ impl<'a> PageAllocator<'a> {
                 current = node.next();
             }
         }
+    }
+
+    pub fn print_free(&self) {
+        let mut total_bytes: u64 = 0;
+
+        for order in 0..ORDERS {
+            let block_bytes = (pow2(order) as u64) * (PAGE_SIZE as u64);
+            let count = self.count_free_at(order) as u64;
+            total_bytes += count * block_bytes;
+        }
+
+        let mb = total_bytes / (1024 * 1024);
+        let kb = (total_bytes % (1024 * 1024)) / 1024;
+
+        printkln!("Memory available after boot: {} MB {} KB free", mb, kb);
+    }
+    fn count_free_at(&self, order: usize) -> usize {
+        let mut count = 0;
+        let mut current = self.orders_head[order];
+
+        while let Some(idx) = current {
+            count += 1;
+            current = self.orders[order][idx].expect("free list index points to empty slot").next();
+        }
+
+        count
     }
 }
 

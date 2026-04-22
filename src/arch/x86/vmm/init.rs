@@ -20,7 +20,7 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     mark_above_available(info);
     map_kernel()?;
     enable_read_write_enforcement();
-    PAGE_ALLOCATOR.lock().unwrap().print();
+    PAGE_ALLOCATOR.lock().unwrap().print_free();
     Ok(())
 }
 
@@ -124,7 +124,7 @@ fn enable_read_write_enforcement() {
 fn map_kernel() -> Result<(), ()> {
     let kernel_end: usize = &raw const _kernel_end as usize;
     let size = kernel_end - KERNEL_BASE;
-    mmap_init(KERNEL_BASE as *mut u8, 0 as *mut u8, size);
+    mmap_init(KERNEL_BASE as *mut u8, Some(0 as *mut u8), size);
 
     let page_directory_paddr = &PAGE_DIRECTORY_KERNEL as *const _ as usize - KERNEL_BASE;
     let page_directory_paddr = page_directory_paddr as *mut PageDirectory;
@@ -148,13 +148,19 @@ pub unsafe fn load_page_directory(addr: *mut PageDirectory) {
     }
 }
 
-fn mmap_init(vaddr: *mut u8, paddr: *mut u8, size: usize) -> Result<(), ()> {
+pub(super) fn mmap_init(vaddr: *mut u8, paddr: Option<*mut u8>, size: usize) -> Result<(), ()> {
     assert!(vaddr as usize % PAGE_SIZE == 0);
-    assert!(paddr as usize % PAGE_SIZE == 0);
+    if let Some(paddr) = paddr {
+        assert!(paddr as usize % PAGE_SIZE == 0);
+    }
 
     let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to aquire mutex on PAGE_ALLOCATOR");
 
-    let paddr = allocator.alloc_at(paddr, size).expect("couldn't find enough memory for kernel on boot");
+    let paddr = match paddr {
+        Some(paddr) => allocator.alloc_at(paddr, size).expect("couldn't find enough memory for kernel on boot"),
+        None => allocator.alloc(size).expect("couldn't find enough memory for kernel on boot"),
+    };
+
     drop(allocator);
 
     map_to(vaddr, paddr, bytes_to_pages(size));

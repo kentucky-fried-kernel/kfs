@@ -1,3 +1,4 @@
+mod allocators;
 mod init;
 mod page;
 mod page_allocator;

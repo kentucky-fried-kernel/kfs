@@ -7,6 +7,7 @@
 use core::hint::spin_loop;
 
 use kfs::{
+    alloc::vec::Vec,
     arch::x86::kernel_mutex::KernelMutex,
     boot::MultibootInfo,
     keyboard::{
@@ -21,21 +22,6 @@ mod panic;
 
 pub const MEMORY_MAX: u64 = 1 << 32;
 
-struct NullAllocator;
-
-unsafe impl core::alloc::GlobalAlloc for NullAllocator {
-    unsafe fn alloc(&self, _layout: core::alloc::Layout) -> *mut u8 {
-        core::ptr::null_mut() // always fail
-    }
-
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
-        // no-op
-    }
-}
-
-#[global_allocator]
-static GLOBAL: NullAllocator = NullAllocator;
-
 unsafe extern "C" {
     static _kernel_end: u8;
 }
@@ -47,10 +33,17 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     use kfs::arch;
 
     arch::x86::gdt::init();
+    printkln!("Gdt initialized");
     arch::x86::idt::init();
+    printkln!("Idt initialized");
     arch::x86::vmm::init(info);
+    printkln!("Vmm initialized");
 
-    printkln!("booted...");
+    printkln!("Booted");
+
+    let mut a = Vec::new();
+    a.push(0);
+    kfs::printkln!("{:?}", a);
     loop {
         spin_loop();
     }
