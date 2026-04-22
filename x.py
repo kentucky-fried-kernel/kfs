@@ -83,7 +83,7 @@ def discover_e2e_tests():
     return test_paths
 
 
-QEMU_ARGS = "-boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 4G"
+QEMU_ARGS = "-boot d -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -m 3500M"
 ISO_PATH = "./build/kernel.iso"
 
 
