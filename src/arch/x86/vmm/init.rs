@@ -49,7 +49,9 @@ fn mark_reserved_regions(info: &MultibootInfo) {
                 continue;
             }
             while addr < end {
-                allocator.alloc_at(addr as *mut u8, PAGE_SIZE);
+                allocator
+                    .alloc_at(addr as *mut u8, PAGE_SIZE)
+                    .expect("failed to remove reserved memory regions from info mmap entries");
                 addr += PAGE_SIZE;
             }
         }

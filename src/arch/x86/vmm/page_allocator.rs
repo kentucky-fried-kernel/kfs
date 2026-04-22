@@ -90,7 +90,7 @@ impl<'a> PageAllocator<'a> {
     }
 
     pub fn alloc(&mut self, size: usize) -> Option<*mut u8> {
-        let two_gbs = 1 << 30;
+        let two_gbs = 1 << 31;
         assert!(size <= two_gbs);
         assert!(size != 0);
 
