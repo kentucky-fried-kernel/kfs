@@ -494,7 +494,7 @@ impl<'a> PageAllocator<'a> {
         }
 
         if let Some(next) = self.orders_head[order] {
-            self.split_node(next, order);
+            let _ = self.split_node(next, order);
         }
     }
 
@@ -566,12 +566,9 @@ impl<'a> PageAllocator<'a> {
             }
         }
 
-        match node.next() {
-            Some(index) => {
-                let next = self.orders[index_order][index].unwrap();
-                self.orders[index_order][index] = Node::new(node.prev(), next.next());
-            }
-            None => {}
+        if let Some(index) = node.next() {
+            let next = self.orders[index_order][index].unwrap();
+            self.orders[index_order][index] = Node::new(node.prev(), next.next());
         }
     }
 
