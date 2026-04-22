@@ -389,13 +389,13 @@ impl<'a> PageAllocator<'a> {
 
             let index_node = ptr as usize / entry_size;
 
-            self.split_node(index_node, o);
+            let _ = self.split_node(index_node, o);
         }
 
         let entry_size = pow2(smallest_order) * PAGE_SIZE;
         let order_index = ptr as usize / entry_size;
 
-        if let Some(_) = self.orders[smallest_order][order_index] {
+        if self.orders[smallest_order][order_index].is_some() {
             self.node_remove(order_index, smallest_order);
             return Some(ptr);
         }
@@ -482,7 +482,7 @@ impl<'a> PageAllocator<'a> {
     fn split(&mut self, order: usize) {
         match self.orders_head[order] {
             Some(next) => {
-                self.split_node(next, order);
+                let _ = self.split_node(next, order);
                 return;
             }
             None => {
@@ -510,7 +510,7 @@ impl<'a> PageAllocator<'a> {
     /// into.
     fn split_node(&mut self, index_node: usize, index_order: usize) -> Result<(), ()> {
         assert!(index_order != 0);
-        if let None = self.orders[index_order][index_node] {
+        if self.orders[index_order][index_node].is_none() {
             return Err(());
         }
 

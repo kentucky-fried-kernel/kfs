@@ -1,7 +1,4 @@
-use core::{
-    arch::asm,
-    u32, usize,
-};
+use core::{arch::asm, u32, usize};
 
 use crate::{
     _kernel_end,
@@ -19,7 +16,7 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     mark_above_available(info);
     map_kernel()?;
     enable_read_write_enforcement();
-    kmalloc::init();
+    kmalloc::init().expect("coulnd't allocate memory for kmalloc");
     Ok(())
 }
 
@@ -133,7 +130,7 @@ fn enable_read_write_enforcement() {
 fn map_kernel() -> Result<(), ()> {
     let kernel_end: usize = &raw const _kernel_end as usize;
     let size = kernel_end - KERNEL_BASE;
-    mmap_init(KERNEL_BASE as *mut u8, Some(0 as *mut u8), size);
+    mmap_init(KERNEL_BASE as *mut u8, Some(0 as *mut u8), size).unwrap();
 
     let page_directory_paddr = &PAGE_DIRECTORY_KERNEL as *const _ as usize - KERNEL_BASE;
     let page_directory_paddr = page_directory_paddr as *mut PageDirectory;

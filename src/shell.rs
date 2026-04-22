@@ -58,22 +58,19 @@ impl<'a> Shell<'a> {
                             self.prompt.clear();
                             break;
                         }
-                        Char::Backspace => {
-                            if self.prompt.len != 0 {
-                                self.screen.remove_last();
-                                self.prompt.entries[self.prompt.len - 1] = b' ';
-                                self.prompt.len -= 1;
-                            }
+                        Char::Backspace if self.prompt.len != 0 => {
+                            self.screen.remove_last();
+                            self.prompt.entries[self.prompt.len - 1] = b' ';
+                            self.prompt.len -= 1;
                         }
-                        Char::ArrowUp => {
-                            if self.screen.lines().rev().take(self.rows_scrolled_up + BUFFER_HEIGHT + 1).count() > self.rows_scrolled_up + vga::BUFFER_HEIGHT {
-                                self.rows_scrolled_up += 1;
-                            }
+                        Char::ArrowUp
+                            if self.screen.lines().rev().take(self.rows_scrolled_up + BUFFER_HEIGHT + 1).count()
+                                > self.rows_scrolled_up + vga::BUFFER_HEIGHT =>
+                        {
+                            self.rows_scrolled_up += 1;
                         }
-                        Char::ArrowDown => {
-                            if self.rows_scrolled_up > 0 {
-                                self.rows_scrolled_up -= 1;
-                            }
+                        Char::ArrowDown if self.rows_scrolled_up > 0 => {
+                            self.rows_scrolled_up -= 1;
                         }
                         Char::Char(c) => {
                             let _ = Self::push(self, c as u8);

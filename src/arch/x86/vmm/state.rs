@@ -106,6 +106,7 @@ pub(super) static PAGE_ALLOCATOR: KernelMutex<PageAllocator<'static>> = KernelMu
     // reference to these arrays so that we only have
     // exlusive access to them in the [PageAllocator]
     #[allow(static_mut_refs)]
+    #[allow(clippy::multiple_unsafe_ops_per_block)]
     unsafe {
         [
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_00),
