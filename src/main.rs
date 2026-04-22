@@ -41,9 +41,6 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 
     printkln!("Booted");
 
-    let mut a = Vec::new();
-    a.push(0);
-    kfs::printkln!("{:?}", a);
     loop {
         spin_loop();
     }
