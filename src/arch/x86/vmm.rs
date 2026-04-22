@@ -1,3 +1,6 @@
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 pub mod allocators;
 mod init;
 mod page;
