@@ -39,7 +39,7 @@ impl Node {
     }
 }
 
-pub(super) const ORDERS: usize = 21;
+pub(super) const ORDERS: usize = 20;
 
 #[derive(Debug)]
 pub(super) struct PageAllocator<'a> {
@@ -51,35 +51,56 @@ impl<'a> PageAllocator<'a> {
     pub const fn new(orders: [&'a mut [Option<Node>]; ORDERS], orders_head: [Option<usize>; ORDERS]) -> Self {
         Self { orders, orders_head }
     }
-    pub fn alloc(&mut self, size: usize) -> Option<*mut u8> {
-        if size == 0 {
-            return None;
-        }
-        let mut pages = size / PAGE_SIZE;
-        if size % PAGE_SIZE != 0 {
-            pages += 1;
-        }
 
-        let mut smallest_order = None;
-
+    fn find_smallest_order_fit_at_addr(addr: usize, size: usize) -> Option<usize> {
         for o in 0..ORDERS {
-            let order_size = pow2(o);
+            let order_size_pages = pow2(o);
 
-            if pages <= order_size {
-                smallest_order = Some(o);
-                break;
+            let alignment_offset = addr % (order_size_pages * PAGE_SIZE);
+            let size_with_alignment = size + alignment_offset;
+            let mut pages = (size_with_alignment + PAGE_SIZE - 1) / PAGE_SIZE;
+
+            if pages <= order_size_pages {
+                return Some(o);
             }
         }
 
-        let smallest_order = smallest_order?;
+        None
+    }
+    fn find_smallest_order_fit(pages: usize) -> Option<usize> {
+        for o in 0..ORDERS {
+            let order_size_pages = pow2(o);
+
+            if pages <= order_size_pages {
+                return Some(o);
+            }
+        }
+
+        None
+    }
+
+    fn node_drain(&mut self, order: usize) -> Option<*mut u8> {
+        let next = self.orders_head[order]?;
+
+        self.node_remove(next, order);
+
+        let addr = next * pow2(order) * PAGE_SIZE;
+
+        Some(addr as *mut u8)
+    }
+
+    pub fn alloc(&mut self, size: usize) -> Option<*mut u8> {
+        let two_gbs = 1 << 30;
+        assert!(size <= two_gbs);
+        assert!(size != 0);
+
+        let pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+
+        let smallest_order = Self::find_smallest_order_fit(pages)?;
 
         // Block already exists in the requested order
-        if let Some(next) = self.orders_head[smallest_order] {
-            self.node_remove(next, smallest_order);
-
-            let res = next * pow2(smallest_order) * PAGE_SIZE;
-
-            return Some(res as *mut u8);
+        if let Some(addr) = self.node_drain(smallest_order) {
+            return Some(addr);
         }
 
         // It searches if higher order blocks can be broken up for the requestsed order
@@ -87,24 +108,17 @@ impl<'a> PageAllocator<'a> {
             self.split(smallest_order + 1);
         }
 
-        if let Some(next) = self.orders_head[smallest_order] {
-            self.node_remove(next, smallest_order);
-
-            let res = next * pow2(smallest_order) * PAGE_SIZE;
-
-            return Some(res as *mut u8);
+        // Tries again afterwards
+        if let Some(addr) = self.node_drain(smallest_order) {
+            return Some(addr);
         }
 
         // Try to coalesce blocks to build requested order from smaller order blocks
         self.coalesce();
 
-        // Block already exists in the requested order
-        if let Some(next) = self.orders_head[smallest_order] {
-            self.node_remove(next, smallest_order);
-
-            let res = next * pow2(smallest_order) * PAGE_SIZE;
-
-            return Some(res as *mut u8);
+        // Block now exists in the requested order
+        if let Some(addr) = self.node_drain(smallest_order) {
+            return Some(addr);
         }
 
         // It searches if higher order blocks can be broken up for the requestsed order
@@ -112,106 +126,46 @@ impl<'a> PageAllocator<'a> {
             self.split(smallest_order + 1);
         }
 
-        if let Some(next) = self.orders_head[smallest_order] {
-            self.node_remove(next, smallest_order);
-
-            let res = next * pow2(smallest_order) * PAGE_SIZE;
-
-            return Some(res as *mut u8);
+        if let Some(addr) = self.node_drain(smallest_order) {
+            return Some(addr);
         }
+
         None
     }
 
     pub fn alloc_at(&mut self, ptr: *mut u8, size: usize) -> Option<*mut u8> {
+        assert!(size != 0);
+
+        let smallest_order = Self::find_smallest_order_fit_at_addr(ptr as usize, size)?;
+
+        // Make sure all blocks are coaleced. This might come with
+        // performance issues - but because this is only used during
+        // boot it is ok.
         self.coalesce();
-        if size == 0 {
-            return None;
-        }
-        let mut smallest_order = None;
 
-        for o in 0..ORDERS {
-            let order_size = pow2(o);
-
-            if o == ORDERS - 1 {
-                smallest_order = Some(o);
-                break;
-            }
-            let mut pages = (size + ptr as usize % (order_size * PAGE_SIZE)) / PAGE_SIZE;
-            if size % PAGE_SIZE != 0 {
-                pages += 1;
-            }
-            if pages <= order_size {
-                smallest_order = Some(o);
-                break;
-            }
-        }
-
-        let smallest_order = smallest_order?;
-
-        if smallest_order + 1 < ORDERS {
-            // The top node has to be done manually because calculating the entry size would perfectly
-            // overflow into 0 again.
-            self.split_node(0, ORDERS - 1);
-        }
-
-        for o in (smallest_order + 1..(ORDERS - 1)).rev() {
+        // Split nodes that are above the current needed one.
+        for o in (smallest_order + 1..(ORDERS)).rev() {
             let entry_size = pow2(o) * PAGE_SIZE;
 
-            let index_node = if o == ORDERS - 1 { 0 } else { ptr as usize / entry_size };
+            let index_node = ptr as usize / entry_size;
 
             self.split_node(index_node, o);
         }
 
         let entry_size = pow2(smallest_order) * PAGE_SIZE;
 
-        let index_oders = if smallest_order == ORDERS - 1 { 0 } else { ptr as usize / entry_size };
-        if let Some(_) = self.orders[smallest_order][index_oders] {
-            self.node_remove(index_oders, smallest_order);
+        let order_index = ptr as usize / entry_size;
+
+        if let Some(_) = self.orders[smallest_order][order_index] {
+            self.node_remove(order_index, smallest_order);
             return Some(ptr);
         }
 
         None
     }
-    pub fn print(&self) {
-        for order in (0..ORDERS).rev() {
-            let mut current = self.orders_head[order];
-            while let Some(index) = current {
-                let addr = index * pow2(order) * PAGE_SIZE;
-                let size = pow2(order) * PAGE_SIZE;
-                serial_println!(
-                    "order {:2} | node {:6} | addr 0x{:08x} | size 0x{:x} ({:x} pages)",
-                    order,
-                    index,
-                    addr,
-                    size,
-                    pow2(order)
-                );
-                let node = self.orders[order][index].unwrap();
-                current = node.next();
-            }
-        }
-    }
+
     pub fn dealloc(&mut self, ptr: *mut u8, size: usize) {
-        let mut order = None;
-
-        for o in 0..ORDERS {
-            let order_size = pow2(o);
-            if o == ORDERS - 1 {
-                self.node_add(0, o);
-                return;
-            }
-            let mut pages = (size as u64 + ptr as u64 % (order_size as u64 * PAGE_SIZE as u64)) as usize / PAGE_SIZE;
-            if size % PAGE_SIZE != 0 {
-                pages += 1;
-            }
-
-            if pages <= order_size {
-                order = Some(o);
-                break;
-            }
-        }
-
-        let order = match order {
+        let order = match Self::find_smallest_order_fit_at_addr(ptr as usize, size) {
             Some(o) => o,
             None => return,
         };
@@ -299,8 +253,32 @@ impl<'a> PageAllocator<'a> {
             None => {}
         }
     }
+
+    pub fn print(&self) {
+        for order in (0..ORDERS).rev() {
+            let mut current = self.orders_head[order];
+            while let Some(index) = current {
+                let addr = index * pow2(order) * PAGE_SIZE;
+                let size = pow2(order) * PAGE_SIZE;
+                serial_println!(
+                    "order {:2} | node {:6} | addr 0x{:08x} | size 0x{:x} ({:x} pages)",
+                    order,
+                    index,
+                    addr,
+                    size,
+                    pow2(order)
+                );
+                let node = self.orders[order][index].unwrap();
+                current = node.next();
+            }
+        }
+    }
 }
 
 fn pow2(power: usize) -> usize {
+    // This assert makes sure that calculations that
+    // multilply this return value with [PAGE_SIZE]
+    // don't overflow.
+    assert!(power < ORDERS);
     2u32.pow(power as u32) as usize
 }

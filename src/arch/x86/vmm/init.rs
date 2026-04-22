@@ -20,7 +20,6 @@ pub fn init(info: &MultibootInfo) -> Result<(), ()> {
     mark_above_available(info);
     map_kernel()?;
     enable_read_write_enforcement();
-    PAGE_ALLOCATOR.lock().unwrap().coalesce();
     PAGE_ALLOCATOR.lock().unwrap().print();
     Ok(())
 }
@@ -36,10 +35,12 @@ fn mark_reserved_regions(info: &MultibootInfo) {
         if high_memory_used {
             panic!("This kernel doesn't support high memory that is mapped over 4GB - please install less than 3.5GB of ram");
         }
+
         if entry.ty != 1 {
             let base = (entry.addr as usize) & !(PAGE_SIZE - 1);
             let end = (entry.addr as usize + entry.len as usize + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
             let mut addr = base;
+
             if addr < 0x100000 {
                 // The lower memory will be allocated in
                 // [map_kernel] where the alloc is not allowed to fail.
@@ -68,17 +69,21 @@ fn mark_above_available(info: &MultibootInfo) {
         let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
 
         if entry.ty == 1 {
-            let end = (entry.addr + entry.len) as usize;
-            if end > highest_available_end {
-                highest_available_end = end;
+            let end = (entry.addr + entry.len);
+
+            let high_memory_used = end > 0x1_0000_0000;
+            if high_memory_used {
+                panic!("This kernel doesn't support high memory that is mapped over 4GB - please install less than 3.5GB of ram");
+            }
+
+            if end as usize > highest_available_end {
+                highest_available_end = end as usize;
             }
         }
 
         offset += entry.size + 4;
     }
 
-    serial_println!();
-    serial_println!("highest end {:x}", highest_available_end);
     let mut addr = highest_available_end & !(PAGE_SIZE - 1);
     let end = usize::MAX;
     while addr < end {
@@ -89,10 +94,7 @@ fn mark_above_available(info: &MultibootInfo) {
         while addr % (pow2(smallest_order) * PAGE_SIZE) != 0 {
             smallest_order -= 1;
         }
-        serial_println!("addr {:x}", addr);
-        serial_println!("smallest oder {:x}", smallest_order);
         let size = pow2(smallest_order) * PAGE_SIZE;
-        serial_println!("smallest size {:x}", size);
         allocator.alloc_at(addr as *mut u8, size);
         let would_overflow = size > (usize::MAX - addr);
         if would_overflow {

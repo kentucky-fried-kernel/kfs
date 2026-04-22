@@ -85,13 +85,12 @@ pub(super) static mut PAGE_ALLOCATOR_ORDER_15: [Option<Node>; 1 << 5] = [None; 1
 pub(super) static mut PAGE_ALLOCATOR_ORDER_16: [Option<Node>; 1 << 4] = [None; 1 << 4];
 pub(super) static mut PAGE_ALLOCATOR_ORDER_17: [Option<Node>; 1 << 3] = [None; 1 << 3];
 pub(super) static mut PAGE_ALLOCATOR_ORDER_18: [Option<Node>; 1 << 2] = [None; 1 << 2];
-pub(super) static mut PAGE_ALLOCATOR_ORDER_19: [Option<Node>; 1 << 1] = [None; 1 << 1];
 
-/// Order 20 is the top of the buddy tree: a single slot representing the
-/// full 4 GiB block. It is pre-seeded with a `Node { prev: None, next: None }`
-/// so that the allocator starts with one free block covering everything and
-/// can immediately service requests by splitting downward.
-pub(super) static mut PAGE_ALLOCATOR_ORDER_20: [Option<Node>; 1] = [const { Node::new(None, None) }];
+/// Order 19 is the top of the buddy tree: two slots representing the
+/// full 4 GiB block in 2 chunks. It is 2 nodes instead of one because
+/// otherwise calculations in the [PageAllocator] would overflow and
+/// cause division by zero exceptions.
+pub(super) static mut PAGE_ALLOCATOR_ORDER_19: [Option<Node>; 1 << 1] = [const { Node::new(None, Some(1)) }, const { Node::new(Some(0), None) }];
 
 /// The global page allocator, fully initialized at compile time.
 ///
@@ -128,12 +127,11 @@ pub(super) static PAGE_ALLOCATOR: KernelMutex<PageAllocator<'static>> = KernelMu
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_17),
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_18),
             &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_19),
-            &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR_ORDER_20),
         ]
     },
     {
         let mut h = [None; ORDERS];
-        h[20] = Some(0);
+        h[ORDERS - 1] = Some(0);
         h
     },
 ));
