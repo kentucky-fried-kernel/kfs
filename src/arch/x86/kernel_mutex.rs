@@ -50,7 +50,7 @@ impl<T> Deref for Lock<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // Safety
+        // SAFETY:
         // We garantee that this Lock will be exclusive because we only
         // give it out when the mutex is not locked.
         unsafe { &*self.mutex.value.get() }
@@ -59,7 +59,7 @@ impl<T> Deref for Lock<'_, T> {
 
 impl<T> DerefMut for Lock<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // Safety
+        // SAFETY:
         // We garantee that this Lock will be exclusive because we only
         // give it out when the mutex is not locked.
         unsafe { &mut *self.mutex.value.get() }

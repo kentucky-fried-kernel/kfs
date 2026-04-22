@@ -1,4 +1,4 @@
-use core::{arch::asm, u32, usize};
+use core::arch::asm;
 
 use crate::{
     _kernel_end,
@@ -11,13 +11,15 @@ use crate::{
     boot::{KERNEL_BASE, MultibootInfo, MultibootMmapEntry},
 };
 
-pub fn init(info: &MultibootInfo) -> Result<(), ()> {
+/// # Panics
+/// Panics when not enough memory is available or when regions
+/// that have to be exclusive on boot overlap
+pub fn init(info: &MultibootInfo) {
     mark_reserved_regions(info);
     mark_above_available(info);
-    map_kernel()?;
+    map_kernel().expect("could not map kernel");
     enable_read_write_enforcement();
     kmalloc::init().expect("coulnd't allocate memory for kmalloc");
-    Ok(())
 }
 
 fn mark_reserved_regions(info: &MultibootInfo) {
@@ -25,6 +27,9 @@ fn mark_reserved_regions(info: &MultibootInfo) {
 
     let mut allocator = PAGE_ALLOCATOR.lock().expect("failed to aquire lock on PAGE_ALLOCATOR");
     while offset < info.mmap_length {
+        // SAFETY:
+        // this is safe because we make sure that the entries
+        // are read from the boot segment correctly
         let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
 
         let high_memory_used = entry.addr >= 0x1_0000_0000;
@@ -64,6 +69,9 @@ fn mark_above_available(info: &MultibootInfo) {
     let mut highest_available_end: u64 = 0;
 
     while offset < info.mmap_length {
+        // SAFETY:
+        // this is safe because we make sure that the entries
+        // are read from the boot segment correctly
         let entry = unsafe { *((info.mmap_addr + offset) as *const MultibootMmapEntry) };
 
         if entry.ty == 1 {
@@ -111,7 +119,7 @@ fn mark_above_available(info: &MultibootInfo) {
 
 fn enable_read_write_enforcement() {
     let mut cr0: u32;
-    // Safety:
+    // SAFETY:
     // We just read so nothing bad can happen yet
     unsafe {
         asm!("mov {}, cr0", out(reg) cr0);
@@ -119,7 +127,7 @@ fn enable_read_write_enforcement() {
 
     cr0 |= 1 << 16;
 
-    // Safety:
+    // SAFETY:
     // here we make sure that we set the read
     // write protection bit and write it back
     unsafe {
@@ -130,12 +138,13 @@ fn enable_read_write_enforcement() {
 fn map_kernel() -> Result<(), ()> {
     let kernel_end: usize = &raw const _kernel_end as usize;
     let size = kernel_end - KERNEL_BASE;
+    #[allow(clippy::zero_ptr)]
     mmap_init(KERNEL_BASE as *mut u8, Some(0 as *mut u8), size).unwrap();
 
     let page_directory_paddr = &PAGE_DIRECTORY_KERNEL as *const _ as usize - KERNEL_BASE;
     let page_directory_paddr = page_directory_paddr as *mut PageDirectory;
 
-    // Safety:
+    // SAFETY:
     // We make sure that the [PageDirectory] is filled and the
     // pointer is valid because we cast it from the global above.
     unsafe {
@@ -146,7 +155,7 @@ fn map_kernel() -> Result<(), ()> {
 
 pub unsafe fn load_page_directory(addr: *mut PageDirectory) {
     assert!(addr as usize % PAGE_SIZE == 0);
-    // Safety:
+    // SAFETY:
     // The caller has to make sure that the address is a filled
     // [PageDirectory] and is pagealligned
     unsafe {

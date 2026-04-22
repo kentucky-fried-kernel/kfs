@@ -1,5 +1,5 @@
-
 #[derive(Copy, Clone)]
+#[allow(unused)]
 struct GdtEntry(u64);
 
 impl GdtEntry {

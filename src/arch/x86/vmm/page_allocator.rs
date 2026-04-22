@@ -424,6 +424,7 @@ impl<'a> PageAllocator<'a> {
     /// Double-free or freeing a region that was never allocated will
     /// corrupt the allocator state (see invariant (1) in the
     /// [module docs](self)).
+    #[allow(unused)]
     pub fn dealloc(&mut self, ptr: *mut u8, size: usize) {
         let order = match Self::find_smallest_order_fit_at_addr(ptr as usize, size) {
             Some(o) => o,
@@ -580,6 +581,7 @@ impl<'a> PageAllocator<'a> {
     ///
     /// Orders are walked from highest to lowest so that large free
     /// regions appear first. Debug/diagnostic tool only.
+    #[allow(unused)]
     pub fn print(&self) {
         for order in (0..ORDERS).rev() {
             let mut current = self.orders_head[order];
@@ -606,6 +608,7 @@ impl<'a> PageAllocator<'a> {
     ///
     /// Used once at the end of boot to report how much RAM the kernel
     /// successfully claimed after marking reserved regions.
+    #[allow(unused)]
     pub fn print_free(&self) {
         let mut total_bytes: u64 = 0;
 

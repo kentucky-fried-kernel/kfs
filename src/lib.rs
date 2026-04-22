@@ -11,7 +11,6 @@
 #![feature(custom_test_frameworks)]
 #![feature(const_try)]
 #![feature(const_option_ops)]
-#![feature(generic_atomic)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
