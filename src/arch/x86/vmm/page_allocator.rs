@@ -68,12 +68,6 @@
 //!    the head of that list.
 //! 3. For every `Some(node)` at order `o`, following `node.next()` / `node.prev()` yields a
 //!    well-formed doubly-linked list terminated by `None` at both ends.
-//!
-//! Invariant (1) is what allows us to skip eager merging on `dealloc`: a
-//! freshly-freed block can't have its buddy already merged upward, because
-//! that would mean the buddy's `Some` state at the higher order implied
-//! this block was *also* free, contradicting the fact that it was just
-//! allocated.
 
 use crate::{printkln, serial_println};
 
