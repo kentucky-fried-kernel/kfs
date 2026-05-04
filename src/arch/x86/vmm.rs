@@ -5,10 +5,10 @@
 #![allow(clippy::borrow_as_ptr)]
 pub mod addressspace;
 pub mod allocators;
-mod init;
-mod page;
-mod page_allocator;
-mod state;
+pub mod init;
+pub mod page;
+pub mod page_allocator;
+pub mod state;
 
 pub use init::init;
 pub use init::mmap_init;

@@ -187,7 +187,7 @@ pub(super) const ORDERS: usize = 20;
 /// backing arrays are `static mut` globals defined in
 /// [`crate::arch::x86::vmm::state`].
 #[derive(Debug)]
-pub(super) struct PageAllocator<'a> {
+pub struct PageAllocator<'a> {
     /// Per-order backing storage. `orders[o]` has `2^(20 - o)` entries
     /// except for `o == 19`, which has 2 entries so that the top of the
     /// tree can be represented without overflowing page-count arithmetic.

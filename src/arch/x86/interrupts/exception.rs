@@ -1,4 +1,4 @@
-use crate::{arch::x86::idt::InterruptRegisters, serial_println};
+use crate::{arch::x86::idt::InterruptRegisters, boot::KERNEL_BASE, scheduling::QUEUE, serial_println};
 
 macro_rules! no_err_stub {
     ($func: ident, $nb: expr) => {
@@ -164,18 +164,32 @@ const EXCEPTION_MESSAGE: &[&str] = &[
 ];
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn exception_handler(regs: &InterruptRegisters) {
-    match regs.intno {
-        0x80 => syscall_handler(regs),
-        0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
-        _ => panic!("{regs:?}"),
-    }
-    panic!();
-
+unsafe extern "C" fn exception_handler(regs: &mut InterruptRegisters) {
+    // If there is ever a exception in the kernel something went wrong
     serial_println!("eip {:x}", regs.eip);
     serial_println!("esp {:x}", regs.useresp);
     serial_println!("cr2 {:x}", regs.cr2);
     serial_println!("error code {:x}", regs.err_code);
+    if regs.eip >= KERNEL_BASE as u32 {
+        serial_println!("{:?}", regs);
+        panic!("exception happened in the kernel");
+    }
+
+    match regs.intno {
+        0x80 => syscall_handler(regs),
+        14 => page_fault(regs),
+        0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
+        _ => panic!("{regs:?}"),
+    }
+}
+
+fn page_fault(regs: &mut InterruptRegisters) {
+    serial_println!("PAGE-FAUL\n");
+    serial_println!("{:?}", QUEUE);
+    let mut queue = QUEUE.lock().expect("couldn't lock queue | page_fault");
+    let process = queue.iter_mut().next().unwrap();
+    process.page_fault(regs);
+    drop(queue);
 }
 
 fn syscall_handler(regs: &InterruptRegisters) {
