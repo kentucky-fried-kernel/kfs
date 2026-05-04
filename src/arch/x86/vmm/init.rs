@@ -139,7 +139,7 @@ fn map_kernel() -> Result<(), ()> {
     let kernel_end: usize = &raw const _kernel_end as usize;
     let size = kernel_end - KERNEL_BASE;
     #[allow(clippy::zero_ptr)]
-    mmap_init(KERNEL_BASE as *mut u8, Some(0 as *mut u8), size).unwrap();
+    mmap_init(KERNEL_BASE as *mut u8, Some(0 as *mut u8), size, 0).unwrap();
 
     let page_directory_paddr = &PAGE_DIRECTORY_KERNEL as *const _ as usize - KERNEL_BASE;
     let page_directory_paddr = page_directory_paddr as *mut PageDirectory;
@@ -163,7 +163,7 @@ pub unsafe fn load_page_directory(addr: *mut PageDirectory) {
     }
 }
 
-pub(super) fn mmap_init(vaddr: *mut u8, paddr: Option<*mut u8>, size: usize) -> Result<(), ()> {
+pub fn mmap_init(vaddr: *mut u8, paddr: Option<*mut u8>, size: usize, access: u32) -> Result<(), ()> {
     assert!(vaddr as usize % PAGE_SIZE == 0);
     if let Some(paddr) = paddr {
         assert!(paddr as usize % PAGE_SIZE == 0);
@@ -178,12 +178,13 @@ pub(super) fn mmap_init(vaddr: *mut u8, paddr: Option<*mut u8>, size: usize) -> 
 
     drop(allocator);
 
-    map_to(vaddr, paddr, bytes_to_pages(size));
+    map_to(vaddr, paddr, bytes_to_pages(size), access);
     Ok(())
 }
 
-fn map_to(vaddr: *mut u8, paddr: *mut u8, pages: usize) {
+fn map_to(vaddr: *mut u8, paddr: *mut u8, pages: usize, access: u32) {
     assert!(vaddr as usize % PAGE_SIZE == 0);
+    assert!(vaddr as usize >= KERNEL_BASE);
     assert!(paddr as usize % PAGE_SIZE == 0);
     assert!(pages != 0);
 
@@ -205,15 +206,19 @@ fn map_to(vaddr: *mut u8, paddr: *mut u8, pages: usize) {
         let mut pde = PageDirectoryEntry::empty();
         pde.set_address((page_table_paddr >> 12) as u32);
         pde.set_read_write(1);
+        pde.set_user_supervisor(access as u8);
         pde.set_present(1);
         *page_directory_entry = pde;
 
         let mut pte = PageTableEntry::empty();
         pte.set_address((paddr >> 12) as u32);
         pte.set_read_write(1);
+        pte.set_user_supervisor(access as u8);
         pte.set_present(1);
         *page_table_entry = pte;
     }
+    drop(page_directory);
+    drop(page_tables);
 }
 
 fn bytes_to_pages(size: usize) -> usize {

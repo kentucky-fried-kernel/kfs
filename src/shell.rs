@@ -243,25 +243,25 @@ fn get_stack_pointer() -> u32 {
 }
 #[allow(static_mut_refs)]
 fn prints_cmd(args: &[u8], s: &mut Screen) {
-    printsb_cmd(args, s);
-    let sp_addr = get_stack_pointer();
-    let st = unsafe { (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32 };
-    let mut row: [u8; 16];
-
-    assert!(sp_addr <= st);
-
-    for row_idx in (sp_addr..st).step_by(16) {
-        let ptr = row_idx as *const u8;
-        row = unsafe { *(ptr.cast::<[u8; 16]>()) };
-        dump_row(row, ptr);
-    }
+    // printsb_cmd(args, s);
+    // let sp_addr = get_stack_pointer();
+    // let st = unsafe { (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32 };
+    // let mut row: [u8; 16];
+    //
+    // assert!(sp_addr <= st);
+    //
+    // for row_idx in (sp_addr..st).step_by(16) {
+    //     let ptr = row_idx as *const u8;
+    //     row = unsafe { *(ptr.cast::<[u8; 16]>()) };
+    //     dump_row(row, ptr);
+    // }
 }
 
 #[allow(static_mut_refs)]
 fn printsb_cmd(_args: &[u8], _s: &mut Screen) {
-    printk!("ESP: {:#08x} STACK_TOP: {:#08x}\n", get_stack_pointer(), unsafe {
-        (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32
-    });
+    // printk!("ESP: {:#08x} STACK_TOP: {:#08x}\n", get_stack_pointer(), unsafe {
+    //     // (STACK.as_ptr() as usize + STACK_SIZE) as *const u8 as u32
+    // });
 }
 
 /// Dumps a row of 16 bytes in the following format:

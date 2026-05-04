@@ -166,8 +166,18 @@ const EXCEPTION_MESSAGE: &[&str] = &[
 #[unsafe(no_mangle)]
 unsafe extern "C" fn exception_handler(regs: &InterruptRegisters) {
     match regs.intno {
-        0x80 => serial_println!("SYSCALL\n"),
+        0x80 => syscall_handler(regs),
         0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
         _ => panic!("{regs:?}"),
     }
+    panic!();
+
+    serial_println!("eip {:x}", regs.eip);
+    serial_println!("esp {:x}", regs.useresp);
+    serial_println!("cr2 {:x}", regs.cr2);
+    serial_println!("error code {:x}", regs.err_code);
+}
+
+fn syscall_handler(regs: &InterruptRegisters) {
+    serial_println!("SYSCALL\n")
 }

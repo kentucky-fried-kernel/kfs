@@ -170,7 +170,7 @@ pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
 pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
     let kernel_end: usize = &raw const _kernel_end as usize;
     let cache_memory = kernel_end;
-    mmap_init(cache_memory as *mut u8, None, BUDDY_ALLOCATOR_SIZE).map_err(|()| KmallocError::NotEnoughMemory)?;
+    mmap_init(cache_memory as *mut u8, None, BUDDY_ALLOCATOR_SIZE, 0).map_err(|()| KmallocError::NotEnoughMemory)?;
 
     allocator
         .buddy_allocator
@@ -191,7 +191,7 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
 
     let kernel_end: usize = &raw const _kernel_end as usize;
     let mut allocation = (kernel_end + BUDDY_ALLOCATOR_SIZE) as *mut u8;
-    mmap_init(allocation, None, total_size).map_err(|()| KmallocError::NotEnoughMemory)?;
+    mmap_init(allocation, None, total_size, 0).map_err(|()| KmallocError::NotEnoughMemory)?;
 
     allocator.slabs_start = allocation as usize;
     allocator.slabs_end = allocation as usize + total_size;

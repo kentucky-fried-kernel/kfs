@@ -178,7 +178,7 @@ pub fn init() {
         InterruptDescriptor::new(
             crate::arch::x86::interrupts::exception::_stubs::syscall_stub as *const () as usize,
             KERNEL_CODE_OFFSET as u16,
-            Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
+            Attributes::new(PresentBit::Present, PrivilegeLevel::UserMode, GateType::InterruptGate32),
         ),
     );
 

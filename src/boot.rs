@@ -1,12 +1,14 @@
 use core::{fmt::Display, ops::BitOr};
 
+use crate::arch::x86::kernel_mutex::KernelMutex;
+
 pub const STACK_SIZE: usize = 2 << 20;
 pub const KERNEL_BASE: usize = 0xC000_0000;
 
 #[used]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".bss")]
-pub static mut STACK: Stack = Stack([0; STACK_SIZE]);
+pub static STACK: KernelMutex<Stack> = KernelMutex::new(Stack([0; STACK_SIZE]));
 
 #[allow(unused)]
 #[repr(align(0x1000))]

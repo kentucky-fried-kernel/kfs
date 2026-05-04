@@ -10,7 +10,7 @@ use kfs::{
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    use kfs::{clear_regs, cli, hlt, printkln, serial_println, stack_print_serial::print_stack_to_serial};
+    use kfs::{clear_regs, cli, hlt, printkln, serial_println};
 
     cli!();
 
