@@ -43,7 +43,7 @@ debug-iso: all
 	@grub-mkrescue -v -o $(BUILD_DIR)/$(NAME).iso $(BUILD_DIR)/iso
 
 debug: debug-iso
-	./scripts/run.sh $(BUILD_DIR)/$(NAME).iso $(DEBUG_QEMU_FLAGS) 
+	./scripts/run.sh $(BUILD_DIR)/$(NAME).iso $(DEBUG_QEMU_FLAGS)
 
 test:
 	@LOGLEVEL=INFO ./x.py --end-to-end-tests

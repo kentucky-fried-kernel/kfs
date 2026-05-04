@@ -2,7 +2,7 @@ use core::{fmt::Display, ops::BitOr};
 
 use crate::arch::x86::kernel_mutex::KernelMutex;
 
-pub const STACK_SIZE: usize = 2 << 20;
+pub const STACK_SIZE: usize = 2 << 23;
 pub const KERNEL_BASE: usize = 0xC000_0000;
 
 #[used]
