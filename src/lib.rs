@@ -9,6 +9,8 @@
 #![feature(generic_const_exprs)]
 #![feature(pointer_is_aligned_to)]
 #![feature(custom_test_frameworks)]
+#![feature(const_try)]
+#![feature(const_option_ops)]
 #![test_runner(crate::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
@@ -32,7 +34,10 @@ pub mod shell;
 pub mod stack_print_serial;
 pub mod terminal;
 pub mod tester;
-pub mod vmm;
+
+unsafe extern "C" {
+    static _kernel_end: u8;
+}
 
 #[cfg(test)]
 #[unsafe(no_mangle)]

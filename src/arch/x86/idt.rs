@@ -2,13 +2,11 @@
 #![allow(static_mut_refs)]
 #![allow(clippy::cast_possible_truncation)]
 
+const KERNEL_CODE_OFFSET: usize = 0x8;
 use crate::{
-    arch::x86::{
-        gdt::KERNEL_CODE_OFFSET,
-        interrupts::{
-            exception, irq,
-            pic::{self, send_eoi},
-        },
+    arch::x86::interrupts::{
+        exception, irq,
+        pic::{self, send_eoi},
     },
     exception_stubs, irq_stubs, printk, printkln, serial_println,
 };

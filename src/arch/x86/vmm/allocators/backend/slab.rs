@@ -1,11 +1,11 @@
 use core::{fmt::Debug, ptr::NonNull};
 
 use crate::{
-    expect_opt,
-    vmm::{
+    arch::x86::vmm::{
         allocators::kmalloc::{IntrusiveLink, KfreeError, KmallocError, List},
-        paging::PAGE_SIZE,
+        page::PAGE_SIZE,
     },
+    expect_opt,
 };
 
 #[derive(Debug)]

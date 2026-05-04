@@ -11,15 +11,14 @@ use core::panic::PanicInfo;
 #[cfg(test)]
 use kfs::boot::MultibootInfo;
 use kfs::{
-    kassert, kassert_eq,
-    vmm::{
-        self,
+    arch::x86::vmm::{
+        PAGE_SIZE,
         allocators::{
             backend::buddy::BUDDY_ALLOCATOR_SIZE,
             kmalloc::{buddy_allocator_alloc, buddy_allocator_free},
         },
-        paging::PAGE_SIZE,
     },
+    kassert, kassert_eq,
 };
 
 #[panic_handler]
@@ -214,7 +213,11 @@ fn no_overlapping_allocations() -> Result<(), &'static str> {
             if pp == p {
                 continue;
             }
-            assert!(!(p_start < pp_end && pp_start < p_end), "Buddy allocator returned overlapping memory addresses");
+            assert!(
+                !(p_start < pp_end && pp_start < p_end),
+                "Buddy allocator returned
+overlapping memory addresses"
+            );
         }
     }
 
@@ -231,7 +234,10 @@ fn no_overlapping_allocations() -> Result<(), &'static str> {
 fn full_cache_usable() -> Result<(), &'static str> {
     let mut ptrs = [core::ptr::null(); 8];
     for p in ptrs.iter_mut() {
-        let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE / 8).map_err(|_| "Allocation failed when it should have been able to service the request")?;
+        let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE / 8).map_err(|_| {
+            "Allocation failed
+when it should have been able to service the request"
+        })?;
 
         *p = ptr;
     }
@@ -265,7 +271,10 @@ fn alloc_free_alloc() -> Result<(), &'static str> {
 
 #[test_case]
 fn alloc_full_size() -> Result<(), &'static str> {
-    let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
+    let ptr = buddy_allocator_alloc(BUDDY_ALLOCATOR_SIZE).map_err(|_| {
+        "Could not allocate full
+size of Buddy Allocator buffer"
+    })?;
 
     buddy_allocator_free(ptr).map_err(|_| "Free failed")?;
 
@@ -274,8 +283,14 @@ fn alloc_full_size() -> Result<(), &'static str> {
 
 #[test_case]
 fn alloc_page_size() -> Result<(), &'static str> {
-    let p1 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
-    let p2 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| "Could not allocate full size of Buddy Allocator buffer")?;
+    let p1 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| {
+        "Could not allocate full size of Buddy
+Allocator buffer"
+    })?;
+    let p2 = buddy_allocator_alloc(PAGE_SIZE).map_err(|_| {
+        "Could not
+allocate full size of Buddy Allocator buffer"
+    })?;
 
     kassert_eq!(p2 as usize - p1 as usize, PAGE_SIZE);
 
@@ -288,20 +303,11 @@ fn alloc_page_size() -> Result<(), &'static str> {
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{
-        arch, qemu,
-        vmm::{allocators::kmalloc::KERNEL_ALLOCATOR, paging::init::init_memory},
-    };
+    use kfs::{arch, qemu};
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
-
-    init_memory(info);
-
-    #[allow(static_mut_refs)]
-    if vmm::allocators::kmalloc::init_buddy_allocator(unsafe { &mut KERNEL_ALLOCATOR }).is_err() {
-        panic!("Failed to initialize buddy allocator");
-    }
+    arch::x86::vmm::init(info);
 
     test_main();
 

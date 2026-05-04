@@ -8,13 +8,12 @@
 
 use core::panic::PanicInfo;
 
+use kfs::alloc::string::String;
 use kfs::alloc::vec::Vec;
+use kfs::arch::x86::vmm::PAGE_SIZE;
+use kfs::arch::x86::vmm::allocators::backend::buddy::BUDDY_ALLOCATOR_SIZE;
+use kfs::arch::x86::vmm::allocators::kmalloc::{self, kfree, kmalloc};
 use kfs::boot::MultibootInfo;
-use kfs::vmm::allocators::kmalloc::{kfree, kmalloc};
-use kfs::{
-    alloc::string::String,
-    vmm::{self, allocators::backend::buddy::BUDDY_ALLOCATOR_SIZE, paging::PAGE_SIZE},
-};
 use kfs::{kassert, kassert_eq};
 
 #[panic_handler]
@@ -163,18 +162,13 @@ fn memory_corruption() -> Result<(), &'static str> {
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, qemu, serial_println, vmm::paging::init::init_memory};
+    use kfs::{arch, qemu, serial_println};
 
     serial_println!("");
 
     arch::x86::gdt::init();
     arch::x86::idt::init();
-
-    init_memory(info);
-
-    if vmm::allocators::kmalloc::init().is_err() {
-        panic!("Failed to initialize dynamic memory allocation");
-    }
+    arch::x86::vmm::init(info);
 
     test_main();
 

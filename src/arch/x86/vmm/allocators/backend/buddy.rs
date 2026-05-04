@@ -1,9 +1,9 @@
 use core::ptr::NonNull;
 
 use crate::{
+    arch::x86::vmm::{allocators::kmalloc::KfreeError, page::PAGE_SIZE},
     bitmap::StaticBitmap,
     expect_opt,
-    vmm::{allocators::kmalloc::KfreeError, paging::PAGE_SIZE},
 };
 
 pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;

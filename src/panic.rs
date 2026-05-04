@@ -18,12 +18,12 @@ fn panic(info: &PanicInfo) -> ! {
 
     serial_println!("KERNEL PANIC: {:?}", info.message());
 
-    print_stack_to_serial();
     unsafe {
         clear_regs!();
     }
-    hlt!();
-    loop {}
+    loop {
+        hlt!();
+    }
 }
 
 #[cfg(test)]

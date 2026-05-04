@@ -1,23 +1,22 @@
-use crate::{
-    buddy_allocator_levels,
-    vmm::{
-        allocators::backend::{
-            buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
-            slab::{SLAB_CONFIGS, SlabAllocator},
-        },
-        paging::{
-            Access, PAGE_SIZE, Permissions,
-            mmap::{Mode, mmap},
-        },
-    },
-};
-
 use core::{alloc::GlobalAlloc, ptr::NonNull};
 
 mod list;
 mod state;
 
 pub use list::{IntrusiveLink, List};
+
+use crate::{
+    _kernel_end,
+    arch::x86::vmm::{
+        allocators::backend::{
+            buddy::{BUDDY_ALLOCATOR_SIZE, BuddyAllocator},
+            slab::{SLAB_CONFIGS, SlabAllocator},
+        },
+        init::mmap_init,
+        page::PAGE_SIZE,
+    },
+    buddy_allocator_levels,
+};
 
 #[derive(Debug)]
 pub enum KmallocError {
@@ -169,7 +168,9 @@ pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
 /// `BuddyAllocator` (made via `mmap`) fails.
 #[allow(static_mut_refs)]
 pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
-    let cache_memory = mmap(None, BUDDY_ALLOCATOR_SIZE, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)?;
+    let kernel_end: usize = &raw const _kernel_end as usize;
+    let cache_memory = kernel_end;
+    mmap_init(cache_memory as *mut u8, None, BUDDY_ALLOCATOR_SIZE).map_err(|()| KmallocError::NotEnoughMemory)?;
 
     allocator
         .buddy_allocator
@@ -188,7 +189,9 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
 
     let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
 
-    let mut allocation = mmap(None, total_size, Permissions::ReadWrite, Access::Root, &Mode::Continous).map_err(|_| KmallocError::NotEnoughMemory)? as *mut u8;
+    let kernel_end: usize = &raw const _kernel_end as usize;
+    let mut allocation = (kernel_end + BUDDY_ALLOCATOR_SIZE) as *mut u8;
+    mmap_init(allocation, None, total_size).map_err(|()| KmallocError::NotEnoughMemory)?;
 
     allocator.slabs_start = allocation as usize;
     allocator.slabs_end = allocation as usize + total_size;

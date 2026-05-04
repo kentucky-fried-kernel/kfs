@@ -4,45 +4,37 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use kfs::{
-    boot::MultibootInfo,
-    keyboard::{
-        Keyboard,
-        layout::{Layout, map_qwerty},
-    },
-    shell::Shell,
-};
+use core::hint::spin_loop;
+
+use kfs::{boot::MultibootInfo, printkln};
 
 mod panic;
 
-extern crate alloc;
+pub const MEMORY_MAX: u64 = 1 << 32;
 
+unsafe extern "C" {
+    static _kernel_end: u8;
+}
 /// # Panics
 /// This function will panic if initialization of dynamic memory allocation fails.
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{
-        arch,
-        vmm::{self, paging::init::init_memory},
-    };
+    use kfs::arch;
 
     arch::x86::gdt::init();
+    printkln!("Gdt initialized");
     arch::x86::idt::init();
+    printkln!("Idt initialized");
+    arch::x86::vmm::init(info);
+    printkln!("Vmm initialized");
 
-    init_memory(info);
+    printkln!("Booted");
 
-    kfs::ps2::init();
-
-    if vmm::allocators::kmalloc::init().is_err() {
-        panic!("Failed to initialize kmalloc");
+    loop {
+        spin_loop();
     }
-
-    unsafe { core::arch::asm!("int 0x80") };
-
-    #[allow(static_mut_refs)]
-    let mut shell = Shell::default(unsafe { &mut kfs::terminal::SCREEN }, Keyboard::new(Layout::new(map_qwerty)));
-    shell.launch();
+    // kfs::ps2::init();
 }
 
 /// # Panics
@@ -50,18 +42,14 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
 #[cfg(test)]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::{arch, qemu, vmm};
+    use kfs::{arch, qemu};
 
     arch::x86::gdt::init();
+    printkln!("Gdt initialized");
     arch::x86::idt::init();
-
-    vmm::paging::init::init_memory(info);
-
-    kfs::ps2::init();
-
-    if vmm::allocators::kmalloc::init().is_err() {
-        panic!("Failed to initialize kmalloc");
-    }
+    printkln!("Idt initialized");
+    arch::x86::vmm::init(info);
+    printkln!("Vmm initialized");
 
     test_main();
 
