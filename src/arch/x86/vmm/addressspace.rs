@@ -2,10 +2,10 @@ use crate::{
     arch::x86::vmm::{
         init::load_page_directory,
         page::{self, PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
-        state::{PAGE_DIRECTORY_KERNEL, PAGE_DIRECTORY_KERNEL_BOOT, PAGE_TABLES_KERNEL_SIZE},
+        state::{PAGE_DIRECTORY_KERNEL, PAGE_DIRECTORY_KERNEL_BOOT, PAGE_TABLES_KERNEL, PAGE_TABLES_KERNEL_SIZE},
     },
     boot::{KERNEL_BASE, STACK, STACK_SIZE},
-    serial_println,
+    serial, serial_println,
 };
 
 const PAGE_TABLE_SIZE_USER: usize = (PAGE_TABLE_SIZE / 4) * 3;
@@ -31,9 +31,9 @@ impl Addressspace {
         for i in 0..PAGE_TABLE_SIZE {
             page_directory[i] = page_directory_kernel[i];
             if i >= (PAGE_TABLE_SIZE / 4) * 3 && i < (PAGE_TABLE_SIZE / 4) * 3 + 20 {
-                serial_println!("index {}", i);
-                serial_println!("{:x}", u32::from(page_directory[i]) >> 12);
-                serial_println!("{:x}", u32::from(page_directory_kernel[i]) >> 12);
+                // serial_println!("index {}", i);
+                // serial_println!("{:x}", u32::from(page_directory[i]) >> 12);
+                // serial_println!("{:x}", u32::from(page_directory_kernel[i]) >> 12);
             }
         }
 
@@ -56,6 +56,7 @@ impl Addressspace {
         }
         serial_println!("loaded {:x}", value);
 
+        serial_println!("hello from heeee ------------------");
         unsafe {
             load_page_directory(self.get_base_physical());
         }
@@ -73,6 +74,14 @@ impl Addressspace {
     }
 
     pub fn get_base_physical(&self) -> *mut PageDirectory {
-        ((&self.page_directory as *const _ as usize) - KERNEL_BASE) as *mut PageDirectory
+        let pt = PAGE_TABLES_KERNEL.lock().unwrap();
+        let addr = ((&self.page_directory) as *const _ as usize);
+        let pd_index = addr >> 22;
+        let pt_index = (addr << 10) >> 22;
+
+        let pte = pt[pd_index - 768][pt_index];
+        let paddr = (u32::from(pte) >> 12) << 12;
+        serial_println!("pte {:x}", paddr);
+        paddr as *mut PageDirectory
     }
 }

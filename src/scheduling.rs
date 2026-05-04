@@ -215,6 +215,7 @@ pub fn init() {
     let mut queue = QUEUE.lock().expect("tried to lock queue");
     queue.push(init);
 
+    serial_println!("--------------------------------");
     let proc = &mut queue[0];
     serial_println!("now thats the real onoe {:x}", proc.space.get_base_physical() as usize);
     proc.space.switch_page_directory();
