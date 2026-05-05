@@ -21,6 +21,12 @@ pub const PAGE_DIRECTORY_SIZE: usize = 1024;
 #[derive(Copy, Clone)]
 pub(super) struct PageDirectory(pub [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]);
 
+impl PageDirectory {
+    pub fn empty() -> Self {
+        Self([PageDirectoryEntry::empty(); PAGE_DIRECTORY_SIZE])
+    }
+}
+
 impl core::ops::Deref for PageDirectory {
     type Target = [PageDirectoryEntry; PAGE_DIRECTORY_SIZE];
     fn deref(&self) -> &Self::Target {
@@ -38,6 +44,12 @@ pub const PAGE_TABLE_SIZE: usize = 1024;
 #[repr(align(0x1000))]
 #[derive(Copy, Clone)]
 pub(super) struct PageTable(pub [PageTableEntry; PAGE_TABLE_SIZE]);
+
+impl PageTable {
+    pub fn empty() -> Self {
+        Self([PageTableEntry::empty(); PAGE_TABLE_SIZE])
+    }
+}
 
 impl core::ops::Deref for PageTable {
     type Target = [PageTableEntry; PAGE_TABLE_SIZE];

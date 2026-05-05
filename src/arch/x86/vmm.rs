@@ -3,6 +3,7 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::borrow_as_ptr)]
+pub mod addressspace;
 mod allocators;
 mod init;
 mod page;
