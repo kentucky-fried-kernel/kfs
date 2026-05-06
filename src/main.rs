@@ -32,25 +32,27 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     printkln!("Idt initialized");
     arch::x86::vmm::init(info);
     printkln!("Vmm initialized");
+    arch::x86::scheduler::init();
+    printkln!("Scheduler initialized");
 
     printkln!("Booted");
 
-    let mut a = Addressspace::new();
-    a.map(0x2000 as *mut u8, 0x2000_0000 as *mut u8, 1);
-    a.load();
-
-    let b = 3;
-    unsafe {
-        write_volatile(0x2000 as *mut u8, b);
-    }
-
-    unsafe {
-        kfs::serial_println!("{}", read_volatile(0x2000 as *mut u8));
-    }
-    a.map(0x2000 as *mut u8, 0x2000_1000 as *mut u8, 1);
-    unsafe {
-        kfs::serial_println!("{}", read_volatile(0x2000 as *mut u8));
-    }
+    // let mut a = Addressspace::new();
+    // a.map(0x2000 as *mut u8, 0x2000_0000 as *mut u8, 1);
+    // a.load();
+    //
+    // let b = 3;
+    // unsafe {
+    //     write_volatile(0x2000 as *mut u8, b);
+    // }
+    //
+    // unsafe {
+    //     kfs::serial_println!("{}", read_volatile(0x2000 as *mut u8));
+    // }
+    // a.map(0x2000 as *mut u8, 0x2000_1000 as *mut u8, 1);
+    // unsafe {
+    //     kfs::serial_println!("{}", read_volatile(0x2000 as *mut u8));
+    // }
     loop {
         spin_loop();
     }

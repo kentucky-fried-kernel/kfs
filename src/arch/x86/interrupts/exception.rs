@@ -170,4 +170,5 @@ unsafe extern "C" fn exception_handler(regs: &InterruptRegisters) {
         0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
         _ => panic!("{regs:?}"),
     }
+    panic!();
 }

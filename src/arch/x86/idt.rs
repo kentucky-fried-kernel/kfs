@@ -152,6 +152,36 @@ pub struct InterruptRegisters {
     pub ss: u32,
 }
 
+impl InterruptRegisters {
+    pub fn new(eip: u32, stack: u32) -> Self {
+        Self {
+            eip,
+            useresp: stack,
+            esp: stack,
+
+            // user data/stack segments - index 4 and 5 in GDT with RPL=3
+            ds: 0x23,
+            ss: 0x23,
+            // user code segment - index 3 in GDT with RPL=3
+            csm: 0x1B,
+
+            // IF set + reserved bit + IOPL=3 for user mode
+            eflags: 0x3202,
+
+            cr2: 0,
+            edi: 0,
+            esi: 0,
+            ebp: 0,
+            ebx: 0,
+            edx: 0,
+            ecx: 0,
+            eax: 0,
+            intno: 0,
+            err_code: 0,
+        }
+    }
+}
+
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {

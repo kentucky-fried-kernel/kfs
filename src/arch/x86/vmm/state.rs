@@ -138,5 +138,3 @@ pub(super) static PAGE_ALLOCATOR: KernelMutex<PageAllocator<'static>> = KernelMu
         h
     },
 ));
-
-pub static SCHEDULER: KernelMutex<Scheduler> = KernelMutex::new(Scheduler::new());

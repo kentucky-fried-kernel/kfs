@@ -8,7 +8,7 @@ mod allocators;
 mod init;
 mod page;
 mod page_allocator;
-mod process;
+pub mod process;
 pub mod state;
 
 pub use init::init;
