@@ -57,6 +57,10 @@ impl Addressspace {
         pte.set_read_write(permissions);
         pte.set_present(1);
         pt[pt_idx] = pte;
+
+        unsafe {
+            core::arch::asm!("invlpg [{}]", in(reg) vaddr, options(nostack, preserves_flags));
+        }
     }
 
     pub fn unmap(&mut self, vaddr: *const u8) {

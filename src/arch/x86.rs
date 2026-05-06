@@ -6,4 +6,5 @@ pub mod gdt;
 pub mod idt;
 pub mod interrupts;
 pub mod kernel_mutex;
+pub mod scheduler;
 pub mod vmm;
