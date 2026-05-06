@@ -195,6 +195,7 @@ fn sys_fork(regs: &mut InterruptRegisters) {
     serial_println!("forked");
     let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
     let parent = scheduler.current().expect("sys_fork | no process running");
+    parent.saved_registers = *regs;
     let mut child = Process::from_process(parent);
     child.saved_registers.eax = 0;
 
@@ -203,7 +204,7 @@ fn sys_fork(regs: &mut InterruptRegisters) {
 
     let parent = scheduler.current().expect("sys_fork | no process running");
     parent.saved_registers.eax = child_pid as u32;
-    *regs = parent.saved_registers;
+    regs.eax = child_pid as u32;
 }
 
 fn syscall(regs: &mut InterruptRegisters) {

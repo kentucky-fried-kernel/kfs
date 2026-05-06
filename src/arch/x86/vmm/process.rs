@@ -137,9 +137,9 @@ impl RunQueue {
 }
 
 pub struct Scheduler {
-    table: ProcessTable,
-    run_queue: RunQueue,
-    current: Option<Pid>,
+    pub table: ProcessTable,
+    pub run_queue: RunQueue,
+    pub current: Option<Pid>,
 }
 
 impl Scheduler {

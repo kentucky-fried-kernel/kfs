@@ -1,0 +1,118 @@
+use core::{arch::naked_asm, ptr::write_volatile};
+
+use alloc::vec::Vec;
+
+use crate::{
+    arch::x86::{
+        idt::InterruptRegisters,
+        interrupts::irq,
+        kernel_mutex::KernelMutex,
+        vmm::{
+            addressspace::Addressspace,
+            process::{Process, Scheduler},
+        },
+    },
+    serial_println,
+};
+
+#[unsafe(naked)]
+extern "C" fn program_exit() {
+    naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
+}
+#[unsafe(naked)]
+extern "C" fn program() {
+    naked_asm!(
+        // write 0x42 to address 0x2000
+        "mov dword ptr [0x2000], 0x42",
+        // fork
+        "mov eax, 57",
+        "int 0x80",
+        // eax is now 0 in child, child_pid in parent
+
+        // both parent and child now read from 0x2000
+        // they should each see 0x42 because the page was copied
+        "mov ebx, [0x2000]",
+        // exit with the value we read as the exit code
+        "mov eax, 60",
+        "int 0x80",
+    );
+}
+// #[unsafe(naked)]
+// extern "C" fn program() {
+//     naked_asm!("aaaa:", "mov eax, 57", "int 0x80", "mov ebx, eax", "mov eax, 60", "int 0x80",
+// "jmp aaaa"); }
+
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum Permissions {
+    Read = 0,
+    ReadWrite = 1,
+}
+
+pub struct Segment {
+    pub offset: Option<usize>,
+    pub vaddr: usize,
+    pub size: usize,
+    pub permissions: Permissions,
+}
+
+pub struct Binary {
+    pub segments: Vec<Segment>,
+    pub entry: usize,
+    pub stack: usize,
+}
+
+impl Binary {
+    pub fn new(entry: usize, stack: usize) -> Self {
+        Self {
+            segments: Vec::new(),
+            entry,
+            stack,
+        }
+    }
+}
+
+static one: u32 = 1;
+
+static two: u32 = 2;
+
+pub fn init() {
+    let mut init = Binary::new(0x1000, 0x2000);
+    init.segments.push(Segment {
+        offset: Some(program as usize),
+        vaddr: 0x1000,
+        size: 0x1000,
+        permissions: Permissions::Read,
+    });
+    init.segments.push(Segment {
+        offset: Some(&one as *const _ as usize),
+        vaddr: 0x2000,
+        size: 0x1000,
+        permissions: Permissions::ReadWrite,
+    });
+
+    let p = Process::new(&init);
+    SCHEDULER.lock().unwrap().spawn(p);
+
+    irq::install_handler(0, timer);
+    irq::clear_mask(0);
+}
+
+pub static SCHEDULER: KernelMutex<Scheduler> = KernelMutex::new(Scheduler::new());
+
+pub extern "C" fn timer(regs: &mut InterruptRegisters) {
+    serial_println!("timer");
+    serial_println!("{:x}", regs.eax);
+    let mut scheduler = SCHEDULER.lock().expect("timer | failed to lock SCHEDULER");
+    // first save the registers if there was a running process
+    if let Some(p) = scheduler.current() {
+        p.saved_registers = *regs;
+    }
+
+    // find the next process
+    let next = scheduler.schedule().expect("no process to run");
+
+    next.state = crate::arch::x86::vmm::process::ProcessState::Running;
+    next.addressspace.load();
+    *regs = next.saved_registers;
+}
