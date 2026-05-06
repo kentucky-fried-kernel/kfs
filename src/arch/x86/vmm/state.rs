@@ -101,7 +101,7 @@ pub(super) static mut PAGE_ALLOCATOR_ORDER_19: [Option<Node>; 1 << 1] = [const {
 ///   mut [Option<Node>]`.
 /// - `orders_head[20] = Some(0)` points at the single pre-seeded order-20 free block; every other
 ///   order starts empty.
-pub(super) static PAGE_ALLOCATOR: KernelMutex<PageAllocator<'static>> = KernelMutex::new(PageAllocator::new(
+pub static PAGE_ALLOCATOR: KernelMutex<PageAllocator<'static>> = KernelMutex::new(PageAllocator::new(
     // Safety:
     // We make sure that this is the only time we take a
     // reference to these arrays so that we only have

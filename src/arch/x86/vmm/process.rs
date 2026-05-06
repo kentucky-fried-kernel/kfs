@@ -1,10 +1,14 @@
 use alloc::{collections::VecDeque, vec::Vec};
 
-use crate::arch::x86::{idt::InterruptRegisters, vmm::addressspace::Addressspace};
+use crate::arch::x86::{
+    idt::InterruptRegisters,
+    scheduler::{Binary, Permissions},
+    vmm::addressspace::Addressspace,
+};
 
 pub type Pid = usize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ProcessState {
     Running,
     Ready,
@@ -12,11 +16,50 @@ pub enum ProcessState {
     Zombie,
 }
 
+#[derive(Clone, Copy)]
+pub struct VMA {
+    pub start: usize,
+    pub offset: Option<usize>,
+    pub size: usize,
+    pub permissions: Permissions,
+}
+
 pub struct Process {
     pub pid: Pid,
     pub state: ProcessState,
     pub addressspace: Addressspace,
     pub saved_registers: InterruptRegisters,
+    pub vmas: Vec<VMA>,
+}
+
+impl Process {
+    pub fn new(binary: &Binary) -> Self {
+        Self {
+            pid: 0,
+            state: ProcessState::Ready,
+            addressspace: Addressspace::new(),
+            saved_registers: InterruptRegisters::new(binary.entry as u32, binary.stack as u32),
+            vmas: binary
+                .segments
+                .iter()
+                .map(|s| VMA {
+                    start: s.vaddr,
+                    offset: s.offset,
+                    size: s.size,
+                    permissions: s.permissions,
+                })
+                .collect(),
+        }
+    }
+    pub fn from_process(process: &mut Process) -> Self {
+        Self {
+            pid: 0,
+            state: ProcessState::Ready,
+            addressspace: process.addressspace.fork(),
+            saved_registers: process.saved_registers,
+            vmas: process.vmas.clone(),
+        }
+    }
 }
 
 pub struct ProcessTable {

@@ -1,4 +1,18 @@
-use crate::{arch::x86::idt::InterruptRegisters, serial_println};
+use core::{intrinsics::copy_nonoverlapping, ptr::write_volatile};
+
+use crate::{
+    arch::x86::{
+        idt::InterruptRegisters,
+        scheduler::{Permissions, SCHEDULER, timer},
+        vmm::{
+            PAGE_SIZE,
+            addressspace::Addressspace,
+            process::{Process, VMA},
+            state::PAGE_ALLOCATOR,
+        },
+    },
+    serial_println,
+};
 
 macro_rules! no_err_stub {
     ($func: ident, $nb: expr) => {
@@ -163,12 +177,105 @@ const EXCEPTION_MESSAGE: &[&str] = &[
     "Reserved",
 ];
 
+pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
+    serial_println!("exited while ebx was {}", regs.ebx);
+    let mut scheduler = SCHEDULER.lock().expect("timer | failed to lock SCHEDULER");
+
+    let pid = scheduler.current().expect("sys_exit | no process running").pid;
+
+    scheduler.exit(pid);
+
+    let next = scheduler.schedule().expect("no process to run");
+
+    next.state = crate::arch::x86::vmm::process::ProcessState::Running;
+    next.addressspace.load();
+    *regs = next.saved_registers;
+}
+fn sys_fork(regs: &mut InterruptRegisters) {
+    serial_println!("forked");
+    let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
+    let parent = scheduler.current().expect("sys_fork | no process running");
+    let mut child = Process::from_process(parent);
+    child.saved_registers.eax = 0;
+
+    drop(parent);
+    let child_pid = scheduler.spawn(child);
+
+    let parent = scheduler.current().expect("sys_fork | no process running");
+    parent.saved_registers.eax = child_pid as u32;
+    *regs = parent.saved_registers;
+}
+
+fn syscall(regs: &mut InterruptRegisters) {
+    match regs.eax {
+        60 => sys_exit(regs),
+        35 => timer(regs),
+        57 => sys_fork(regs),
+        _ => regs.eax = u32::MAX,
+    }
+}
+
 #[unsafe(no_mangle)]
-unsafe extern "C" fn exception_handler(regs: &InterruptRegisters) {
+unsafe extern "C" fn exception_handler(regs: &mut InterruptRegisters) {
     match regs.intno {
-        0x80 => serial_println!("SYSCALL\n"),
-        0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
+        13 => sys_exit(regs),
+        14 => page_fault(regs),
+        0..32 => {
+            serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]);
+            sys_exit(regs);
+        }
+        0x80 => syscall(regs),
         _ => panic!("{regs:?}"),
     }
-    panic!();
 }
+
+fn page_fault(regs: &mut InterruptRegisters) {
+    serial_println!("page_fault: at addr {:x}", regs.cr2);
+    let mut scheduler = SCHEDULER.lock().expect("page_fault | could not lock SCHEDULER");
+
+    let addr = regs.cr2 as usize;
+    let addr = ((addr + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
+    let process = scheduler.current().expect("page_fault | no process running");
+
+    for vma in &process.vmas {
+        let access_allowed = vma.start <= addr && vma.start + vma.size > addr;
+        if access_allowed {
+            if let Ok(_) = alloc_page(addr, &mut process.addressspace, &vma) {
+                return;
+            }
+        }
+    }
+    drop(scheduler);
+    sys_exit(regs);
+}
+
+fn alloc_page(vaddr: usize, space: &mut Addressspace, vma: &VMA) -> Result<(), ()> {
+    let mut alloc = PAGE_ALLOCATOR.lock().expect("page_fault | could not lock PAGE_ALLOCATOR");
+    let paddr = match alloc.alloc(PAGE_SIZE) {
+        Some(paddr) => paddr,
+        None => {
+            return Err(());
+        }
+    };
+
+    let temp = 0xBFFF_F000 as *mut u8;
+
+    if let Some(offset) = vma.offset {
+        space.map(temp, paddr, Permissions::ReadWrite);
+        let diff = vaddr - vma.start;
+        unsafe {
+            copy_nonoverlapping((offset + diff) as *mut u8, temp, PAGE_SIZE);
+        }
+        space.unmap(temp);
+    }
+
+    space.map(vaddr as *mut u8, paddr, vma.permissions);
+    Ok(())
+}
+// pub struct VMA {
+//     start: usize,
+//     offset: Option<usize>,
+//     size: usize,
+//     permissions: Permissions,
+// }
+//
