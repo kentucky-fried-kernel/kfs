@@ -42,8 +42,74 @@ extern "C" fn program_write_in_memory() {
         // overwrite with 0xBBBB - this should NOT affect the parent
         "mov dword ptr [0x2000], 0xBBBB",
         "done:",
-        // both processes read their own [0x2000] into ebx and exit
         "mov ebx, [0x2000]",
+        "mov eax, 42",
+        "int 0x80",
+        // both processes read their own [0x2000] into ebx and exit
+        "mov eax, 60",
+        "int 0x80",
+    );
+}
+//
+// #[unsafe(naked)]
+// extern "C" fn program_ipc_test_sender() {
+//     // naked_asm!()
+// }
+#[unsafe(naked)]
+extern "C" fn program_ipc_test() {
+    naked_asm!(
+        // --- socket_create() -> eax = fd ---
+        "mov eax, 5",
+        "int 0x80",
+        // save fd in esi (callee-saved-ish for our purposes; nothing clobbers
+        // it until we use it again).
+        "mov esi, eax",
+        //
+        // --- fork() ---
+        "mov eax, 57",
+        "int 0x80",
+        //
+        //
+        // branch on eax: 0 = child, nonzero = parent
+        "test eax, eax",
+        "jz child",
+        "mov edi, eax",
+        // edi is now the child_id
+
+        // Store pid at [0x2000] so we have a stable address to pass as buf.
+        "mov dword ptr [0x2000], edi",
+        // socket_write(fd=esi, buf=0x2000, len=4)
+        "mov eax, 8",
+        "mov ebx, esi",
+        "mov ecx, 0x2000",
+        "mov edx, 4",
+        "int 0x80",
+        "mov ebx, eax",
+        "mov eax, 42",
+        "int 0x80",
+        // exit(0). ebx = 0 so the parent's exit log is unambiguous.
+        "mov eax, 60",
+        "mov ebx, 0",
+        "int 0x80",
+        // ===== CHILD =====
+        "child:",
+        // Busy-loop on socket_read until it returns > 0.
+        // (No blocking read yet, so we spin.)
+        "retry:",
+        "mov eax, 7",
+        "mov ebx, esi",
+        "mov ecx, 0x2000",
+        "mov edx, 4",
+        "int 0x80",
+        // eax = bytes read. If 0, retry.
+        "test eax, eax",
+        "jz retry",
+        // Load the received value into ebx and exit, so sys_exit prints it.
+        "mov ebx, [0x2000]",
+        //
+        "mov eax, 42",
+        "int 0x80",
+        //
         "mov eax, 60",
         "int 0x80",
     );
@@ -111,21 +177,32 @@ static TWO: u32 = 2;
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let mut init = Binary::new(0x1000, 0x2000);
-    init.segments.push(Segment {
-        offset: Some(program_write_in_memory as *const () as usize),
+    let mut bin = Binary::new(0x1000, 0x3000);
+
+    // Code page: ipc test program.
+    bin.segments.push(Segment {
+        offset: Some(program_ipc_test as *const () as usize),
         vaddr: 0x1000,
         size: 0x1000,
         permissions: Permissions::Read,
     });
-    init.segments.push(Segment {
-        offset: Some(&raw const ONE as usize),
+
+    // Data page used as the IPC payload buffer at 0x2000.
+    bin.segments.push(Segment {
+        offset: None,
         vaddr: 0x2000,
         size: 0x1000,
         permissions: Permissions::ReadWrite,
     });
 
-    let p = Process::new(&init, super::vmm::process::Parent::Root);
+    // Stack page.
+    bin.segments.push(Segment {
+        offset: None,
+        vaddr: 0x3000,
+        size: 0x1000,
+        permissions: Permissions::ReadWrite,
+    });
+    let p = Process::new(&bin, super::vmm::process::Parent::Root);
     SCHEDULER.lock().unwrap().spawn(p);
 
     irq::install_handler(0, timer);
@@ -145,7 +222,7 @@ pub extern "C" fn timer(regs: &mut InterruptRegisters) {
     }
 
     // find the next process
-    let next = scheduler.schedule().expect("no process to run");
+    let next = scheduler.schedule().expect("could not lock SCHEDULER");
 
     next.state = crate::arch::x86::vmm::process::ProcessState::Running;
     next.addressspace.load();

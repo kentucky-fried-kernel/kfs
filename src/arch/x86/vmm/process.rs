@@ -1,9 +1,12 @@
 use alloc::{collections::VecDeque, vec::Vec};
 
-use crate::arch::x86::{
-    idt::InterruptRegisters,
-    scheduler::{Binary, Permissions},
-    vmm::addressspace::Addressspace,
+use crate::{
+    arch::x86::{
+        idt::InterruptRegisters,
+        scheduler::{Binary, Permissions},
+        vmm::addressspace::Addressspace,
+    },
+    socket::SocketId,
 };
 
 pub type Pid = usize;
@@ -40,6 +43,7 @@ pub struct Process {
     pub parent: Parent,
     pub children: Vec<Pid>,
     pub owner_id: OwnerId,
+    pub socket_fds: Vec<Option<SocketId>>,
 }
 
 impl Process {
@@ -63,6 +67,7 @@ impl Process {
             parent,
             children: Vec::new(),
             owner_id: 0,
+            socket_fds: Vec::new(),
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -75,7 +80,29 @@ impl Process {
             parent: Parent::Pid(process.pid),
             children: Vec::new(),
             owner_id: 0,
+            socket_fds: process.socket_fds.clone(),
         }
+    }
+
+    /// Allocates a new fd pointing at `sid`, reusing freed slots first.
+    pub fn install_socket(&mut self, sid: SocketId) -> usize {
+        if let Some((idx, slot)) = self.socket_fds.iter_mut().enumerate().find(|(_, s)| s.is_none()) {
+            *slot = Some(sid);
+            idx
+        } else {
+            self.socket_fds.push(Some(sid));
+            self.socket_fds.len() - 1
+        }
+    }
+
+    /// Resolves an fd to its global SocketId.
+    pub fn resolve_socket(&self, fd: usize) -> Option<SocketId> {
+        self.socket_fds.get(fd).copied().flatten()
+    }
+
+    /// Frees the fd slot. Returns the SocketId that was there, if any.
+    pub fn remove_socket(&mut self, fd: usize) -> Option<SocketId> {
+        self.socket_fds.get_mut(fd)?.take()
     }
 }
 

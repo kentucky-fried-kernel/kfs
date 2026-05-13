@@ -31,6 +31,7 @@ pub mod ps2;
 pub mod qemu;
 pub mod serial;
 pub mod shell;
+pub mod socket;
 pub mod stack_print_serial;
 pub mod terminal;
 pub mod tester;
