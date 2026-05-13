@@ -4,9 +4,12 @@
 
 const KERNEL_CODE_OFFSET: usize = 0x8;
 use crate::{
-    arch::x86::interrupts::{
-        exception, irq,
-        pic::{self, send_eoi},
+    arch::x86::{
+        gdt,
+        interrupts::{
+            exception, irq,
+            pic::{self, send_eoi},
+        },
     },
     exception_stubs, irq_stubs, printk, printkln, serial_println,
 };
@@ -160,10 +163,11 @@ impl InterruptRegisters {
             esp: stack,
 
             // user data/stack segments - index 4 and 5 in GDT with RPL=3
-            ds: 0x23,
-            ss: 0x23,
+            ds: (gdt::SEGMENT_SELECTOR_USER_DATA << 3) as u32 | gdt::SEGMENT_MODE_USER,
+            ss: (gdt::SEGMENT_SELECTOR_USER_DATA << 3) as u32 | gdt::SEGMENT_MODE_USER,
+
             // user code segment - index 3 in GDT with RPL=3
-            csm: 0x1B,
+            csm: (gdt::SEGMENT_SELECTOR_USER_CODE << 3) as u32 | gdt::SEGMENT_MODE_USER,
 
             // IF set + reserved bit + IOPL=3 for user mode
             eflags: 0x3202,

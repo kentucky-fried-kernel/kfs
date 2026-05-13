@@ -59,6 +59,9 @@ pub const SEGMENT_SELECTOR_USER_CODE: usize = 3;
 pub const SEGMENT_SELECTOR_USER_DATA: usize = 4;
 pub const SEGMENT_SELECTOR_TSS: usize = 5;
 
+pub const SEGMENT_MODE_KERNEL: u32 = 0b00;
+pub const SEGMENT_MODE_USER: u32 = 0b11;
+
 pub fn init() {
     // SAFETY:
     // We know this is safe since this module is the only one that can access GDT.
