@@ -83,38 +83,28 @@ impl Addressspace {
                 let vaddr = ((pde_idx as usize) << 22) | (pt_idx << 12);
                 let parent_paddr = (parent_pte.address() as usize) << 12;
 
-                // allocate a fresh physical page for the child
                 let new_paddr = PAGE_ALLOCATOR
                     .lock()
                     .expect("fork | couldn't lock PAGE_ALLOCATOR")
                     .alloc(PAGE_SIZE)
                     .expect("fork | out of memory");
 
-                // temporarily map the new physical page into the current
-                // address space at SCRATCH so we can write into it
-                // self is the parent - we need to map in the currently
-                // active address space which is the parent's
                 unsafe {
-                    // map SCRATCH -> new_paddr in the currently active page directory
-                    // we cast away const here because we need to mutate self temporarily
                     let parent_mut = &mut *(self as *const Self as *mut Self);
                     parent_mut.map(SCRATCH as *const u8, new_paddr, Permissions::ReadWrite);
                 }
 
-                // copy the parent page content into the scratch window
                 let src = vaddr as *const u8;
                 let dst = SCRATCH as *mut u8;
                 unsafe {
                     core::ptr::copy_nonoverlapping(src, dst, PAGE_SIZE);
                 }
 
-                // unmap the scratch window
                 unsafe {
                     let parent_mut = &mut *(self as *const Self as *mut Self);
                     parent_mut.unmap(SCRATCH as *const u8);
                 }
 
-                // map the new page into the child at the same virtual address
                 let perm = match parent_pte.read_write() {
                     0 => Permissions::Read,
                     _ => Permissions::ReadWrite,
