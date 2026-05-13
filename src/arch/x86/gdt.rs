@@ -76,8 +76,10 @@ pub fn init() {
     #[allow(static_mut_refs)]
     let stack_vaddr = unsafe { &STACK as *const _ as u32 };
     tss.esp0 = stack_vaddr + STACK_SIZE as u32 - 4;
-    tss.ss0 = (SEGMENT_SELECTOR_KERNEL_DATA << 3) as u32;
-    tss.iopb = 104;
+    tss.ss0 = (SEGMENT_SELECTOR_KERNEL_DATA << 3) as u32; // we don't need to set permission
+    // because it defaults to 00 (kernel)
+    // which we need.
+    tss.iopb = size_of::<TaskSwitchSegment>() as u16;
     gdt.entries[SEGMENT_SELECTOR_TSS] = GdtEntry::new(0x0089, (size_of::<TaskSwitchSegment>() - 1) as u32, tss_vaddr);
 
     // SAFETY:
