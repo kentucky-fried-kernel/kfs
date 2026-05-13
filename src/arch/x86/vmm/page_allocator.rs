@@ -590,6 +590,7 @@ impl<'a> PageAllocator<'a> {
                     size,
                     pow2(order)
                 );
+                #[allow(clippy::missing_panics_doc)]
                 let node = self.orders[order][index].unwrap();
                 current = node.next();
             }

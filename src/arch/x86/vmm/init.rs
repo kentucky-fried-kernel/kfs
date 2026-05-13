@@ -153,6 +153,9 @@ fn map_kernel() -> Result<(), ()> {
     Ok(())
 }
 
+#[allow(clippy::missing_panics_doc)]
+/// # Safety
+/// Caller needs to ensure that the addr points to a proberly setup PageDirectyr
 pub unsafe fn load_page_directory(addr: *mut PageDirectory) {
     assert!(addr as usize % PAGE_SIZE == 0);
     // SAFETY:

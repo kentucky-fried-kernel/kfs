@@ -22,6 +22,7 @@ pub const PAGE_DIRECTORY_SIZE: usize = 1024;
 pub struct PageDirectory(pub [PageDirectoryEntry; PAGE_DIRECTORY_SIZE]);
 
 impl PageDirectory {
+    #[must_use]
     pub fn empty() -> Self {
         Self([PageDirectoryEntry::empty(); PAGE_DIRECTORY_SIZE])
     }
@@ -46,6 +47,7 @@ pub const PAGE_TABLE_SIZE: usize = 1024;
 pub struct PageTable(pub [PageTableEntry; PAGE_TABLE_SIZE]);
 
 impl PageTable {
+    #[must_use]
     pub fn empty() -> Self {
         Self([PageTableEntry::empty(); PAGE_TABLE_SIZE])
     }
