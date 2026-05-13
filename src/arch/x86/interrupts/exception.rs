@@ -1,4 +1,3 @@
-
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
