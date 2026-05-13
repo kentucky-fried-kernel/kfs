@@ -5,6 +5,7 @@
 #![allow(clippy::borrow_as_ptr)]
 pub mod addressspace;
 mod allocators;
+pub mod demand_pageing;
 mod init;
 mod page;
 mod page_allocator;
