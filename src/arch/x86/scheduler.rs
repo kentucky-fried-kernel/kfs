@@ -21,7 +21,7 @@ extern "C" fn program_exit() {
 }
 
 #[unsafe(naked)]
-extern "C" fn program() {
+extern "C" fn program_write_in_memory() {
     naked_asm!(
         // both processes start by writing the same initial value
         "mov dword ptr [0x2000], 0x42",
@@ -109,7 +109,7 @@ static two: u32 = 2;
 pub fn init() {
     let mut init = Binary::new(0x1000, 0x2000);
     init.segments.push(Segment {
-        offset: Some(program as usize),
+        offset: Some(program_write_in_memory as usize),
         vaddr: 0x1000,
         size: 0x1000,
         permissions: Permissions::Read,
