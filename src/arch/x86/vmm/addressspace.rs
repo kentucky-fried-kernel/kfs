@@ -27,6 +27,7 @@ impl Addressspace {
     pub fn new() -> Self {
         let mut pd = Box::new(PageDirectory::empty());
 
+        #[allow(clippy::missing_panics_doc)]
         let page_directory_kernel = PAGE_DIRECTORY_KERNEL.lock().expect("addressspace::new() | couldn't lock PAGE_ALLOCATOR");
 
         for i in 0..PAGE_DIRECTORY_SIZE {
@@ -38,6 +39,8 @@ impl Addressspace {
         }
     }
 
+    /// # Panics
+    /// This panics if the vaddr is ove `KERNEL_BASE`
     pub fn map(&mut self, vaddr: *const u8, paddr: *const u8, permissions: Permissions) {
         let vaddr = vaddr as usize;
         let paddr = paddr as usize;
@@ -66,6 +69,8 @@ impl Addressspace {
         pte.set_present(1);
         pt[pt_idx] = pte;
 
+        // SAFETY:
+        // This is safe because we just put this vaddr into the page table.
         unsafe {
             core::arch::asm!("invlpg [{}]", in(reg) vaddr, options(nostack, preserves_flags));
         }
@@ -88,12 +93,17 @@ impl Addressspace {
                 let vaddr = ((pde_idx as usize) << 22) | (pt_idx << 12);
                 let _parent_paddr = (parent_pte.address() as usize) << 12;
 
+                #[allow(clippy::missing_panics_doc)]
                 let new_paddr = PAGE_ALLOCATOR
                     .lock()
                     .expect("fork | couldn't lock PAGE_ALLOCATOR")
                     .alloc(PAGE_SIZE)
                     .expect("fork | out of memory");
 
+                // SAFETY:
+                // We use this so that we can go around the borrow checker because we loop over the
+                // page and only map the pages to `SCRATCH`, to copy over the memory from the
+                // parent to the child.
                 unsafe {
                     let parent_mut = &mut *(self as *const Self as *mut Self);
                     parent_mut.map(SCRATCH as *const u8, new_paddr, Permissions::ReadWrite);
@@ -101,10 +111,19 @@ impl Addressspace {
 
                 let src = vaddr as *const u8;
                 let dst = SCRATCH as *mut u8;
+
+                // TODO:
+                // make it so that a mmap call to the SCRATCH address fails.
+                // SAFETY:
+                // This is save because we just mapped dst and src is mapped throug a previous map
                 unsafe {
                     core::ptr::copy_nonoverlapping(src, dst, PAGE_SIZE);
                 }
 
+                // SAFETY:
+                // We use this so that we can go around the borrow checker because we loop over the
+                // page and only umap the pages to `SCRATCH`,  after we copied the memory from the
+                // parent
                 unsafe {
                     let parent_mut = &mut *(self as *const Self as *mut Self);
                     parent_mut.unmap(SCRATCH as *const u8);
@@ -145,13 +164,17 @@ impl Addressspace {
     }
 
     fn cr3(&self) -> *const PageDirectory {
-        unsafe { (&*self.page_directory as *const _ as usize - KERNEL_BASE) as *const PageDirectory  }
+        (&*self.page_directory as *const _ as usize - KERNEL_BASE) as *const PageDirectory
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn load(&self) {
         let addr = self.cr3();
         assert!(addr as usize % PAGE_SIZE == 0);
 
+        // SAFETY:
+        // This is safe because we make sure on new() that this is a page aligned address that is
+        // filled. And we also check it again one line up.
         unsafe {
             core::arch::asm!("mov cr3, {}", in(reg) addr, options(nostack, preserves_flags));
         }

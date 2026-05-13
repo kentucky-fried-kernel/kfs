@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::missing_panics_doc)]
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,

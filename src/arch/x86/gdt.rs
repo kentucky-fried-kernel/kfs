@@ -61,6 +61,7 @@ pub const SEGMENT_SELECTOR_TSS: usize = 5;
 pub const SEGMENT_MODE_KERNEL: u32 = 0b00;
 pub const SEGMENT_MODE_USER: u32 = 0b11;
 
+#[allow(clippy::missing_panics_doc)]
 pub fn init() {
     // SAFETY:
     // We know this is safe since this module is the only one that can access GDT.
@@ -72,11 +73,11 @@ pub fn init() {
     gdt.entries[SEGMENT_SELECTOR_USER_CODE] = GdtEntry::new(0xC0FA, 0xFFFFF, 0x0);
     gdt.entries[SEGMENT_SELECTOR_USER_DATA] = GdtEntry::new(0xC0F2, 0xFFFFF, 0x0);
 
+    #[allow(clippy::expect_used)]
     let mut tss = TSS.lock().expect("could not lock TSS on init");
     let tss_vaddr = &raw const *tss as u32;
 
-    #[allow(static_mut_refs)]
-    let stack_vaddr = unsafe { &raw const STACK as u32 };
+    let stack_vaddr = &raw const STACK as u32;
     tss.esp0 = stack_vaddr + STACK_SIZE as u32 - 4;
     tss.ss0 = (SEGMENT_SELECTOR_KERNEL_DATA << 3) as u32; // we don't need to set permission
     // because it defaults to 00 (kernel)
@@ -103,6 +104,8 @@ pub fn init() {
         segment_registers_reload();
     }
 
+    // SAFETY:
+    // This is safe because we setup TSS before
     unsafe {
         asm!("ltr ax", in("ax") SEGMENT_SELECTOR_TSS << 3);
     }

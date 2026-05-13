@@ -97,7 +97,7 @@ use core::num::NonZeroU64;
 /// being set: `None` is represented by the all-zero bit pattern, so the
 /// backing arrays live in `.bss` and cost no ROM space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct Node(NonZeroU64);
+pub struct Node(NonZeroU64);
 
 impl Node {
     /// The largest value representable in a 20-bit index field.

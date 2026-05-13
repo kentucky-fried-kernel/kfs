@@ -211,8 +211,14 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
     let mut cur = vaddr as *mut u8;
     for conf in SLAB_CONFIGS {
         let slab_cache_addr = NonNull::new(cur).ok_or(KmallocError::NotEnoughMemory)?;
+
+        // SAFETY:
+        // This is safe because we just allocated that space.
         unsafe { allocator.slab_allocator.init_slab_cache(slab_cache_addr, conf.object_size, SLABS_PER_CACHE) };
         let slab_size_bytes = PAGE_SIZE * conf.order * SLABS_PER_CACHE;
+
+        // SAFETY:
+        // This is safe because we just allocated that space.
         cur = unsafe { cur.add(slab_size_bytes) };
     }
 

@@ -1,3 +1,5 @@
+#![allow(clippy::expect_used)]
+#![allow(clippy::unwrap_used)]
 use core::arch::naked_asm;
 
 use alloc::vec::Vec;
@@ -13,6 +15,7 @@ use crate::{
 };
 
 #[unsafe(naked)]
+#[allow(unused)]
 extern "C" fn program_exit() {
     naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
 }
@@ -100,10 +103,13 @@ impl Binary {
     }
 }
 
+#[allow(unused)]
 static ONE: u32 = 1;
 
+#[allow(unused)]
 static TWO: u32 = 2;
 
+#[allow(clippy::missing_panics_doc)]
 pub fn init() {
     let mut init = Binary::new(0x1000, 0x2000);
     init.segments.push(Segment {
@@ -128,6 +134,7 @@ pub fn init() {
 
 pub static SCHEDULER: KernelMutex<Scheduler> = KernelMutex::new(Scheduler::new());
 
+#[allow(clippy::missing_panics_doc)]
 pub extern "C" fn timer(regs: &mut InterruptRegisters) {
     serial_println!("timer");
     serial_println!("{:x}", regs.eax);

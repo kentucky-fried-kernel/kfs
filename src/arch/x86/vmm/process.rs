@@ -39,7 +39,7 @@ pub struct Process {
     pub vmas: Vec<VMA>,
     pub parent: Parent,
     pub children: Vec<Pid>,
-    pub ownerId: OwnerId,
+    pub owner_id: OwnerId,
 }
 
 impl Process {
@@ -62,7 +62,7 @@ impl Process {
                 .collect(),
             parent,
             children: Vec::new(),
-            ownerId: 0,
+            owner_id: 0,
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -74,7 +74,7 @@ impl Process {
             vmas: process.vmas.clone(),
             parent: Parent::Pid(process.pid),
             children: Vec::new(),
-            ownerId: 0,
+            owner_id: 0,
         }
     }
 }
