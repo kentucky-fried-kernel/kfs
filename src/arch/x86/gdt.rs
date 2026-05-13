@@ -16,21 +16,15 @@ impl GdtEntry {
     }
 
     pub fn new(flags: u16, limit: u32, base: u32) -> Self {
-        let mut entry: u64 = 0;
+        let mut entry: u64;
 
-        // limit bits 0-15
-        entry |= u64::from(limit & 0xFFFF);
-        // base bits 0-15
-        entry |= u64::from(base & 0xFFFF) << 16;
-        // base bits 16-23
-        entry |= u64::from((base >> 16) & 0xFF) << 32;
-        // access byte (flags low byte)
-        entry |= u64::from(flags & 0xFF) << 40;
-        // limit bits 16-19 + flags high nibble
-        entry |= u64::from((limit >> 16) & 0xF) << 48;
-        entry |= u64::from((flags >> 8) & 0xF0) << 48;
-        // base bits 24-31
-        entry |= u64::from((base >> 24) & 0xFF) << 56;
+        entry = u64::from(limit) & 0x000F_0000;
+        entry |= (u64::from(flags) << 8) & 0x00F0_FF00;
+        entry |= (u64::from(base) >> 16) & 0x0000_00FF;
+        entry |= u64::from(base) & 0xFF00_0000;
+        entry <<= 32;
+        entry |= u64::from(base) << 16;
+        entry |= u64::from(limit) & 0x0000_FFFF;
 
         Self(entry)
     }

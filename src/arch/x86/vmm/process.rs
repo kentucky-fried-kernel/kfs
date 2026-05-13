@@ -24,16 +24,22 @@ pub struct VMA {
     pub permissions: Permissions,
 }
 
+pub enum Parent {
+    Root,
+    Pid(Pid),
+}
+
 pub struct Process {
     pub pid: Pid,
     pub state: ProcessState,
     pub addressspace: Addressspace,
     pub saved_registers: InterruptRegisters,
     pub vmas: Vec<VMA>,
+    pub parent: Parent,
 }
 
 impl Process {
-    pub fn new(binary: &Binary) -> Self {
+    pub fn new(binary: &Binary, parent: Parent) -> Self {
         Self {
             pid: 0,
             state: ProcessState::Ready,
@@ -49,6 +55,7 @@ impl Process {
                     permissions: s.permissions,
                 })
                 .collect(),
+            parent,
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -58,6 +65,7 @@ impl Process {
             addressspace: process.addressspace.fork(),
             saved_registers: process.saved_registers,
             vmas: process.vmas.clone(),
+            parent: Parent::Pid(process.pid),
         }
     }
 }

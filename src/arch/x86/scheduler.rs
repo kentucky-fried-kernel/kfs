@@ -19,24 +19,54 @@ use crate::{
 extern "C" fn program_exit() {
     naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
 }
+
 #[unsafe(naked)]
 extern "C" fn program() {
     naked_asm!(
-        // write 0x42 to address 0x2000
+        // both processes start by writing the same initial value
         "mov dword ptr [0x2000], 0x42",
         // fork
         "mov eax, 57",
         "int 0x80",
-        // eax is now 0 in child, child_pid in parent
+        // after this: eax = 0 in child, eax = child_pid in parent
 
-        // both parent and child now read from 0x2000
-        // they should each see 0x42 because the page was copied
+        // branch on eax
+        "test eax, eax",
+        "jz child",
+        // ----- parent path -----
+        // overwrite with 0xAAAA - this should NOT affect the child
+        "mov dword ptr [0x2000], 0xAAAA",
+        "jmp done",
+        "child:",
+        // ----- child path -----
+        // overwrite with 0xBBBB - this should NOT affect the parent
+        "mov dword ptr [0x2000], 0xBBBB",
+        "done:",
+        // both processes read their own [0x2000] into ebx and exit
         "mov ebx, [0x2000]",
-        // exit with the value we read as the exit code
         "mov eax, 60",
         "int 0x80",
     );
 }
+
+// #[unsafe(naked)]
+// extern "C" fn program() {
+//     naked_asm!(
+//         // write 0x42 to address 0x2000
+//         "mov dword ptr [0x2000], 0x42",
+//         // fork
+//         "mov eax, 57",
+//         "int 0x80",
+//         // eax is now 0 in child, child_pid in parent
+//
+//         // both parent and child now read from 0x2000
+//         // they should each see 0x42 because the page was copied
+//         "mov ebx, [0x2000]",
+//         // exit with the value we read as the exit code
+//         "mov eax, 60",
+//         "int 0x80",
+//     );
+// }
 // #[unsafe(naked)]
 // extern "C" fn program() {
 //     naked_asm!("aaaa:", "mov eax, 57", "int 0x80", "mov ebx, eax", "mov eax, 60", "int 0x80",
@@ -91,7 +121,7 @@ pub fn init() {
         permissions: Permissions::ReadWrite,
     });
 
-    let p = Process::new(&init);
+    let p = Process::new(&init, super::vmm::process::Parent::Root);
     SCHEDULER.lock().unwrap().spawn(p);
 
     irq::install_handler(0, timer);
