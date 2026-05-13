@@ -24,6 +24,7 @@ pub struct VMA {
     pub permissions: Permissions,
 }
 
+#[derive(Debug)]
 pub enum Parent {
     Root,
     Pid(Pid),

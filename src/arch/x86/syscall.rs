@@ -38,6 +38,12 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     regs.eax = child_pid as u32;
 }
 
+pub fn sys_getpid(regs: &mut InterruptRegisters) {
+    let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
+    let cur = scheduler.current().expect("sys_fork | no process running");
+    regs.eax = cur.pid as u32;
+}
+
 pub fn syscall(regs: &mut InterruptRegisters) {
     match regs.eax {
         35 => timer(regs),
