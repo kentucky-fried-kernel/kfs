@@ -176,11 +176,6 @@ const fn align_up(x: usize, align: usize) -> usize {
 pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
     let kernel_end_vaddr: usize = &raw const _kernel_end as usize;
 
-    // The buddy allocator requires its root to be naturally aligned to its
-    // total size — addresses inside the tree are derived from `root` purely
-    // by offset, so a misaligned root would have it hand out addresses
-    // outside the region (or with the buddy of the last block landing in
-    // unmapped memory). Round up.
     let vaddr = align_up(kernel_end_vaddr, BUDDY_ALLOCATOR_SIZE);
     let paddr = vaddr - KERNEL_BASE;
 
@@ -204,9 +199,6 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
     let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
 
     let kernel_end_vaddr: usize = &raw const _kernel_end as usize;
-    // Slabs go right after the buddy region. The buddy region is aligned to
-    // its own size, so its end is also naturally aligned to BUDDY_ALLOCATOR_SIZE
-    // — far more than the slab region needs. PAGE_SIZE alignment is enough here.
     let buddy_end = align_up(kernel_end_vaddr, BUDDY_ALLOCATOR_SIZE) + BUDDY_ALLOCATOR_SIZE;
     let vaddr = buddy_end; // already page-aligned (BUDDY_ALLOCATOR_SIZE is a power of 2 ≥ PAGE_SIZE)
     let paddr = vaddr - KERNEL_BASE;
