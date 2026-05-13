@@ -7,6 +7,7 @@ use crate::arch::x86::{
 };
 
 pub type Pid = usize;
+pub type OwnerId = usize;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ProcessState {
@@ -37,6 +38,8 @@ pub struct Process {
     pub saved_registers: InterruptRegisters,
     pub vmas: Vec<VMA>,
     pub parent: Parent,
+    pub children: Vec<Pid>,
+    pub ownerId: OwnerId,
 }
 
 impl Process {
@@ -57,6 +60,8 @@ impl Process {
                 })
                 .collect(),
             parent,
+            children: Vec::new(),
+            ownerId: 0,
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -67,6 +72,8 @@ impl Process {
             saved_registers: process.saved_registers,
             vmas: process.vmas.clone(),
             parent: Parent::Pid(process.pid),
+            children: Vec::new(),
+            ownerId: 0,
         }
     }
 }

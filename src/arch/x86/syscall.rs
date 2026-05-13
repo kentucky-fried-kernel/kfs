@@ -34,6 +34,7 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     let child_pid = scheduler.spawn(child);
 
     let parent = scheduler.current().expect("sys_fork | no process running");
+    parent.children.push(child_pid);
     parent.saved_registers.eax = child_pid as u32;
     regs.eax = child_pid as u32;
 }
