@@ -156,6 +156,7 @@ pub struct InterruptRegisters {
 }
 
 impl InterruptRegisters {
+    #[must_use]
     pub fn new(eip: u32, stack: u32) -> Self {
         Self {
             eip,

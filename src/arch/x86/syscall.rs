@@ -30,7 +30,7 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     let mut child = Process::from_process(parent);
     child.saved_registers.eax = 0;
 
-    drop(parent);
+    let _ = parent; // drop
     let child_pid = scheduler.spawn(child);
 
     let parent = scheduler.current().expect("sys_fork | no process running");

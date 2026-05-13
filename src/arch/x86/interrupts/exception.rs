@@ -1,17 +1,9 @@
-use core::{intrinsics::copy_nonoverlapping, ptr::write_volatile};
 
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
-        scheduler::{Permissions, SCHEDULER, timer},
         syscall::{sys_exit, syscall},
-        vmm::{
-            PAGE_SIZE,
-            addressspace::Addressspace,
-            demand_pageing::page_fault,
-            process::{Process, VMA},
-            state::PAGE_ALLOCATOR,
-        },
+        vmm::demand_pageing::page_fault,
     },
     serial_println,
 };

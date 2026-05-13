@@ -43,6 +43,7 @@ pub struct Process {
 }
 
 impl Process {
+    #[must_use]
     pub fn new(binary: &Binary, parent: Parent) -> Self {
         Self {
             pid: 0,
@@ -83,7 +84,14 @@ pub struct ProcessTable {
     free_slots: Vec<Pid>,
 }
 
+impl Default for ProcessTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProcessTable {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             processes: Vec::new(),
@@ -113,6 +121,7 @@ impl ProcessTable {
         proc
     }
 
+    #[must_use]
     pub fn get(&self, pid: Pid) -> Option<&Process> {
         self.processes.get(pid)?.as_ref()
     }
@@ -126,7 +135,14 @@ pub struct RunQueue {
     queue: VecDeque<Pid>,
 }
 
+impl Default for RunQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RunQueue {
+    #[must_use]
     pub const fn new() -> Self {
         Self { queue: VecDeque::new() }
     }
@@ -143,10 +159,12 @@ impl RunQueue {
         self.queue.retain(|&p| p != pid);
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.queue.is_empty()
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.queue.len()
     }
@@ -158,7 +176,14 @@ pub struct Scheduler {
     pub current: Option<Pid>,
 }
 
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scheduler {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             table: ProcessTable::new(),

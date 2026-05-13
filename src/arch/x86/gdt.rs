@@ -3,7 +3,6 @@ use core::arch::asm;
 use crate::{
     arch::x86::kernel_mutex::KernelMutex,
     boot::{STACK, STACK_SIZE},
-    serial_println,
 };
 
 #[derive(Copy, Clone)]
@@ -74,10 +73,10 @@ pub fn init() {
     gdt.entries[SEGMENT_SELECTOR_USER_DATA] = GdtEntry::new(0xC0F2, 0xFFFFF, 0x0);
 
     let mut tss = TSS.lock().expect("could not lock TSS on init");
-    let tss_vaddr = &*tss as *const TaskSwitchSegment as u32;
+    let tss_vaddr = &raw const *tss as u32;
 
     #[allow(static_mut_refs)]
-    let stack_vaddr = unsafe { &STACK as *const _ as u32 };
+    let stack_vaddr = unsafe { &raw const STACK as u32 };
     tss.esp0 = stack_vaddr + STACK_SIZE as u32 - 4;
     tss.ss0 = (SEGMENT_SELECTOR_KERNEL_DATA << 3) as u32; // we don't need to set permission
     // because it defaults to 00 (kernel)

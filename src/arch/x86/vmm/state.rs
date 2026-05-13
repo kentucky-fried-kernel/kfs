@@ -1,7 +1,6 @@
 use crate::arch::x86::vmm::{
     page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
     page_allocator::{Node, ORDERS, PageAllocator},
-    process::Scheduler,
 };
 
 use crate::arch::x86::kernel_mutex::KernelMutex;

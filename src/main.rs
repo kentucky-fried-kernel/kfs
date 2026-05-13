@@ -4,11 +4,7 @@
 #![test_runner(kfs::tester::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use core::{
-    alloc,
-    hint::spin_loop,
-    ptr::{read_volatile, write_volatile},
-};
+use core::hint::spin_loop;
 
 use kfs::{boot::MultibootInfo, printkln};
 
@@ -24,7 +20,7 @@ unsafe extern "C" {
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::arch::{self, x86::vmm::addressspace::Addressspace};
+    use kfs::arch::{self};
 
     arch::x86::gdt::init();
     printkln!("Gdt initialized");

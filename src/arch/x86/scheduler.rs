@@ -1,4 +1,4 @@
-use core::{arch::naked_asm, ptr::write_volatile};
+use core::arch::naked_asm;
 
 use alloc::vec::Vec;
 
@@ -7,10 +7,7 @@ use crate::{
         idt::InterruptRegisters,
         interrupts::irq,
         kernel_mutex::KernelMutex,
-        vmm::{
-            addressspace::Addressspace,
-            process::{Process, Scheduler},
-        },
+        vmm::process::{Process, Scheduler},
     },
     serial_println,
 };
@@ -93,6 +90,7 @@ pub struct Binary {
 }
 
 impl Binary {
+    #[must_use]
     pub fn new(entry: usize, stack: usize) -> Self {
         Self {
             segments: Vec::new(),
@@ -102,20 +100,20 @@ impl Binary {
     }
 }
 
-static one: u32 = 1;
+static ONE: u32 = 1;
 
-static two: u32 = 2;
+static TWO: u32 = 2;
 
 pub fn init() {
     let mut init = Binary::new(0x1000, 0x2000);
     init.segments.push(Segment {
-        offset: Some(program_write_in_memory as usize),
+        offset: Some(program_write_in_memory as *const () as usize),
         vaddr: 0x1000,
         size: 0x1000,
         permissions: Permissions::Read,
     });
     init.segments.push(Segment {
-        offset: Some(&one as *const _ as usize),
+        offset: Some(&raw const ONE as usize),
         vaddr: 0x2000,
         size: 0x1000,
         permissions: Permissions::ReadWrite,

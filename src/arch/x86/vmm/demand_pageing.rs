@@ -20,11 +20,10 @@ pub fn page_fault(regs: &mut InterruptRegisters) {
 
     for vma in &process.vmas {
         let access_allowed = vma.start <= addr && vma.start + vma.size > addr;
-        if access_allowed {
-            if let Ok(_) = alloc_page(addr, &mut process.addressspace, &vma) {
+        if access_allowed
+            && let Ok(()) = alloc_page(addr, &mut process.addressspace, vma) {
                 return;
             }
-        }
     }
     drop(scheduler);
     sys_exit(regs);

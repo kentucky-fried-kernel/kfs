@@ -1,11 +1,10 @@
-use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap};
 
 use crate::{
     arch::x86::{
         scheduler::Permissions,
         vmm::{
             PAGE_SIZE,
-            init::load_page_directory,
             page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
             state::{PAGE_ALLOCATOR, PAGE_DIRECTORY_KERNEL},
         },
@@ -16,6 +15,12 @@ use crate::{
 pub struct Addressspace {
     page_directory: Box<PageDirectory>,
     page_tables: BTreeMap<u16, Box<PageTable>>,
+}
+
+impl Default for Addressspace {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Addressspace {
@@ -81,7 +86,7 @@ impl Addressspace {
                 }
 
                 let vaddr = ((pde_idx as usize) << 22) | (pt_idx << 12);
-                let parent_paddr = (parent_pte.address() as usize) << 12;
+                let _parent_paddr = (parent_pte.address() as usize) << 12;
 
                 let new_paddr = PAGE_ALLOCATOR
                     .lock()
@@ -140,7 +145,7 @@ impl Addressspace {
     }
 
     fn cr3(&self) -> *const PageDirectory {
-        unsafe { ((&*self.page_directory as *const _ as usize - KERNEL_BASE) as *const PageDirectory) }
+        unsafe { (&*self.page_directory as *const _ as usize - KERNEL_BASE) as *const PageDirectory  }
     }
 
     pub fn load(&self) {
