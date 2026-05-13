@@ -3,11 +3,14 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::borrow_as_ptr)]
+pub mod addressspace;
 pub mod allocators;
-mod init;
-mod page;
-mod page_allocator;
-mod state;
+pub mod demand_pageing;
+pub mod init;
+pub mod page;
+pub mod page_allocator;
+pub mod process;
+pub mod state;
 
 pub use init::init;
 pub use page::PAGE_SIZE;

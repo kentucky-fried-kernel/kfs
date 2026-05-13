@@ -1,4 +1,11 @@
-use crate::{arch::x86::idt::InterruptRegisters, serial_println};
+use crate::{
+    arch::x86::{
+        idt::InterruptRegisters,
+        syscall::{sys_exit, syscall},
+        vmm::demand_pageing::page_fault,
+    },
+    serial_println,
+};
 
 macro_rules! no_err_stub {
     ($func: ident, $nb: expr) => {
@@ -164,10 +171,15 @@ const EXCEPTION_MESSAGE: &[&str] = &[
 ];
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn exception_handler(regs: &InterruptRegisters) {
+unsafe extern "C" fn exception_handler(regs: &mut InterruptRegisters) {
     match regs.intno {
-        0x80 => serial_println!("SYSCALL\n"),
-        0..32 => serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]),
+        13 => sys_exit(regs),
+        14 => page_fault(regs),
+        0..32 => {
+            serial_println!("\nEXCEPTION {}: {}", regs.intno, EXCEPTION_MESSAGE[regs.intno as usize]);
+            sys_exit(regs);
+        }
+        0x80 => syscall(regs),
         _ => panic!("{regs:?}"),
     }
 }

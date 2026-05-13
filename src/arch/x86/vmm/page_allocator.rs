@@ -97,7 +97,7 @@ use core::num::NonZeroU64;
 /// being set: `None` is represented by the all-zero bit pattern, so the
 /// backing arrays live in `.bss` and cost no ROM space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct Node(NonZeroU64);
+pub struct Node(NonZeroU64);
 
 impl Node {
     /// The largest value representable in a 20-bit index field.
@@ -187,7 +187,7 @@ pub(super) const ORDERS: usize = 20;
 /// backing arrays are `static mut` globals defined in
 /// [`crate::arch::x86::vmm::state`].
 #[derive(Debug)]
-pub(super) struct PageAllocator<'a> {
+pub struct PageAllocator<'a> {
     /// Per-order backing storage. `orders[o]` has `2^(20 - o)` entries
     /// except for `o == 19`, which has 2 entries so that the top of the
     /// tree can be represented without overflowing page-count arithmetic.
@@ -590,6 +590,7 @@ impl<'a> PageAllocator<'a> {
                     size,
                     pow2(order)
                 );
+                #[allow(clippy::missing_panics_doc)]
                 let node = self.orders[order][index].unwrap();
                 current = node.next();
             }

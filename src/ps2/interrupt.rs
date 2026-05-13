@@ -49,7 +49,7 @@ impl Buffer {
 }
 
 /// IRQ1
-extern "C" fn keyboard_interrupt_handler(_regs: &InterruptRegisters) {
+extern "C" fn keyboard_interrupt_handler(_regs: &mut InterruptRegisters) {
     let data_port = Port::new(DATA_PORT);
     let scancode = unsafe { data_port.read() };
 

@@ -15,6 +15,7 @@ use crate::{
         init::mmap_init,
         page::PAGE_SIZE,
     },
+    boot::KERNEL_BASE,
     buddy_allocator_levels,
 };
 
@@ -163,18 +164,26 @@ pub fn buddy_allocator_free(addr: *const u8) -> Result<(), KfreeError> {
     unsafe { KERNEL_ALLOCATOR.buddy_allocator.free(addr) }
 }
 
+#[inline]
+const fn align_up(x: usize, align: usize) -> usize {
+    (x + align - 1) & !(align - 1)
+}
+
 /// # Errors
 /// This function will return an error if the initial allocation for the
 /// `BuddyAllocator` (made via `mmap`) fails.
 #[allow(static_mut_refs)]
 pub fn init_buddy_allocator(allocator: &mut KernelAllocator) -> Result<(), KmallocError> {
-    let kernel_end: usize = &raw const _kernel_end as usize;
-    let cache_memory = kernel_end;
-    mmap_init(cache_memory as *mut u8, None, BUDDY_ALLOCATOR_SIZE).map_err(|()| KmallocError::NotEnoughMemory)?;
+    let kernel_end_vaddr: usize = &raw const _kernel_end as usize;
+
+    let vaddr = align_up(kernel_end_vaddr, BUDDY_ALLOCATOR_SIZE);
+    let paddr = vaddr - KERNEL_BASE;
+
+    mmap_init(vaddr as *mut u8, Some(paddr as *mut u8), BUDDY_ALLOCATOR_SIZE).map_err(|()| KmallocError::NotEnoughMemory)?;
 
     allocator
         .buddy_allocator
-        .set_root(NonNull::new(cache_memory as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
+        .set_root(NonNull::new(vaddr as *mut u8).ok_or(KmallocError::NotEnoughMemory)?);
 
     Ok(())
 }
@@ -189,26 +198,28 @@ pub fn init_slab_allocator(allocator: &mut KernelAllocator) -> Result<(), Kmallo
 
     let total_size = SLAB_CONFIGS.iter().fold(0, |acc, conf| acc + PAGE_SIZE * conf.order * SLABS_PER_CACHE);
 
-    let kernel_end: usize = &raw const _kernel_end as usize;
-    let mut allocation = (kernel_end + BUDDY_ALLOCATOR_SIZE) as *mut u8;
-    mmap_init(allocation, None, total_size).map_err(|()| KmallocError::NotEnoughMemory)?;
+    let kernel_end_vaddr: usize = &raw const _kernel_end as usize;
+    let buddy_end = align_up(kernel_end_vaddr, BUDDY_ALLOCATOR_SIZE) + BUDDY_ALLOCATOR_SIZE;
+    let vaddr = buddy_end; // already page-aligned (BUDDY_ALLOCATOR_SIZE is a power of 2 ≥ PAGE_SIZE)
+    let paddr = vaddr - KERNEL_BASE;
 
-    allocator.slabs_start = allocation as usize;
-    allocator.slabs_end = allocation as usize + total_size;
+    mmap_init(vaddr as *mut u8, Some(paddr as *mut u8), total_size).map_err(|()| KmallocError::NotEnoughMemory)?;
 
+    allocator.slabs_start = vaddr;
+    allocator.slabs_end = vaddr + total_size;
+
+    let mut cur = vaddr as *mut u8;
     for conf in SLAB_CONFIGS {
-        let slab_cache_addr = NonNull::new(allocation).ok_or(KmallocError::NotEnoughMemory)?;
+        let slab_cache_addr = NonNull::new(cur).ok_or(KmallocError::NotEnoughMemory)?;
+
         // SAFETY:
-        // This function is assumed to only ever be called once the buddy allocator is initialized, which
-        // would mean that the address we received from it is valid (otherwise we would have gotten an
-        // error).
+        // This is safe because we just allocated that space.
         unsafe { allocator.slab_allocator.init_slab_cache(slab_cache_addr, conf.object_size, SLABS_PER_CACHE) };
         let slab_size_bytes = PAGE_SIZE * conf.order * SLABS_PER_CACHE;
 
         // SAFETY:
-        // The bounds of this loop ensure we do not increment this pointer beyond the end of the allocation
-        // it points to.
-        allocation = unsafe { allocation.add(slab_size_bytes) };
+        // This is safe because we just allocated that space.
+        cur = unsafe { cur.add(slab_size_bytes) };
     }
 
     Ok(())

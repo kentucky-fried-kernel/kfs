@@ -6,7 +6,7 @@ use crate::{
     expect_opt,
 };
 
-pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 29;
+pub const BUDDY_ALLOCATOR_SIZE: usize = 1 << 28;
 
 pub enum BuddyAllocationError {
     NotEnoughMemory,

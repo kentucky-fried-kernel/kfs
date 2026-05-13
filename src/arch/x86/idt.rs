@@ -4,9 +4,12 @@
 
 const KERNEL_CODE_OFFSET: usize = 0x8;
 use crate::{
-    arch::x86::interrupts::{
-        exception, irq,
-        pic::{self, send_eoi},
+    arch::x86::{
+        gdt,
+        interrupts::{
+            exception, irq,
+            pic::{self, send_eoi},
+        },
     },
     exception_stubs, irq_stubs, printk, printkln, serial_println,
 };
@@ -152,6 +155,38 @@ pub struct InterruptRegisters {
     pub ss: u32,
 }
 
+impl InterruptRegisters {
+    #[must_use]
+    pub fn new(eip: u32, stack: u32) -> Self {
+        Self {
+            eip,
+            useresp: stack,
+            esp: stack,
+
+            // user data/stack segments - index 4 and 5 in GDT with RPL=3
+            ds: (gdt::SEGMENT_SELECTOR_USER_DATA << 3) as u32 | gdt::SEGMENT_MODE_USER,
+            ss: (gdt::SEGMENT_SELECTOR_USER_DATA << 3) as u32 | gdt::SEGMENT_MODE_USER,
+
+            // user code segment - index 3 in GDT with RPL=3
+            csm: (gdt::SEGMENT_SELECTOR_USER_CODE << 3) as u32 | gdt::SEGMENT_MODE_USER,
+
+            // IF set + reserved bit + IOPL=3 for user mode
+            eflags: 0x3202,
+
+            cr2: 0,
+            edi: 0,
+            esi: 0,
+            ebp: 0,
+            ebx: 0,
+            edx: 0,
+            ecx: 0,
+            eax: 0,
+            intno: 0,
+            err_code: 0,
+        }
+    }
+}
+
 static mut IDT: Option<InterruptDescriptorTable> = None;
 
 pub fn init() {
@@ -178,7 +213,7 @@ pub fn init() {
         InterruptDescriptor::new(
             crate::arch::x86::interrupts::exception::_stubs::syscall_stub as *const () as usize,
             KERNEL_CODE_OFFSET as u16,
-            Attributes::new(PresentBit::Present, PrivilegeLevel::KernelMode, GateType::InterruptGate32),
+            Attributes::new(PresentBit::Present, PrivilegeLevel::UserMode, GateType::InterruptGate32),
         ),
     );
 

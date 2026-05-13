@@ -92,13 +92,13 @@ extern "C" fn irq_common_stub(intno: u32, stack_ptr: u32) {
     )
 }
 
-static mut IRQ_ROUTINES: [Option<extern "C" fn(&InterruptRegisters)>; 16] = [None; 16];
+static mut IRQ_ROUTINES: [Option<extern "C" fn(&mut InterruptRegisters)>; 16] = [None; 16];
 
 /// Installs a handler for `irq`. Note that this does not unmask `irq`, it should be done
 /// explicitly by the caller.
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-pub fn install_handler(irq: u32, handler: extern "C" fn(&InterruptRegisters)) {
+pub fn install_handler(irq: u32, handler: extern "C" fn(&mut InterruptRegisters)) {
     let _lock = IRQLock::lock(irq as u8);
     // SAFETY:
     // We are mutating IRQ_ROUTINES, which we know is valid for the entire lifetime of the program, and
@@ -118,7 +118,7 @@ unsafe fn uninstall_handler(irq: u32) {
 
 #[unsafe(no_mangle)]
 #[allow(static_mut_refs)]
-unsafe extern "C" fn irq_handler(regs: &InterruptRegisters) {
+unsafe extern "C" fn irq_handler(regs: &mut InterruptRegisters) {
     #[allow(clippy::cast_possible_wrap)]
     let irq_index = if regs.intno as isize - 32 < 0 {
         return;

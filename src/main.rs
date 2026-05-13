@@ -20,7 +20,7 @@ unsafe extern "C" {
 #[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
-    use kfs::arch;
+    use kfs::arch::{self};
 
     arch::x86::gdt::init();
     printkln!("Gdt initialized");
@@ -28,13 +28,14 @@ pub extern "C" fn kmain(_magic: usize, info: &MultibootInfo) {
     printkln!("Idt initialized");
     arch::x86::vmm::init(info);
     printkln!("Vmm initialized");
+    arch::x86::scheduler::init();
+    printkln!("Scheduler initialized");
 
     printkln!("Booted");
 
     loop {
         spin_loop();
     }
-    // kfs::ps2::init();
 }
 
 /// # Panics

@@ -57,6 +57,7 @@ pub trait SlabOps: IntrusiveLink + Sized {
     fn max_objects(&self) -> usize;
 
     /// Returns the size of one object managed by this `Slab` (`self.object_size`).
+    #[allow(unused)]
     fn object_size(&self) -> usize;
 
     /// Returns the amount of objects already allocated in this `Slab`.
@@ -584,6 +585,7 @@ impl SlabAllocator {
     }
 
     #[must_use]
+    #[allow(unused)]
     pub fn caches(&self) -> &[SlabCacheType] {
         &self.caches
     }
