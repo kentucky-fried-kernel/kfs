@@ -14,9 +14,13 @@ fn panic(info: &PanicInfo) -> ! {
 
     cli!();
 
-    printkln!("KERNEL PANIC: {:?}\n", info.message());
-
-    serial_println!("KERNEL PANIC: {:?}", info.message());
+    if let Some(loc) = info.location() {
+        printkln!("KERNEL PANIC at {}:{}: {:?}\n", loc.file(), loc.line(), info.message());
+        serial_println!("KERNEL PANIC at {}:{}: {:?}", loc.file(), loc.line(), info.message());
+    } else {
+        printkln!("KERNEL PANIC: {:?}\n", info.message());
+        serial_println!("KERNEL PANIC: {:?}", info.message());
+    }
 
     unsafe {
         clear_regs!();
