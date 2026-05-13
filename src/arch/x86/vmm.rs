@@ -4,11 +4,11 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::borrow_as_ptr)]
 pub mod addressspace;
-mod allocators;
+pub mod allocators;
 pub mod demand_pageing;
-mod init;
-mod page;
-mod page_allocator;
+pub mod init;
+pub mod page;
+pub mod page_allocator;
 pub mod process;
 pub mod state;
 
