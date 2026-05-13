@@ -1,4 +1,4 @@
-use core::ptr::copy_nonoverlapping;
+use core::ptr::{copy_nonoverlapping, write_bytes};
 
 use crate::{
     arch::x86::{
@@ -41,18 +41,27 @@ fn alloc_page(vaddr: usize, space: &mut Addressspace, vma: &VMA) -> Result<(), (
 
     let temp = 0xBFFF_F000 as *mut u8;
 
-    if let Some(offset) = vma.offset {
-        space.map(temp, paddr, Permissions::ReadWrite);
-        let diff = vaddr - vma.start;
+    space.map(temp, paddr, Permissions::ReadWrite);
 
-        // SAFETY:
-        // temp is a valid address because it just got mapped.
-        // offset + diff was validated when the binary was created.
-        unsafe {
-            copy_nonoverlapping((offset + diff) as *mut u8, temp, PAGE_SIZE);
+    let diff = vaddr - vma.start;
+    match vma.offset {
+        Some(offset) => {
+            // SAFETY:
+            // temp is a valid address because it just got mapped.
+            // offset + diff was validated when the binary was created.
+            unsafe {
+                copy_nonoverlapping((offset + diff) as *const u8, temp, PAGE_SIZE);
+            }
         }
-        space.unmap(temp);
+        None => {
+            // SAFETY:
+            // temp is valid because we just mapped it.
+            unsafe {
+                write_bytes(temp, 0, PAGE_SIZE);
+            }
+        }
     }
+    space.unmap(temp);
 
     space.map(vaddr as *mut u8, paddr, vma.permissions);
     Ok(())
