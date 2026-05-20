@@ -84,9 +84,8 @@ extern "C" fn program_ipc_test() {
         "mov eax, 42",
         "int 0x80",
         // exit(0). ebx = 0 so the parent's exit log is unambiguous.
-        "mov eax, 60",
-        "mov ebx, 0",
-        "int 0x80",
+        "looping:",
+        "jmp looping",
         // ===== CHILD =====
         "child:",
         // Busy-loop on socket_read until it returns > 0.
@@ -214,6 +213,7 @@ pub extern "C" fn timer(regs: &mut InterruptRegisters) {
     let mut scheduler = SCHEDULER.lock().expect("timer | failed to lock SCHEDULER");
     // first save the registers if there was a running process
     if let Some(p) = scheduler.current() {
+        serial_println!("processssss children {:?}", p.children_stopped);
         p.saved_registers = *regs;
     }
 

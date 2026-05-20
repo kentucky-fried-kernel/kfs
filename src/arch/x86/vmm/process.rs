@@ -17,6 +17,7 @@ pub enum ProcessState {
     Running,
     Ready,
     Blocked,
+    Waiting,
     Zombie,
 }
 
@@ -42,6 +43,7 @@ pub struct Process {
     pub vmas: Vec<VMA>,
     pub parent: Parent,
     pub children: Vec<Pid>,
+    pub children_stopped: Vec<Pid>,
     pub owner_id: OwnerId,
     pub socket_fds: Vec<Option<SocketId>>,
 }
@@ -68,6 +70,7 @@ impl Process {
             children: Vec::new(),
             owner_id: 0,
             socket_fds: Vec::new(),
+            children_stopped: Vec::new(),
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -79,6 +82,7 @@ impl Process {
             vmas: process.vmas.clone(),
             parent: Parent::Pid(process.pid),
             children: Vec::new(),
+            children_stopped: Vec::new(),
             owner_id: 0,
             socket_fds: process.socket_fds.clone(),
         }

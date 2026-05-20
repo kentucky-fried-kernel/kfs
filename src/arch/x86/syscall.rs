@@ -6,7 +6,7 @@ use crate::{
     arch::x86::{
         idt::InterruptRegisters,
         scheduler::{SCHEDULER, timer},
-        vmm::process::Process,
+        vmm::process::{Parent, Pid, Process},
     },
     serial_println,
     socket::{SOCKETS, Socket, SocketId, socket_close, socket_create, socket_read, socket_write},
@@ -17,14 +17,36 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
 
     let pid = scheduler.current().expect("sys_exit | no process running").pid;
     serial_println!("pid {} exited", pid);
-    let child = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
 
-    let mut sockets = SOCKETS.lock().expect("sys_exit | could not lock SOCKETS");
-
-    for socket_id in &child.socket_fds {
-        if let Some(socket_id) = socket_id {
-            sockets.close(*socket_id);
+    {
+        let child = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
+        let mut sockets = SOCKETS.lock().expect("sys_exit | could not lock SOCKETS");
+        for socket_id in &child.socket_fds {
+            if let Some(socket_id) = socket_id {
+                sockets.close(*socket_id);
+            }
         }
+    }
+
+    // Resolve children to parent
+    {
+        let current = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
+        let children = current.children.clone();
+        let parent_id = match current.parent {
+            Parent::Root => panic!("root process exited"),
+            Parent::Pid(id) => id,
+        };
+        let _ = current;
+
+        for c in &children {
+            let child = scheduler.table.get_mut(*c).expect("sys_exit | could not find exited process");
+            child.parent = Parent::Pid(parent_id);
+            let parent = scheduler.table.get_mut(parent_id).expect("sys_exit | could not find exited process");
+            parent.children.push(*c);
+        }
+        let parent = scheduler.table.get_mut(parent_id).expect("sys_exit | parent not in table");
+        parent.children.retain(|&c| c != pid);
+        parent.children_stopped.push(pid);
     }
 
     scheduler.exit(pid);
