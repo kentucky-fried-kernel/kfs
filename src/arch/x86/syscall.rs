@@ -53,7 +53,6 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
 
     let next = scheduler.schedule().expect("no process to run");
 
-    next.state = crate::arch::x86::vmm::process::ProcessState::Running;
     next.addressspace.load();
     *regs = next.saved_registers;
 }
@@ -194,6 +193,16 @@ pub fn sys_putnbr(regs: &mut InterruptRegisters) {
     serial_println!();
 }
 
+pub fn sys_wait(regs: &mut InterruptRegisters) {
+    {
+        let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
+        let cur = scheduler.current().expect("sys_fork | no process running");
+        cur.state = super::vmm::process::ProcessState::Waiting;
+    }
+
+    timer(regs);
+}
+
 pub fn syscall(regs: &mut InterruptRegisters) {
     let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
     let cur = scheduler.current().expect("sys_fork | no process running");
@@ -209,6 +218,7 @@ pub fn syscall(regs: &mut InterruptRegisters) {
         42 => sys_putnbr(regs),
         57 => sys_fork(regs),
         60 => sys_exit(regs),
+        98 => sys_wait(regs),
         99 => sys_am_super_user(regs),
         _ => regs.eax = u32::MAX,
     }

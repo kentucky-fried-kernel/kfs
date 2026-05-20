@@ -9,7 +9,7 @@ use crate::{
         idt::InterruptRegisters,
         interrupts::irq,
         kernel_mutex::KernelMutex,
-        vmm::process::{Process, Scheduler},
+        vmm::process::{Process, ProcessState, Scheduler},
     },
     serial_println,
 };
@@ -19,7 +19,34 @@ use crate::{
 extern "C" fn program_exit() {
     naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
 }
+#[unsafe(naked)]
+extern "C" fn program_wait() {
+    naked_asm!(
+        // fork
+        "mov eax, 57",
+        "int 0x80",
+        // after this: eax = 0 in child, eax = child_pid in parent
 
+        // branch on eax
+        "test eax, eax",
+        "jz child",
+        "mov eax, 98",
+        "int 0x80",
+        "mov ebx, eax",
+        "mov eax, 42",
+        "int 0x80",
+        "mov eax, 60",
+        "int 0x80",
+        "child:",
+        "mov ecx, 100000000",
+        "delay_loop:",
+        "dec ecx",
+        "jnz delay_loop",
+        // ----- child path -----
+        "mov eax, 60",
+        "int 0x80",
+    );
+}
 #[unsafe(naked)]
 extern "C" fn program_write_in_memory() {
     naked_asm!(
@@ -59,8 +86,6 @@ extern "C" fn program_ipc_test() {
         "mov ebx, eax",
         "mov eax, 42",
         "int 0x80",
-        "loping:",
-        "jmp loping",
         // --- socket_create() -> eax = fd ---
         "mov eax, 5",
         "int 0x80",
@@ -185,7 +210,7 @@ pub fn init() {
 
     // Code page: ipc test program.
     bin.segments.push(Segment {
-        offset: Some(program_ipc_test as *const () as usize),
+        offset: Some(program_wait as *const () as usize),
         vaddr: 0x1000,
         size: 0x1000,
         permissions: Permissions::Read,
@@ -206,6 +231,7 @@ pub fn init() {
         size: 0x1000,
         permissions: Permissions::ReadWrite,
     });
+
     let p = Process::new(&bin, super::vmm::process::Parent::Root, false);
     SCHEDULER.lock().unwrap().spawn(p);
 
@@ -222,14 +248,24 @@ pub extern "C" fn timer(regs: &mut InterruptRegisters) {
     let mut scheduler = SCHEDULER.lock().expect("timer | failed to lock SCHEDULER");
     // first save the registers if there was a running process
     if let Some(p) = scheduler.current() {
-        serial_println!("processssss children {:?}", p.children_stopped);
         p.saved_registers = *regs;
     }
 
     // find the next process
-    let next = scheduler.schedule().expect("could not lock SCHEDULER");
-
-    next.state = crate::arch::x86::vmm::process::ProcessState::Running;
-    next.addressspace.load();
-    *regs = next.saved_registers;
+    loop {
+        let next = scheduler.schedule().expect("could not lock SCHEDULER");
+        if next.state == ProcessState::Waiting {
+            if let Some(child_stopped_id) = next.children_stopped.pop() {
+                next.state = crate::arch::x86::vmm::process::ProcessState::Running;
+                next.addressspace.load();
+                *regs = next.saved_registers;
+                regs.eax = child_stopped_id as u32;
+                return;
+            }
+            continue;
+        }
+        next.addressspace.load();
+        *regs = next.saved_registers;
+        break;
+    }
 }

@@ -239,20 +239,6 @@ impl Scheduler {
         self.table.get_mut(pid)
     }
 
-    pub fn block(&mut self, pid: Pid) {
-        self.run_queue.remove(pid);
-        if let Some(proc) = self.table.get_mut(pid) {
-            proc.state = ProcessState::Blocked;
-        }
-    }
-
-    pub fn unblock(&mut self, pid: Pid) {
-        if let Some(proc) = self.table.get_mut(pid) {
-            proc.state = ProcessState::Ready;
-            self.run_queue.enqueue(pid);
-        }
-    }
-
     pub fn exit(&mut self, pid: Pid) {
         self.run_queue.remove(pid);
         self.table.remove(pid);
