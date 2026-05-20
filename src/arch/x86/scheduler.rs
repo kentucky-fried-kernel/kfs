@@ -50,11 +50,7 @@ extern "C" fn program_write_in_memory() {
         "int 0x80",
     );
 }
-//
-// #[unsafe(naked)]
-// extern "C" fn program_ipc_test_sender() {
-//     // naked_asm!()
-// }
+
 #[unsafe(naked)]
 extern "C" fn program_ipc_test() {
     naked_asm!(
@@ -77,7 +73,7 @@ extern "C" fn program_ipc_test() {
         // edi is now the child_id
 
         // Store pid at [0x2000] so we have a stable address to pass as buf.
-        "mov dword ptr [0x2000], edi",
+        "mov dword ptr [0x2000], 0x696969",
         // socket_write(fd=esi, buf=0x2000, len=4)
         "mov eax, 8",
         "mov ebx, esi",

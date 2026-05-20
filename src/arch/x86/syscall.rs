@@ -9,7 +9,7 @@ use crate::{
         vmm::process::Process,
     },
     serial_println,
-    socket::{socket_close, socket_create, socket_read, socket_write},
+    socket::{SOCKETS, Socket, SocketId, socket_close, socket_create, socket_read, socket_write},
 };
 
 pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
@@ -33,6 +33,15 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     let parent = scheduler.current().expect("sys_fork | no process running");
     parent.saved_registers = *regs;
     let mut child = Process::from_process(parent);
+
+    // add one to all references to sockets
+    for socket_id in &child.socket_fds {
+        if let Some(socket_id) = socket_id {
+            let mut sockets = SOCKETS.lock().expect("sys_fork | could not lock SOCKETS");
+            sockets.add_ref(*socket_id);
+        }
+    }
+
     child.saved_registers.eax = 0;
 
     let _ = parent; // drop
