@@ -13,10 +13,19 @@ use crate::{
 };
 
 pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
-    let mut scheduler = SCHEDULER.lock().expect("timer | failed to lock SCHEDULER");
+    let mut scheduler = SCHEDULER.lock().expect("sys_exit | failed to lock SCHEDULER");
 
     let pid = scheduler.current().expect("sys_exit | no process running").pid;
     serial_println!("pid {} exited", pid);
+    let child = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
+
+    let mut sockets = SOCKETS.lock().expect("sys_exit | could not lock SOCKETS");
+
+    for socket_id in &child.socket_fds {
+        if let Some(socket_id) = socket_id {
+            sockets.close(*socket_id);
+        }
+    }
 
     scheduler.exit(pid);
 
