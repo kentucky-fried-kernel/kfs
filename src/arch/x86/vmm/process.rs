@@ -46,11 +46,12 @@ pub struct Process {
     pub children_stopped: Vec<Pid>,
     pub owner_id: OwnerId,
     pub socket_fds: Vec<Option<SocketId>>,
+    pub super_user: bool,
 }
 
 impl Process {
     #[must_use]
-    pub fn new(binary: &Binary, parent: Parent) -> Self {
+    pub fn new(binary: &Binary, parent: Parent, super_user: bool) -> Self {
         Self {
             pid: 0,
             state: ProcessState::Ready,
@@ -71,6 +72,7 @@ impl Process {
             owner_id: 0,
             socket_fds: Vec::new(),
             children_stopped: Vec::new(),
+            super_user,
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -85,6 +87,7 @@ impl Process {
             children_stopped: Vec::new(),
             owner_id: 0,
             socket_fds: process.socket_fds.clone(),
+            super_user: process.super_user,
         }
     }
 

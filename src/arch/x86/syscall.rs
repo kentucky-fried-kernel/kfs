@@ -170,6 +170,15 @@ pub fn sys_socket_read(regs: &mut InterruptRegisters) {
     };
 }
 
+pub fn sys_am_super_user(regs: &mut InterruptRegisters) {
+    let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
+    let cur = scheduler.current().expect("sys_fork | no process running");
+    regs.eax = match cur.super_user {
+        true => 1,
+        false => 2,
+    }
+}
+
 pub fn sys_putnbr(regs: &mut InterruptRegisters) {
     let scheduler = SCHEDULER.lock().expect("could not lock SCHEDULER");
     serial_println!("Registers of pid: {}", scheduler.current.expect("no process running"));
@@ -200,6 +209,7 @@ pub fn syscall(regs: &mut InterruptRegisters) {
         42 => sys_putnbr(regs),
         57 => sys_fork(regs),
         60 => sys_exit(regs),
+        99 => sys_am_super_user(regs),
         _ => regs.eax = u32::MAX,
     }
 }

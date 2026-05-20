@@ -54,6 +54,13 @@ extern "C" fn program_write_in_memory() {
 #[unsafe(naked)]
 extern "C" fn program_ipc_test() {
     naked_asm!(
+        "mov eax, 99",
+        "int 0x80",
+        "mov ebx, eax",
+        "mov eax, 42",
+        "int 0x80",
+        "loping:",
+        "jmp loping",
         // --- socket_create() -> eax = fd ---
         "mov eax, 5",
         "int 0x80",
@@ -105,6 +112,8 @@ extern "C" fn program_ipc_test() {
         "mov eax, 42",
         "int 0x80",
         //
+        "mov eax, 57",
+        "int 0x80",
         "mov eax, 60",
         "int 0x80",
     );
@@ -197,7 +206,7 @@ pub fn init() {
         size: 0x1000,
         permissions: Permissions::ReadWrite,
     });
-    let p = Process::new(&bin, super::vmm::process::Parent::Root);
+    let p = Process::new(&bin, super::vmm::process::Parent::Root, false);
     SCHEDULER.lock().unwrap().spawn(p);
 
     irq::install_handler(0, timer);
