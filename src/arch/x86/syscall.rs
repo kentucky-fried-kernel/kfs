@@ -25,7 +25,6 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
         }
     }
 
-    // Resolve children to parent
     {
         let current = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
         let children = current.children.clone();
@@ -61,7 +60,6 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     parent.saved_registers = *regs;
     let mut child = Process::from_process(parent);
 
-    // add one to all references to sockets
     for socket_id in child.socket_fds.iter().flatten() {
         let mut sockets = SOCKETS.lock().expect("sys_fork | could not lock SOCKETS");
         let _ = sockets.add_ref(*socket_id);
@@ -69,7 +67,7 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
 
     child.saved_registers.eax = 0;
 
-    let _ = parent; // drop
+    let _ = parent;
     let child_pid = scheduler.spawn(child);
 
     let parent = scheduler.current().expect("sys_fork | no process running");
@@ -85,9 +83,6 @@ pub fn sys_getpid(regs: &mut InterruptRegisters) {
 }
 
 pub fn sys_socket_create(regs: &mut InterruptRegisters) {
-    // Create the underlying socket first, then install it in the current
-    // process's fd table. Two locks, never held at the same time.
-
     let sid = socket_create();
 
     let mut scheduler = SCHEDULER.lock().expect("sys_socket_create | could not lock SCHEDULER");
@@ -99,8 +94,6 @@ pub fn sys_socket_create(regs: &mut InterruptRegisters) {
 pub fn sys_socket_close(regs: &mut InterruptRegisters) {
     let fd = regs.ebx as usize;
 
-    // Remove the fd from the process, then drop the scheduler lock before
-    // touching the global socket table.
     let sid = {
         let mut scheduler = SCHEDULER.lock().expect("sys_socket_close | could not lock SCHEDULER");
         let process = scheduler.current().expect("sys_socket_close | no process running");
@@ -121,7 +114,6 @@ pub fn sys_socket_write(regs: &mut InterruptRegisters) {
     let buf = regs.ecx as usize;
     let len = regs.edx as usize;
 
-    // Snapshot fd → SocketId + VMAs, then release SCHEDULER before the copy.
     let (sid, vmas) = {
         let mut scheduler = SCHEDULER.lock().expect("sys_socket_write | could not lock SCHEDULER");
         let process = scheduler.current().expect("sys_socket_write | no process running");

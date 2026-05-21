@@ -91,7 +91,6 @@ impl Process {
         }
     }
 
-    /// Allocates a new fd pointing at `sid`, reusing freed slots first.
     pub fn install_socket(&mut self, sid: SocketId) -> usize {
         if let Some((idx, slot)) = self.socket_fds.iter_mut().enumerate().find(|(_, s)| s.is_none()) {
             *slot = Some(sid);
@@ -103,12 +102,10 @@ impl Process {
     }
 
     #[allow(clippy::must_use_candidate)]
-    /// Resolves an fd to its global SocketId.
     pub fn resolve_socket(&self, fd: usize) -> Option<SocketId> {
         self.socket_fds.get(fd).copied().flatten()
     }
 
-    /// Frees the fd slot. Returns the SocketId that was there, if any.
     pub fn remove_socket(&mut self, fd: usize) -> Option<SocketId> {
         self.socket_fds.get_mut(fd)?.take()
     }
