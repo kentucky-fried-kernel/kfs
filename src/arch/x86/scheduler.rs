@@ -14,11 +14,12 @@ use crate::{
     serial_println,
 };
 
-#[unsafe(naked)]
-#[allow(unused)]
-extern "C" fn program_exit() {
-    naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
-}
+// #[unsafe(naked)]
+// #[allow(unused)]
+// extern "C" fn program_exit() {
+//     naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
+// }
+
 #[unsafe(naked)]
 extern "C" fn program_wait() {
     naked_asm!(
@@ -47,103 +48,104 @@ extern "C" fn program_wait() {
         "int 0x80",
     );
 }
-#[unsafe(naked)]
-extern "C" fn program_write_in_memory() {
-    naked_asm!(
-        // both processes start by writing the same initial value
-        "mov dword ptr [0x2000], 0x42",
-        // fork
-        "mov eax, 57",
-        "int 0x80",
-        // after this: eax = 0 in child, eax = child_pid in parent
 
-        // branch on eax
-        "test eax, eax",
-        "jz child",
-        // ----- parent path -----
-        // overwrite with 0xAAAA - this should NOT affect the child
-        "mov dword ptr [0x2000], 0xAAAA",
-        "jmp done",
-        "child:",
-        // ----- child path -----
-        // overwrite with 0xBBBB - this should NOT affect the parent
-        "mov dword ptr [0x2000], 0xBBBB",
-        "done:",
-        "mov ebx, [0x2000]",
-        "mov eax, 42",
-        "int 0x80",
-        // both processes read their own [0x2000] into ebx and exit
-        "mov eax, 60",
-        "int 0x80",
-    );
-}
-
-#[unsafe(naked)]
-extern "C" fn program_ipc_test() {
-    naked_asm!(
-        "mov eax, 99",
-        "int 0x80",
-        "mov ebx, eax",
-        "mov eax, 42",
-        "int 0x80",
-        // --- socket_create() -> eax = fd ---
-        "mov eax, 5",
-        "int 0x80",
-        // save fd in esi (callee-saved-ish for our purposes; nothing clobbers
-        // it until we use it again).
-        "mov esi, eax",
-        //
-        // --- fork() ---
-        "mov eax, 57",
-        "int 0x80",
-        //
-        //
-        // branch on eax: 0 = child, nonzero = parent
-        "test eax, eax",
-        "jz child",
-        "mov edi, eax",
-        // edi is now the child_id
-
-        // Store pid at [0x2000] so we have a stable address to pass as buf.
-        "mov dword ptr [0x2000], 0x696969",
-        // socket_write(fd=esi, buf=0x2000, len=4)
-        "mov eax, 8",
-        "mov ebx, esi",
-        "mov ecx, 0x2000",
-        "mov edx, 4",
-        "int 0x80",
-        "mov ebx, eax",
-        "mov eax, 42",
-        "int 0x80",
-        // exit(0). ebx = 0 so the parent's exit log is unambiguous.
-        "looping:",
-        "jmp looping",
-        // ===== CHILD =====
-        "child:",
-        // Busy-loop on socket_read until it returns > 0.
-        // (No blocking read yet, so we spin.)
-        "retry:",
-        "mov eax, 7",
-        "mov ebx, esi",
-        "mov ecx, 0x2000",
-        "mov edx, 4",
-        "int 0x80",
-        // eax = bytes read. If 0, retry.
-        "test eax, eax",
-        "jz retry",
-        // Load the received value into ebx and exit, so sys_exit prints it.
-        "mov ebx, [0x2000]",
-        //
-        "mov eax, 42",
-        "int 0x80",
-        //
-        "mov eax, 57",
-        "int 0x80",
-        "mov eax, 60",
-        "int 0x80",
-    );
-}
-
+// #[unsafe(naked)]
+// extern "C" fn program_write_in_memory() {
+//     naked_asm!(
+//         // both processes start by writing the same initial value
+//         "mov dword ptr [0x2000], 0x42",
+//         // fork
+//         "mov eax, 57",
+//         "int 0x80",
+//         // after this: eax = 0 in child, eax = child_pid in parent
+//
+//         // branch on eax
+//         "test eax, eax",
+//         "jz child",
+//         // ----- parent path -----
+//         // overwrite with 0xAAAA - this should NOT affect the child
+//         "mov dword ptr [0x2000], 0xAAAA",
+//         "jmp done",
+//         "child:",
+//         // ----- child path -----
+//         // overwrite with 0xBBBB - this should NOT affect the parent
+//         "mov dword ptr [0x2000], 0xBBBB",
+//         "done:",
+//         "mov ebx, [0x2000]",
+//         "mov eax, 42",
+//         "int 0x80",
+//         // both processes read their own [0x2000] into ebx and exit
+//         "mov eax, 60",
+//         "int 0x80",
+//     );
+// }
+//
+// #[unsafe(naked)]
+// extern "C" fn program_ipc_test() {
+//     naked_asm!(
+//         "mov eax, 99",
+//         "int 0x80",
+//         "mov ebx, eax",
+//         "mov eax, 42",
+//         "int 0x80",
+//         // --- socket_create() -> eax = fd ---
+//         "mov eax, 5",
+//         "int 0x80",
+//         // save fd in esi (callee-saved-ish for our purposes; nothing clobbers
+//         // it until we use it again).
+//         "mov esi, eax",
+//         //
+//         // --- fork() ---
+//         "mov eax, 57",
+//         "int 0x80",
+//         //
+//         //
+//         // branch on eax: 0 = child, nonzero = parent
+//         "test eax, eax",
+//         "jz child",
+//         "mov edi, eax",
+//         // edi is now the child_id
+//
+//         // Store pid at [0x2000] so we have a stable address to pass as buf.
+//         "mov dword ptr [0x2000], 0x696969",
+//         // socket_write(fd=esi, buf=0x2000, len=4)
+//         "mov eax, 8",
+//         "mov ebx, esi",
+//         "mov ecx, 0x2000",
+//         "mov edx, 4",
+//         "int 0x80",
+//         "mov ebx, eax",
+//         "mov eax, 42",
+//         "int 0x80",
+//         // exit(0). ebx = 0 so the parent's exit log is unambiguous.
+//         "looping:",
+//         "jmp looping",
+//         // ===== CHILD =====
+//         "child:",
+//         // Busy-loop on socket_read until it returns > 0.
+//         // (No blocking read yet, so we spin.)
+//         "retry:",
+//         "mov eax, 7",
+//         "mov ebx, esi",
+//         "mov ecx, 0x2000",
+//         "mov edx, 4",
+//         "int 0x80",
+//         // eax = bytes read. If 0, retry.
+//         "test eax, eax",
+//         "jz retry",
+//         // Load the received value into ebx and exit, so sys_exit prints it.
+//         "mov ebx, [0x2000]",
+//         //
+//         "mov eax, 42",
+//         "int 0x80",
+//         //
+//         "mov eax, 57",
+//         "int 0x80",
+//         "mov eax, 60",
+//         "int 0x80",
+//     );
+// }
+//
 // #[unsafe(naked)]
 // extern "C" fn program() {
 //     naked_asm!(

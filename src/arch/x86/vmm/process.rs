@@ -102,6 +102,7 @@ impl Process {
         }
     }
 
+    #[allow(clippy::must_use_candidate)]
     /// Resolves an fd to its global SocketId.
     pub fn resolve_socket(&self, fd: usize) -> Option<SocketId> {
         self.socket_fds.get(fd).copied().flatten()

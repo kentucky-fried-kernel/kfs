@@ -1,4 +1,7 @@
 // src/arch/x86/ipc/socket.rs
+#![allow(clippy::expect_used)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
 use alloc::vec::Vec;
 
 use crate::arch::x86::{kernel_mutex::KernelMutex, scheduler::Permissions, vmm::process::VMA};
@@ -69,6 +72,7 @@ pub struct SocketTable {
 }
 
 impl SocketTable {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             sockets: Vec::new(),
@@ -88,7 +92,7 @@ impl SocketTable {
     }
 
     pub fn close(&mut self, id: SocketId) -> Result<(), SocketError> {
-        let mut slot = self.sockets.get_mut(id).ok_or(SocketError::BadSocket)?;
+        let slot = self.sockets.get_mut(id).ok_or(SocketError::BadSocket)?;
         match slot {
             None => Err(SocketError::BadSocket),
             Some(sock) => {
@@ -110,6 +114,12 @@ impl SocketTable {
 
     pub fn get_mut(&mut self, id: SocketId) -> Result<&mut Socket, SocketError> {
         self.sockets.get_mut(id).and_then(|s| s.as_mut()).ok_or(SocketError::BadSocket)
+    }
+}
+
+impl Default for SocketTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

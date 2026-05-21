@@ -21,10 +21,8 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
     {
         let child = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
         let mut sockets = SOCKETS.lock().expect("sys_exit | could not lock SOCKETS");
-        for socket_id in &child.socket_fds {
-            if let Some(socket_id) = socket_id {
-                sockets.close(*socket_id);
-            }
+        for socket_id in child.socket_fds.iter().flatten() {
+            let _ = sockets.close(*socket_id);
         }
     }
 
@@ -65,11 +63,9 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     let mut child = Process::from_process(parent);
 
     // add one to all references to sockets
-    for socket_id in &child.socket_fds {
-        if let Some(socket_id) = socket_id {
-            let mut sockets = SOCKETS.lock().expect("sys_fork | could not lock SOCKETS");
-            sockets.add_ref(*socket_id);
-        }
+    for socket_id in child.socket_fds.iter().flatten() {
+        let mut sockets = SOCKETS.lock().expect("sys_fork | could not lock SOCKETS");
+        let _ = sockets.add_ref(*socket_id);
     }
 
     child.saved_registers.eax = 0;
@@ -116,7 +112,7 @@ pub fn sys_socket_close(regs: &mut InterruptRegisters) {
         None => u32::MAX,
         Some(sid) => match socket_close(sid) {
             Ok(()) => 0,
-            Err(e) => u32::MAX,
+            Err(_) => u32::MAX,
         },
     };
 }
@@ -140,7 +136,7 @@ pub fn sys_socket_write(regs: &mut InterruptRegisters) {
 
     regs.eax = match socket_write(sid, buf, len, &vmas) {
         Ok(n) => n as u32,
-        Err(e) => u32::MAX,
+        Err(_) => u32::MAX,
     };
 }
 
@@ -165,7 +161,7 @@ pub fn sys_socket_read(regs: &mut InterruptRegisters) {
             serial_println!("read that many bytes {}", n);
             n as u32
         }
-        Err(e) => u32::MAX,
+        Err(_) => u32::MAX,
     };
 }
 
@@ -207,7 +203,7 @@ pub fn syscall(regs: &mut InterruptRegisters) {
     let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
     let cur = scheduler.current().expect("sys_fork | no process running");
     serial_println!("syscall from pid {} with nbr {}", cur.pid, regs.eax);
-    drop(cur);
+    let _ = cur;
     drop(scheduler);
     match regs.eax {
         5 => sys_socket_create(regs),
