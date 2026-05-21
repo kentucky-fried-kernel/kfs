@@ -225,7 +225,7 @@ pub fn sys_kill(regs: &mut InterruptRegisters) {
         match scheduler.table.get_mut(pid) {
             Some(process) => process,
             None => {
-                regs.eax = u32::MAX;
+                regs.eax = u32::MAX - 1;
                 return;
             }
         }

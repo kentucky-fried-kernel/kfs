@@ -50,7 +50,7 @@ extern "C" fn program_signal_test() {
         "jnz parent_delay",
         // sys_kill(signal=2, pid=edi)
         "mov eax, 71",
-        "mov ebx, 2",
+        "mov ebx, 1",
         "mov ecx, edi",
         "int 0x80",
         "jmp parent_outer",
@@ -333,7 +333,9 @@ pub extern "C" fn timer(regs: &mut InterruptRegisters) {
             match next.signal_handlers.get(signal) {
                 Action::Terminate => {
                     let _ = next;
+                    drop(scheduler);
                     sys_exit(regs);
+                    return;
                 }
                 Action::Ignore => {}
                 Action::Continue => {
