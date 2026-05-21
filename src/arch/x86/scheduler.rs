@@ -290,7 +290,7 @@ pub fn init() {
     bin.segments.push(Segment {
         offset: Some(program_signal_test as *const () as usize),
         vaddr: 0x4000,
-        size: 0x1000,
+        size: 0x10000000,
         permissions: Permissions::Read,
     });
 
