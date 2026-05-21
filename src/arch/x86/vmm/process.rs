@@ -1,9 +1,12 @@
 use alloc::{collections::VecDeque, vec::Vec};
 
-use crate::arch::x86::{
-    idt::InterruptRegisters,
-    scheduler::{Binary, Permissions},
-    vmm::addressspace::Addressspace,
+use crate::{
+    arch::x86::{
+        idt::InterruptRegisters,
+        scheduler::{Binary, Permissions},
+        vmm::addressspace::Addressspace,
+    },
+    socket::SocketId,
 };
 
 pub type Pid = usize;
@@ -14,6 +17,7 @@ pub enum ProcessState {
     Running,
     Ready,
     Blocked,
+    Waiting,
     Zombie,
 }
 
@@ -39,12 +43,15 @@ pub struct Process {
     pub vmas: Vec<VMA>,
     pub parent: Parent,
     pub children: Vec<Pid>,
+    pub children_stopped: Vec<Pid>,
     pub owner_id: OwnerId,
+    pub socket_fds: Vec<Option<SocketId>>,
+    pub super_user: bool,
 }
 
 impl Process {
     #[must_use]
-    pub fn new(binary: &Binary, parent: Parent) -> Self {
+    pub fn new(binary: &Binary, parent: Parent, super_user: bool) -> Self {
         Self {
             pid: 0,
             state: ProcessState::Ready,
@@ -63,6 +70,9 @@ impl Process {
             parent,
             children: Vec::new(),
             owner_id: 0,
+            socket_fds: Vec::new(),
+            children_stopped: Vec::new(),
+            super_user,
         }
     }
     pub fn from_process(process: &mut Process) -> Self {
@@ -74,8 +84,30 @@ impl Process {
             vmas: process.vmas.clone(),
             parent: Parent::Pid(process.pid),
             children: Vec::new(),
+            children_stopped: Vec::new(),
             owner_id: 0,
+            socket_fds: process.socket_fds.clone(),
+            super_user: process.super_user,
         }
+    }
+
+    pub fn install_socket(&mut self, sid: SocketId) -> usize {
+        if let Some((idx, slot)) = self.socket_fds.iter_mut().enumerate().find(|(_, s)| s.is_none()) {
+            *slot = Some(sid);
+            idx
+        } else {
+            self.socket_fds.push(Some(sid));
+            self.socket_fds.len() - 1
+        }
+    }
+
+    #[allow(clippy::must_use_candidate)]
+    pub fn resolve_socket(&self, fd: usize) -> Option<SocketId> {
+        self.socket_fds.get(fd).copied().flatten()
+    }
+
+    pub fn remove_socket(&mut self, fd: usize) -> Option<SocketId> {
+        self.socket_fds.get_mut(fd)?.take()
     }
 }
 
@@ -203,20 +235,6 @@ impl Scheduler {
         self.run_queue.enqueue(pid); // round-robin
         self.current = Some(pid);
         self.table.get_mut(pid)
-    }
-
-    pub fn block(&mut self, pid: Pid) {
-        self.run_queue.remove(pid);
-        if let Some(proc) = self.table.get_mut(pid) {
-            proc.state = ProcessState::Blocked;
-        }
-    }
-
-    pub fn unblock(&mut self, pid: Pid) {
-        if let Some(proc) = self.table.get_mut(pid) {
-            proc.state = ProcessState::Ready;
-            self.run_queue.enqueue(pid);
-        }
     }
 
     pub fn exit(&mut self, pid: Pid) {
