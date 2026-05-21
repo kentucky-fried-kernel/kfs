@@ -1,4 +1,3 @@
-// src/arch/x86/ipc/socket.rs
 #![allow(clippy::expect_used)]
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
@@ -8,13 +7,9 @@ use crate::arch::x86::{kernel_mutex::KernelMutex, scheduler::Permissions, vmm::p
 
 pub type SocketId = usize;
 
-/// Errors returned by socket operations. The syscall layer maps these to
-/// negative integers (errno-style) before handing them back to userspace.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketError {
-    /// User pointer is null, misaligned, or its range escapes the user's VMAs.
     BadAddress,
-    /// Referenced socket id does not exist.
     BadSocket,
 }
 
@@ -62,10 +57,6 @@ impl Socket {
     }
 }
 
-/// Global table of sockets, keyed by [`SocketId`].
-///
-/// Uses the same `Vec<Option<_>>` + free-list pattern as [`ProcessTable`],
-/// so freed slots get reused before the table grows.
 pub struct SocketTable {
     sockets: Vec<Option<Socket>>,
     free_slots: Vec<SocketId>,
@@ -125,9 +116,6 @@ impl Default for SocketTable {
 
 pub static SOCKETS: KernelMutex<SocketTable> = KernelMutex::new(SocketTable::new());
 
-/// Verifies that `[addr, addr + len)` is fully covered by a single VMA and
-/// that the VMA has the required permissions. Mirrors the check used in
-/// `page_fault`.
 fn validate_user_range(vmas: &[VMA], addr: usize, len: usize, need_write: bool) -> bool {
     if len == 0 {
         return true;
@@ -151,11 +139,6 @@ fn validate_user_range(vmas: &[VMA], addr: usize, len: usize, need_write: bool) 
     false
 }
 
-/// Writes `len` bytes from the user pointer `buf` into the socket identified
-/// by `id`. Returns the number of bytes written on success.
-///
-/// This is the layer that owns the unsafe pointer dereference: the syscall
-/// shim only forwards register values into here.
 pub fn socket_write(id: SocketId, buf: usize, len: usize, vmas: &[VMA]) -> Result<usize, SocketError> {
     if !validate_user_range(vmas, buf, len, false) {
         return Err(SocketError::BadAddress);
@@ -171,8 +154,6 @@ pub fn socket_write(id: SocketId, buf: usize, len: usize, vmas: &[VMA]) -> Resul
     Ok(socket.write(data))
 }
 
-/// Reads up to `len` bytes from the socket `id` into the user pointer `buf`.
-/// Returns the number of bytes actually read.
 pub fn socket_read(id: SocketId, buf: usize, len: usize, vmas: &[VMA]) -> Result<usize, SocketError> {
     if !validate_user_range(vmas, buf, len, true) {
         return Err(SocketError::BadAddress);
