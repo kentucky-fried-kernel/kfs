@@ -5,9 +5,10 @@ use crate::{
     arch::x86::{
         idt::InterruptRegisters,
         scheduler::{SCHEDULER, timer},
-        vmm::process::{Parent, Process},
+        vmm::process::{Parent, Pid, Process},
     },
     serial_println,
+    signals::{Action, Signal},
     socket::{SOCKETS, socket_close, socket_create, socket_read, socket_write},
 };
 
@@ -182,12 +183,61 @@ pub fn sys_putnbr(regs: &mut InterruptRegisters) {
 
 pub fn sys_wait(regs: &mut InterruptRegisters) {
     {
-        let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
-        let cur = scheduler.current().expect("sys_fork | no process running");
+        let mut scheduler = SCHEDULER.lock().expect("sys_wait | could not lock SCHEDULER");
+        let cur = scheduler.current().expect("sys_wait | no process running");
         cur.state = super::vmm::process::ProcessState::Waiting;
     }
 
     timer(regs);
+}
+
+pub fn sys_signal(regs: &mut InterruptRegisters) {
+    let signal = match Signal::try_from(regs.ebx as u8) {
+        Ok(signal) => signal,
+        Err(_) => {
+            regs.eax = u32::MAX;
+            return;
+        }
+    };
+
+    let vaddr = regs.ecx as usize;
+
+    let mut scheduler = SCHEDULER.lock().expect("sys_signal | could not lock SCHEDULER");
+    let cur = scheduler.current().expect("sys_signal | no process running");
+    match cur.signal_handlers.set(signal, Action::Handler(vaddr)) {
+        Ok(_) => regs.eax = 0,
+        Err(_) => regs.eax = u32::MAX,
+    }
+}
+
+pub fn sys_kill(regs: &mut InterruptRegisters) {
+    let signal = match Signal::try_from(regs.ebx as u8) {
+        Ok(signal) => signal,
+        Err(_) => {
+            regs.eax = u32::MAX;
+            return;
+        }
+    };
+
+    let mut scheduler = SCHEDULER.lock().expect("sys_signal | could not lock SCHEDULER");
+    let process = {
+        let pid = regs.ebx as Pid;
+        match scheduler.table.get_mut(pid) {
+            Some(process) => process,
+            None => {
+                regs.eax = u32::MAX;
+                return;
+            }
+        }
+    };
+
+    process.signals_queued.push(signal);
+}
+
+pub fn sys_exit_signal_handler(regs: &mut InterruptRegisters) {
+    let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
+    let cur = scheduler.current().expect("sys_fork | no process running");
+    cur.exit_signal_handler();
 }
 
 pub fn syscall(regs: &mut InterruptRegisters) {
@@ -205,6 +255,9 @@ pub fn syscall(regs: &mut InterruptRegisters) {
         42 => sys_putnbr(regs),
         57 => sys_fork(regs),
         60 => sys_exit(regs),
+        70 => sys_signal(regs),
+        71 => sys_kill(regs),
+        72 => sys_exit_signal_handler(regs),
         98 => sys_wait(regs),
         99 => sys_am_super_user(regs),
         _ => regs.eax = u32::MAX,

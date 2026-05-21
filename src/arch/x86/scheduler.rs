@@ -9,9 +9,11 @@ use crate::{
         idt::InterruptRegisters,
         interrupts::irq,
         kernel_mutex::KernelMutex,
+        syscall::sys_exit,
         vmm::process::{Process, ProcessState, Scheduler},
     },
     serial_println,
+    signals::Action,
 };
 
 // #[unsafe(naked)]
@@ -246,7 +248,6 @@ pub static SCHEDULER: KernelMutex<Scheduler> = KernelMutex::new(Scheduler::new()
 #[allow(clippy::missing_panics_doc)]
 pub extern "C" fn timer(regs: &mut InterruptRegisters) {
     serial_println!("timer");
-    serial_println!("{:x}", regs.eax);
     let mut scheduler = SCHEDULER.lock().expect("timer | failed to lock SCHEDULER");
     // first save the registers if there was a running process
     if let Some(p) = scheduler.current() {
@@ -266,6 +267,37 @@ pub extern "C" fn timer(regs: &mut InterruptRegisters) {
             }
             continue;
         }
+        if next.state == ProcessState::Blocked {
+            continue;
+        }
+
+        if let Some(signal) = next.signals_queued.pop() {
+            match next.signal_handlers[signal as usize] {
+                Action::Terminate => {
+                    let _ = next;
+                    sys_exit(regs);
+                }
+                Action::Ignore => {}
+                Action::Continue => {
+                    next.state = crate::arch::x86::vmm::process::ProcessState::Running;
+                    continue;
+                }
+                Action::Stop => {
+                    next.state = crate::arch::x86::vmm::process::ProcessState::Blocked;
+                    continue;
+                }
+                Action::Handler(vaddr) => {
+                    if next.signal_handler_saved_registers.is_some() {
+                        next.signals_queued.push(signal);
+                        next.addressspace.load();
+                        *regs = next.saved_registers;
+                        return;
+                    }
+                    next.enter_signal_handler(vaddr);
+                }
+            }
+        }
+
         next.addressspace.load();
         *regs = next.saved_registers;
         break;

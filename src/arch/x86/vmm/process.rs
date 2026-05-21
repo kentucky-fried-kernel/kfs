@@ -6,6 +6,7 @@ use crate::{
         scheduler::{Binary, Permissions},
         vmm::addressspace::Addressspace,
     },
+    signals::{Action, Signal, SignalsHandlers},
     socket::SocketId,
 };
 
@@ -47,6 +48,9 @@ pub struct Process {
     pub owner_id: OwnerId,
     pub socket_fds: Vec<Option<SocketId>>,
     pub super_user: bool,
+    pub signal_handlers: SignalsHandlers,
+    pub signals_queued: Vec<Signal>,
+    pub signal_handler_saved_registers: Option<InterruptRegisters>,
 }
 
 impl Process {
@@ -73,8 +77,12 @@ impl Process {
             socket_fds: Vec::new(),
             children_stopped: Vec::new(),
             super_user,
+            signal_handlers: SignalsHandlers::new(),
+            signals_queued: Vec::new(),
+            signal_handler_saved_registers: None,
         }
     }
+
     pub fn from_process(process: &mut Process) -> Self {
         Self {
             pid: 0,
@@ -88,6 +96,24 @@ impl Process {
             owner_id: 0,
             socket_fds: process.socket_fds.clone(),
             super_user: process.super_user,
+            signal_handlers: process.signal_handlers.clone(),
+            signals_queued: Vec::new(),
+            signal_handler_saved_registers: process.signal_handler_saved_registers,
+        }
+    }
+
+    pub fn enter_signal_handler(&mut self, entry: usize) {
+        self.signal_handler_saved_registers = Some(self.saved_registers);
+        self.saved_registers.eip = entry as u32;
+    }
+
+    pub fn exit_signal_handler(&mut self) -> Result<(), ()> {
+        match self.signal_handler_saved_registers {
+            Some(reg) => {
+                self.saved_registers = reg;
+                Ok(())
+            }
+            None => Err(()),
         }
     }
 
