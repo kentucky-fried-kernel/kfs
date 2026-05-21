@@ -1,15 +1,14 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::missing_panics_doc)]
-use alloc::format;
 
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
         scheduler::{SCHEDULER, timer},
-        vmm::process::{Parent, Pid, Process},
+        vmm::process::{Parent, Process},
     },
     serial_println,
-    socket::{SOCKETS, Socket, SocketId, socket_close, socket_create, socket_read, socket_write},
+    socket::{SOCKETS, socket_close, socket_create, socket_read, socket_write},
 };
 
 pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
