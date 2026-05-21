@@ -111,6 +111,7 @@ impl Process {
         match self.signal_handler_saved_registers {
             Some(reg) => {
                 self.saved_registers = reg;
+                self.signal_handler_saved_registers = None;
                 Ok(())
             }
             None => Err(()),

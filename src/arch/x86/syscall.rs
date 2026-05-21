@@ -221,7 +221,7 @@ pub fn sys_kill(regs: &mut InterruptRegisters) {
 
     let mut scheduler = SCHEDULER.lock().expect("sys_signal | could not lock SCHEDULER");
     let process = {
-        let pid = regs.ebx as Pid;
+        let pid = regs.ecx as Pid;
         match scheduler.table.get_mut(pid) {
             Some(process) => process,
             None => {
@@ -232,6 +232,7 @@ pub fn sys_kill(regs: &mut InterruptRegisters) {
     };
 
     process.signals_queued.push(signal);
+    regs.eax = 0;
 }
 
 pub fn sys_exit_signal_handler(regs: &mut InterruptRegisters) {
@@ -241,25 +242,28 @@ pub fn sys_exit_signal_handler(regs: &mut InterruptRegisters) {
 }
 
 pub fn syscall(regs: &mut InterruptRegisters) {
-    let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
-    let cur = scheduler.current().expect("sys_fork | no process running");
-    serial_println!("syscall from pid {} with nbr {}", cur.pid, regs.eax);
-    let _ = cur;
-    drop(scheduler);
-    match regs.eax {
-        5 => sys_socket_create(regs),
-        6 => sys_socket_close(regs),
-        7 => sys_socket_read(regs),
-        8 => sys_socket_write(regs),
-        35 => timer(regs),
-        42 => sys_putnbr(regs),
-        57 => sys_fork(regs),
-        60 => sys_exit(regs),
-        70 => sys_signal(regs),
-        71 => sys_kill(regs),
-        72 => sys_exit_signal_handler(regs),
-        98 => sys_wait(regs),
-        99 => sys_am_super_user(regs),
-        _ => regs.eax = u32::MAX,
+    {
+        let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
+        let cur = scheduler.current().expect("sys_fork | no process running");
+        serial_println!("syscall from pid {} with nbr {}", cur.pid, regs.eax);
+        let _ = cur;
+        drop(scheduler);
+        match regs.eax {
+            5 => sys_socket_create(regs),
+            6 => sys_socket_close(regs),
+            7 => sys_socket_read(regs),
+            8 => sys_socket_write(regs),
+            35 => timer(regs),
+            42 => sys_putnbr(regs),
+            57 => sys_fork(regs),
+            60 => sys_exit(regs),
+            70 => sys_signal(regs),
+            71 => sys_kill(regs),
+            72 => sys_exit_signal_handler(regs),
+            98 => sys_wait(regs),
+            99 => sys_am_super_user(regs),
+            _ => regs.eax = u32::MAX,
+        }
     }
+    timer(regs);
 }

@@ -15,6 +15,63 @@ use crate::{
     serial_println,
     signals::Action,
 };
+#[unsafe(naked)]
+extern "C" fn signal_handler() {
+    core::arch::naked_asm!(
+        // putnbr -- kernel dumps every register over serial
+        "mov eax, 42",
+        "int 0x80",
+        // tell the kernel we're done; it restores the pre-signal regs
+        "mov eax, 72",
+        "int 0x80",
+        // safety net: if exit_signal_handler ever returns instead of
+        // restoring, don't run off into whatever happens to follow in the page
+        "sh_safety:",
+        "jmp sh_safety",
+    );
+}
+
+#[unsafe(naked)]
+extern "C" fn program_signal_test() {
+    core::arch::naked_asm!(
+        // fork
+        "mov eax, 57",
+        "int 0x80",
+        "test eax, eax",
+        "jz child",
+        // ===== parent =====
+        // stash child pid in edi for the whole lifetime of the parent
+        "mov edi, eax",
+        "parent_outer:",
+        // burn time so the child gets to run between signals
+        "mov ecx, 0x05F5E100",
+        "parent_delay:",
+        "dec ecx",
+        "jnz parent_delay",
+        // sys_kill(signal=2, pid=edi)
+        "mov eax, 71",
+        "mov ebx, 2",
+        "mov ecx, edi",
+        "int 0x80",
+        "jmp parent_outer",
+        // ===== child =====
+        "child:",
+        // sys_signal(signal=2, handler_vaddr=0x1000)
+        "mov eax, 70",
+        "mov ebx, 2",
+        "mov ecx, 0x1000",
+        "int 0x80",
+        // distinctive register values so putnbr output is unambiguous
+        "mov eax, 0xC0DEC0DE",
+        "mov ebx, 0xCAFEBABE",
+        "mov ecx, 0xDEADBEEF",
+        "mov edx, 0xFEEDFACE",
+        "mov esi, 0x12345678",
+        "mov edi, 0x87654321",
+        "child_loop:",
+        "jmp child_loop",
+    );
+}
 
 // #[unsafe(naked)]
 // #[allow(unused)]
@@ -22,34 +79,34 @@ use crate::{
 //     naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
 // }
 
-#[unsafe(naked)]
-extern "C" fn program_wait() {
-    naked_asm!(
-        // fork
-        "mov eax, 57",
-        "int 0x80",
-        // after this: eax = 0 in child, eax = child_pid in parent
-
-        // branch on eax
-        "test eax, eax",
-        "jz child",
-        "mov eax, 98",
-        "int 0x80",
-        "mov ebx, eax",
-        "mov eax, 42",
-        "int 0x80",
-        "mov eax, 60",
-        "int 0x80",
-        "child:",
-        "mov ecx, 100000000",
-        "delay_loop:",
-        "dec ecx",
-        "jnz delay_loop",
-        // ----- child path -----
-        "mov eax, 60",
-        "int 0x80",
-    );
-}
+// #[unsafe(naked)]
+// extern "C" fn program_wait() {
+//     naked_asm!(
+//         // fork
+//         "mov eax, 57",
+//         "int 0x80",
+//         // after this: eax = 0 in child, eax = child_pid in parent
+//
+//         // branch on eax
+//         "test eax, eax",
+//         "jz child",
+//         "mov eax, 98",
+//         "int 0x80",
+//         "mov ebx, eax",
+//         "mov eax, 42",
+//         "int 0x80",
+//         "mov eax, 60",
+//         "int 0x80",
+//         "child:",
+//         "mov ecx, 100000000",
+//         "delay_loop:",
+//         "dec ecx",
+//         "jnz delay_loop",
+//         // ----- child path -----
+//         "mov eax, 60",
+//         "int 0x80",
+//     );
+// }
 
 // #[unsafe(naked)]
 // extern "C" fn program_write_in_memory() {
@@ -210,22 +267,15 @@ static TWO: u32 = 2;
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let mut bin = Binary::new(0x1000, 0x3000);
+    let mut bin = Binary::new(0x4000, 0x4000);
 
-    // Code page: ipc test program.
+    // Signal handler code, mapped at a known absolute vaddr the
+    // main program can hardcode when calling sys_signal.
     bin.segments.push(Segment {
-        offset: Some(program_wait as *const () as usize),
+        offset: Some(signal_handler as *const () as usize),
         vaddr: 0x1000,
         size: 0x1000,
         permissions: Permissions::Read,
-    });
-
-    // Data page used as the IPC payload buffer at 0x2000.
-    bin.segments.push(Segment {
-        offset: None,
-        vaddr: 0x2000,
-        size: 0x1000,
-        permissions: Permissions::ReadWrite,
     });
 
     // Stack page.
@@ -234,6 +284,14 @@ pub fn init() {
         vaddr: 0x3000,
         size: 0x1000,
         permissions: Permissions::ReadWrite,
+    });
+
+    // Main program code, entry at 0x4000.
+    bin.segments.push(Segment {
+        offset: Some(program_signal_test as *const () as usize),
+        vaddr: 0x4000,
+        size: 0x1000,
+        permissions: Permissions::Read,
     });
 
     let p = Process::new(&bin, super::vmm::process::Parent::Root, false);
@@ -272,7 +330,7 @@ pub extern "C" fn timer(regs: &mut InterruptRegisters) {
         }
 
         if let Some(signal) = next.signals_queued.pop() {
-            match next.signal_handlers[signal as usize] {
+            match next.signal_handlers.get(signal) {
                 Action::Terminate => {
                     let _ = next;
                     sys_exit(regs);
