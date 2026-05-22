@@ -12,7 +12,7 @@ use crate::{
         syscall::sys_exit,
         vmm::process::{Process, ProcessState, Scheduler},
     },
-    binaries::{memory_seperation::memory_seperation_test, signals::signal_print_test},
+    binaries::{memory_seperation::memory_seperation_test, signals::signal_print_test, wait::wait_test},
     serial_println,
     signals::Action,
 };
@@ -20,35 +20,6 @@ use crate::{
 // #[allow(unused)]
 // extern "C" fn program_exit() {
 //     naked_asm!("aaa:", "mov eax, 60", "int 0x80", "jmp aaa");
-// }
-
-// #[unsafe(naked)]
-// extern "C" fn program_wait() {
-//     naked_asm!(
-//         // fork
-//         "mov eax, 57",
-//         "int 0x80",
-//         // after this: eax = 0 in child, eax = child_pid in parent
-//
-//         // branch on eax
-//         "test eax, eax",
-//         "jz child",
-//         "mov eax, 98",
-//         "int 0x80",
-//         "mov ebx, eax",
-//         "mov eax, 42",
-//         "int 0x80",
-//         "mov eax, 60",
-//         "int 0x80",
-//         "child:",
-//         "mov ecx, 100000000",
-//         "delay_loop:",
-//         "dec ecx",
-//         "jnz delay_loop",
-//         // ----- child path -----
-//         "mov eax, 60",
-//         "int 0x80",
-//     );
 // }
 
 //
@@ -180,7 +151,7 @@ static TWO: u32 = 2;
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let p = Process::new(&memory_seperation_test(), super::vmm::process::Parent::Root, false);
+    let p = Process::new(&wait_test(), super::vmm::process::Parent::Root, false);
     SCHEDULER.lock().unwrap().spawn(p);
 
     irq::install_handler(0, timer);
