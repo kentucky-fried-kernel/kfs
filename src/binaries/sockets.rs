@@ -35,7 +35,7 @@ extern "C" fn program_ipc_test() {
         "mov eax, 42",
         "int 0x80",
         //
-        // wait for child to finish
+        // wait() for child to finish
         "mov eax, 98",
         "int 0x80",
         //
@@ -62,7 +62,7 @@ extern "C" fn program_ipc_test() {
         // print registers
         "mov eax, 42",
         "int 0x80",
-        //
+        // exit()
         "mov eax, 60",
         "int 0x80",
     );
