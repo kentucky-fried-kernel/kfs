@@ -11,11 +11,13 @@ extern "C" fn program_write_in_memory() {
         "mov eax, 57",
         "int 0x80",
         // after this: eax = 0 in child, eax = child_pid in parent
+        // Now to verfy that both have the same values
         "mov ebx, [0x2000]",
+        "mov ecx, eax",
         "mov eax, 42",
         "int 0x80",
         // branch on eax
-        "test eax, eax",
+        "test ecx, ecx",
         "jz child",
         // ----- parent path -----
         // overwrite with 0xAAAA - this should NOT affect the child
