@@ -12,7 +12,7 @@ use crate::{
         syscall::sys_exit,
         vmm::process::{Process, ProcessState, Scheduler},
     },
-    binaries::signals::signal_print_test,
+    binaries::{memory_seperation::memory_seperation_test, signals::signal_print_test},
     serial_println,
     signals::Action,
 };
@@ -51,36 +51,6 @@ use crate::{
 //     );
 // }
 
-// #[unsafe(naked)]
-// extern "C" fn program_write_in_memory() {
-//     naked_asm!(
-//         // both processes start by writing the same initial value
-//         "mov dword ptr [0x2000], 0x42",
-//         // fork
-//         "mov eax, 57",
-//         "int 0x80",
-//         // after this: eax = 0 in child, eax = child_pid in parent
-//
-//         // branch on eax
-//         "test eax, eax",
-//         "jz child",
-//         // ----- parent path -----
-//         // overwrite with 0xAAAA - this should NOT affect the child
-//         "mov dword ptr [0x2000], 0xAAAA",
-//         "jmp done",
-//         "child:",
-//         // ----- child path -----
-//         // overwrite with 0xBBBB - this should NOT affect the parent
-//         "mov dword ptr [0x2000], 0xBBBB",
-//         "done:",
-//         "mov ebx, [0x2000]",
-//         "mov eax, 42",
-//         "int 0x80",
-//         // both processes read their own [0x2000] into ebx and exit
-//         "mov eax, 60",
-//         "int 0x80",
-//     );
-// }
 //
 // #[unsafe(naked)]
 // extern "C" fn program_ipc_test() {
@@ -210,7 +180,7 @@ static TWO: u32 = 2;
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let p = Process::new(&signal_print_test(), super::vmm::process::Parent::Root, false);
+    let p = Process::new(&memory_seperation_test(), super::vmm::process::Parent::Root, false);
     SCHEDULER.lock().unwrap().spawn(p);
 
     irq::install_handler(0, timer);

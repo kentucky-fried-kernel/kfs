@@ -18,6 +18,7 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
     let pid = scheduler.current().expect("sys_exit | no process running").pid;
     serial_println!("pid {} exited", pid);
 
+    // Close sockets
     {
         let child = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
         let mut sockets = SOCKETS.lock().expect("sys_exit | could not lock SOCKETS");
@@ -26,6 +27,7 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
         }
     }
 
+    // Give children to parent
     {
         let current = scheduler.table.get_mut(pid).expect("sys_exit | could not find exited process");
         let children = current.children.clone();
