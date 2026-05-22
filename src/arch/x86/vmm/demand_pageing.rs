@@ -3,10 +3,11 @@ use core::ptr::{copy_nonoverlapping, write_bytes};
 use crate::{
     arch::x86::{
         idt::InterruptRegisters,
-        scheduler::{Permissions, SCHEDULER},
+        scheduler::SCHEDULER,
         syscall::sys_exit,
         vmm::{PAGE_SIZE, addressspace::Addressspace, process::VMA, state::PAGE_ALLOCATOR},
     },
+    binary::Permissions,
     serial_println,
 };
 

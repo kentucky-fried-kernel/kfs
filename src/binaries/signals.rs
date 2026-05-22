@@ -1,4 +1,4 @@
-use crate::arch::x86::scheduler::{Binary, Permissions, Segment};
+use crate::binary::{Binary, Permissions, Segment};
 
 #[unsafe(naked)]
 extern "C" fn signal_handler() {

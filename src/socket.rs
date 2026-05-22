@@ -3,7 +3,10 @@
 #![allow(clippy::missing_errors_doc)]
 use alloc::vec::Vec;
 
-use crate::arch::x86::{kernel_mutex::KernelMutex, scheduler::Permissions, vmm::process::VMA};
+use crate::{
+    arch::x86::{kernel_mutex::KernelMutex, vmm::process::VMA},
+    binary::Permissions,
+};
 
 pub type SocketId = usize;
 

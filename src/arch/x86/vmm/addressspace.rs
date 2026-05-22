@@ -1,14 +1,12 @@
 use alloc::{boxed::Box, collections::BTreeMap};
 
 use crate::{
-    arch::x86::{
-        scheduler::Permissions,
-        vmm::{
-            PAGE_SIZE,
-            page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
-            state::{PAGE_ALLOCATOR, PAGE_DIRECTORY_KERNEL},
-        },
+    arch::x86::vmm::{
+        PAGE_SIZE,
+        page::{PAGE_DIRECTORY_SIZE, PAGE_TABLE_SIZE, PageDirectory, PageDirectoryEntry, PageTable, PageTableEntry},
+        state::{PAGE_ALLOCATOR, PAGE_DIRECTORY_KERNEL},
     },
+    binary::Permissions,
     boot::KERNEL_BASE,
 };
 

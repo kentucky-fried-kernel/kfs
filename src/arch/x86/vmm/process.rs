@@ -1,11 +1,8 @@
 use alloc::{collections::VecDeque, vec::Vec};
 
 use crate::{
-    arch::x86::{
-        idt::InterruptRegisters,
-        scheduler::{Binary, Permissions},
-        vmm::addressspace::Addressspace,
-    },
+    arch::x86::{idt::InterruptRegisters, vmm::addressspace::Addressspace},
+    binary::{Binary, Permissions},
     signals::{Action, Signal, SignalsHandlers},
     socket::SocketId,
 };

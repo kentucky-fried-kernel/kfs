@@ -12,14 +12,14 @@ use crate::{
         syscall::sys_exit,
         vmm::process::{Process, ProcessState, Scheduler},
     },
-    binaries::{memory_seperation::memory_seperation_test, signals::signal_print_test, wait::wait_test},
+    binaries::{memory_seperation::memory_seperation_test, signals::signal_print_test, sockets::sockets_test, wait::wait_test},
     serial_println,
     signals::Action,
 };
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let p = Process::new(&wait_test(), super::vmm::process::Parent::Root, false);
+    let p = Process::new(&sockets_test(), super::vmm::process::Parent::Root, false);
     SCHEDULER.lock().unwrap().spawn(p);
 
     irq::install_handler(0, timer);
