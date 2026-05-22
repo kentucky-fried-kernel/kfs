@@ -46,12 +46,11 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
         parent.children_stopped.push(pid);
     }
 
+    drop(scheduler);
+    timer(regs);
+
+    let mut scheduler = SCHEDULER.lock().expect("sys_exit | failed to lock SCHEDULER");
     scheduler.exit(pid);
-
-    let next = scheduler.schedule().expect("no process to run");
-
-    next.addressspace.load();
-    *regs = next.saved_registers;
 }
 
 pub fn sys_fork(regs: &mut InterruptRegisters) {
