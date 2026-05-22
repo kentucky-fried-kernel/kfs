@@ -242,6 +242,12 @@ pub fn sys_exit_signal_handler(regs: &mut InterruptRegisters) {
     cur.exit_signal_handler();
 }
 
+pub fn sys_getuid(regs: &mut InterruptRegisters) {
+    let mut scheduler = SCHEDULER.lock().expect("sys_getuid | could not lock SCHEDULER");
+    let cur = scheduler.current().expect("sys_getuid | no process running");
+    regs.eax = cur.owner_id as u32;
+}
+
 pub fn syscall(regs: &mut InterruptRegisters) {
     {
         let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
@@ -254,6 +260,7 @@ pub fn syscall(regs: &mut InterruptRegisters) {
             6 => sys_socket_close(regs),
             7 => sys_socket_read(regs),
             8 => sys_socket_write(regs),
+            24 => sys_getuid(regs),
             35 => timer(regs),
             42 => sys_putnbr(regs),
             57 => sys_fork(regs),
