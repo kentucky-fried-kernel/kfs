@@ -18,7 +18,7 @@ extern "C" fn program_ipc_test() {
         //
         // branch on eax: 0 = child, nonzero = parent
         "test eax, eax",
-        "jz child",
+        "jz socket_child",
         // ===== PARENT =====
 
         // Store pid at [0x2000] so we have a stable address to pass as buf.
@@ -42,7 +42,7 @@ extern "C" fn program_ipc_test() {
         // exit(0)
         "mov eax, 60",
         "int 0x80",
-        "child:",
+        "socket_child:",
         // ===== CHILD =====
         // Busy-loop on socket_read until it returns > 0.
         // (No blocking read yet, so we spin.)

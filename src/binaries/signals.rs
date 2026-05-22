@@ -23,7 +23,7 @@ extern "C" fn program_signal_test() {
         "mov eax, 57",
         "int 0x80",
         "test eax, eax",
-        "jz child",
+        "jz signal_child",
         // ===== parent =====
         // stash child pid in edi for the whole lifetime of the parent
         "mov edi, eax",
@@ -40,7 +40,7 @@ extern "C" fn program_signal_test() {
         "int 0x80",
         "jmp parent_outer",
         // ===== child =====
-        "child:",
+        "signal_child:",
         // sys_signal(signal=2, handler_vaddr=0x1000)
         "mov eax, 70",
         "mov ebx, 2",

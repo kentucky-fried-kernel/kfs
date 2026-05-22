@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum Permissions {
     Read = 0,

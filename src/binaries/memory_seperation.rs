@@ -18,12 +18,12 @@ extern "C" fn program_write_in_memory() {
         "int 0x80",
         // branch on eax
         "test ecx, ecx",
-        "jz child",
+        "jz mp_child",
         // ----- parent path -----
         // overwrite with 0xAAAA - this should NOT affect the child
         "mov dword ptr [0x2000], 0xAAAA",
         "jmp done",
-        "child:",
+        "mp_child:",
         // ----- child path -----
         // overwrite with 0xBBBB - this should NOT affect the parent
         "mov dword ptr [0x2000], 0xBBBB",
