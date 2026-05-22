@@ -21,6 +21,7 @@ pub extern crate alloc;
 
 pub mod arch;
 pub mod binaries;
+pub mod binary;
 pub mod bitmap;
 pub mod boot;
 pub mod conv;
