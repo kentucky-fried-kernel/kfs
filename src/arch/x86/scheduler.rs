@@ -29,7 +29,7 @@ use crate::{
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let b = signal_print_test();
+    let b = wait_test();
     let p = Process::new(&b, super::vmm::process::Parent::Root, true);
     SCHEDULER.lock().unwrap().spawn(p);
 

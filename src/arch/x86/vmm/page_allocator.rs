@@ -315,7 +315,6 @@ impl<'a> PageAllocator<'a> {
 
         // Fast path: a block already exists at the requested order.
         if let Some(addr) = self.node_drain(smallest_order) {
-            serial_println!("addr given out {:x}", addr as usize);
             return Some(addr);
         }
 
@@ -324,7 +323,6 @@ impl<'a> PageAllocator<'a> {
             self.split(smallest_order + 1);
         }
         if let Some(addr) = self.node_drain(smallest_order) {
-            serial_println!("addr given out {:x}", addr as usize);
             return Some(addr);
         }
 
@@ -334,14 +332,12 @@ impl<'a> PageAllocator<'a> {
         self.coalesce();
 
         if let Some(addr) = self.node_drain(smallest_order) {
-            serial_println!("addr given out {:x}", addr as usize);
             return Some(addr);
         }
         if smallest_order + 1 < ORDERS {
             self.split(smallest_order + 1);
         }
         if let Some(addr) = self.node_drain(smallest_order) {
-            serial_println!("addr given out {:x}", addr as usize);
             return Some(addr);
         }
 
@@ -424,7 +420,6 @@ impl<'a> PageAllocator<'a> {
     /// [module docs](self)).
     #[allow(unused)]
     pub fn dealloc(&mut self, ptr: *mut u8, size: usize) {
-        serial_println!("addr dealloced out {:x}", ptr as usize);
         let order = match Self::find_smallest_order_fit_at_addr(ptr as usize, size) {
             Some(o) => o,
             None => return,
