@@ -5,7 +5,10 @@ use crate::{
     arch::x86::{
         idt::InterruptRegisters,
         scheduler::{SCHEDULER, timer},
-        vmm::process::{Parent, Pid, Process},
+        vmm::{
+            process::{Parent, Pid, Process},
+            state::PAGE_ALLOCATOR,
+        },
     },
     serial_println,
     signals::{Action, Signal},
@@ -179,6 +182,9 @@ pub fn sys_putnbr(regs: &mut InterruptRegisters) {
     serial_println!("ebp: {:#010x}", regs.ebp);
     serial_println!("esp: {:#010x}", regs.useresp);
     regs.eax = 0;
+    serial_println!();
+    let alloc = PAGE_ALLOCATOR.lock().expect("could not lock PAGE_ALLOCATOR");
+    alloc.print_free();
     serial_println!();
 }
 

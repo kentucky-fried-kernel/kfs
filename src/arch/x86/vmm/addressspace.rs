@@ -178,3 +178,14 @@ impl Addressspace {
         }
     }
 }
+impl Drop for Addressspace {
+    fn drop(&mut self) {
+        for pt in &self.page_tables {
+            for page in pt.1.iter().filter(|pte| pte.present() == 1) {
+                let paddr = page.address();
+                let mut alloc = PAGE_ALLOCATOR.lock().expect("could not lock PAGE_ALLOCATOR");
+                alloc.dealloc(paddr as *mut u8, PAGE_SIZE);
+            }
+        }
+    }
+}
