@@ -88,13 +88,5 @@ pub fn sockets_test() -> Binary {
         permissions: Permissions::ReadWrite,
     });
 
-    // Stack page.
-    bin.segments.push(Segment {
-        offset: None,
-        vaddr: 0x3000,
-        size: 0x1000,
-        permissions: Permissions::ReadWrite,
-    });
-
     bin
 }

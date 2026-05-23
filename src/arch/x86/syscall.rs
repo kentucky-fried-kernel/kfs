@@ -261,6 +261,7 @@ pub fn syscall(regs: &mut InterruptRegisters) {
             7 => sys_socket_read(regs),
             8 => sys_socket_write(regs),
             24 => sys_getuid(regs),
+            25 => sys_getpid(regs),
             35 => timer(regs),
             42 => sys_putnbr(regs),
             57 => sys_fork(regs),

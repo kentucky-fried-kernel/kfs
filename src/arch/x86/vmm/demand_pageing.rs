@@ -16,11 +16,10 @@ pub fn page_fault(regs: &mut InterruptRegisters) {
     #[allow(clippy::missing_panics_doc)]
     let mut scheduler = SCHEDULER.lock().expect("page_fault | could not lock SCHEDULER");
 
-    let addr = regs.cr2 as usize;
-    let addr = ((addr + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
     #[allow(clippy::missing_panics_doc)]
     let process = scheduler.current().expect("page_fault | no process running");
 
+    let addr = regs.cr2 as usize;
     let present = regs.err_code & 0b01 != 0;
     let write = regs.err_code & 0b10 != 0;
 
@@ -34,6 +33,7 @@ pub fn page_fault(regs: &mut InterruptRegisters) {
             break;
         }
 
+        let addr = (addr / PAGE_SIZE) * PAGE_SIZE;
         if !present && alloc_page(addr, &mut process.addressspace, vma).is_ok() {
             return;
         }

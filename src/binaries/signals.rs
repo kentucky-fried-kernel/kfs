@@ -70,14 +70,6 @@ pub fn signal_print_test() -> Binary {
         permissions: Permissions::Read,
     });
 
-    // Stack page.
-    bin.segments.push(Segment {
-        offset: None,
-        vaddr: 0x3000,
-        size: 0x1000,
-        permissions: Permissions::ReadWrite,
-    });
-
     // Main program code, entry at 0x4000.
     bin.segments.push(Segment {
         offset: Some(program_signal_test as *const () as usize),
