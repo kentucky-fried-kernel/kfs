@@ -5,12 +5,11 @@ use crate::binary::{Binary, Permissions, Segment};
 #[unsafe(naked)]
 extern "C" fn program_leak() {
     naked_asm!(
-        "mov eax, 42",
+        "mov eax, 43",
         "int 0x80",
+        //
         "mov ecx, 10",
         "leak_delay_loop:",
-        //
-
         // fork
         "mov eax, 57",
         "int 0x80",
@@ -25,8 +24,8 @@ extern "C" fn program_leak() {
         "leak_end:",
         "dec ecx",
         "jnz leak_delay_loop",
-        // after this: eax = 0 in child, eax = child_pid in parent
-        "mov eax, 42",
+        //
+        "mov eax, 43",
         "int 0x80",
         // exit()
         "mov eax, 60",

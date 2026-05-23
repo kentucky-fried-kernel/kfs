@@ -184,6 +184,9 @@ pub fn sys_putnbr(regs: &mut InterruptRegisters) {
     serial_println!("esp: {:#010x}", regs.useresp);
     regs.eax = 0;
     serial_println!();
+}
+
+pub fn sys_mem_free_print(regs: &mut InterruptRegisters) {
     let alloc = PAGE_ALLOCATOR.lock().expect("could not lock PAGE_ALLOCATOR");
     alloc.print_free();
     serial_println!();
@@ -271,6 +274,7 @@ pub fn syscall(regs: &mut InterruptRegisters) {
             25 => sys_getpid(regs),
             35 => timer(regs),
             42 => sys_putnbr(regs),
+            43 => sys_mem_free_print(regs),
             57 => sys_fork(regs),
             60 => sys_exit(regs),
             70 => sys_signal(regs),
