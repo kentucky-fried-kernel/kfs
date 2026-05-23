@@ -59,10 +59,10 @@ pub extern "C" fn sys_exit(regs: &mut InterruptRegisters) {
 }
 
 pub fn sys_fork(regs: &mut InterruptRegisters) {
-    serial_println!("forked");
     let mut scheduler = SCHEDULER.lock().expect("sys_fork | could not lock SCHEDULER");
     let parent = scheduler.current().expect("sys_fork | no process running");
     parent.saved_registers = *regs;
+    serial_println!("hello");
     let mut child = Process::from_process(parent);
 
     for socket_id in child.socket_fds.iter().flatten() {
@@ -79,6 +79,7 @@ pub fn sys_fork(regs: &mut InterruptRegisters) {
     parent.children.push(child_pid);
     parent.saved_registers.eax = child_pid as u32;
     regs.eax = child_pid as u32;
+    serial_println!("forked");
 }
 
 pub fn sys_getpid(regs: &mut InterruptRegisters) {

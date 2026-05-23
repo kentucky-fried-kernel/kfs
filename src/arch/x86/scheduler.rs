@@ -13,8 +13,8 @@ use crate::{
         vmm::process::{Process, ProcessState, Scheduler},
     },
     binaries::{
-        fork_bomb::fork_bomb_test, memory_protection::memory_protection_test, signals::signal_print_test, sockets::sockets_test, stack::stack_test,
-        super_user::super_user_test, wait::wait_test,
+        fork_bomb::fork_bomb_test, memory_leak::leak_test, memory_protection::memory_protection_test, signals::signal_print_test, sockets::sockets_test,
+        stack::stack_test, super_user::super_user_test, wait::wait_test,
     },
     serial_println,
     signals::Action,
@@ -22,7 +22,7 @@ use crate::{
 
 #[allow(clippy::missing_panics_doc)]
 pub fn init() {
-    let b = wait_test();
+    let b = leak_test();
     let p = Process::new(&b, super::vmm::process::Parent::Root, true);
     SCHEDULER.lock().unwrap().spawn(p);
 

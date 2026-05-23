@@ -92,11 +92,14 @@ impl Addressspace {
                 let _parent_paddr = (parent_pte.address() as usize) << 12;
 
                 #[allow(clippy::missing_panics_doc)]
+
+                crate::serial_println!("hello");
                 let new_paddr = PAGE_ALLOCATOR
                     .lock()
                     .expect("fork | couldn't lock PAGE_ALLOCATOR")
                     .alloc(PAGE_SIZE)
                     .expect("fork | out of memory");
+                crate::serial_println!("hello1");
 
                 // SAFETY:
                 // We use this so that we can go around the borrow checker because we loop over the
@@ -182,7 +185,7 @@ impl Drop for Addressspace {
     fn drop(&mut self) {
         for pt in &self.page_tables {
             for page in pt.1.iter().filter(|pte| pte.present() == 1) {
-                let paddr = page.address();
+                let paddr = page.address() << 12;
                 let mut alloc = PAGE_ALLOCATOR.lock().expect("could not lock PAGE_ALLOCATOR");
                 alloc.dealloc(paddr as *mut u8, PAGE_SIZE);
             }

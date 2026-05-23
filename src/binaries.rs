@@ -1,4 +1,5 @@
 pub mod fork_bomb;
+pub mod memory_leak;
 pub mod memory_protection;
 pub mod memory_seperation;
 pub mod signals;
