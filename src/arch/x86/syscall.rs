@@ -177,7 +177,7 @@ pub fn sys_putnbr(regs: &mut InterruptRegisters) {
     serial_println!("esi: {:#010x}", regs.esi);
     serial_println!("edi: {:#010x}", regs.edi);
     serial_println!("ebp: {:#010x}", regs.ebp);
-    serial_println!("esp: {:#010x}", regs.esp);
+    serial_println!("esp: {:#010x}", regs.useresp);
     regs.eax = 0;
     serial_println!();
 }

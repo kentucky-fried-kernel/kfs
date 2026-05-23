@@ -7,7 +7,6 @@ extern "C" fn program_stack() {
     naked_asm!(
         "mov eax, 42",
         "push eax",
-        "push eax",
         //
         "pop ebx",
         //
@@ -29,7 +28,7 @@ pub fn stack_test() -> Binary {
         permissions: Permissions::Read,
     });
 
-    // Data page.
+    // Stack page.
     bin.segments.push(Segment {
         offset: None,
         vaddr: 0x3000,
